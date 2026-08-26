@@ -1,0 +1,28 @@
+{
+  "captured_at": "2026-08-26T02:32:34.079Z",
+  "label": "route--api-verification-route-not-found",
+  "request": {
+    "method": "GET",
+    "route": "/api/verification-route-not-found",
+    "headers": {},
+    "body_bytes": 0,
+    "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "response": {
+    "status": 404,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store"
+    },
+    "body_bytes": 117,
+    "body_sha256": "26ad8ed8a5693978e8f960c110c84f942a4b5fbb768d83751fb4810d7675d6c9",
+    "body": {
+      "error": {
+        "code": "route_not_found",
+        "message": "The requested API route was not found.",
+        "fields": [],
+        "incidentId": null
+      }
+    }
+  }
+}

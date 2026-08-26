@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.invalid/schemas/verification-fixtures.schema.json",
+  "title": "Nexus private verification fixture manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "acceptanceManifestId", "verificationPrefix", "baseUrl", "createdAt", "fixtures"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "acceptanceManifestId": { "const": "nexus-s1-reconciled-1" },
+    "verificationPrefix": { "type": "string", "pattern": "^verify-[a-z0-9](?:[a-z0-9-]{0,39}[a-z0-9])?$" },
+    "baseUrl": { "type": "string", "pattern": "^https://[a-z0-9-]+\\.[a-z0-9-]+\\.workers\\.dev$" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "fixtures": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          { "$ref": "#/$defs/product" },
+          { "$ref": "#/$defs/variant" },
+          { "$ref": "#/$defs/import" },
+          { "$ref": "#/$defs/object" }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "manifestId": { "type": "string", "pattern": "^[A-Z]+-[0-9]{3}$" },
+    "recordedAt": { "type": "string", "format": "date-time" },
+    "product": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "manifestId", "fixtureLabel", "recordedAt", "id", "slug"],
+      "properties": {
+        "kind": { "const": "product" },
+        "manifestId": { "$ref": "#/$defs/manifestId" },
+        "fixtureLabel": { "type": "string", "minLength": 1 },
+        "recordedAt": { "$ref": "#/$defs/recordedAt" },
+        "id": { "type": "string", "minLength": 1 },
+        "slug": { "type": "string", "minLength": 1 }
+      }
+    },
+    "variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "manifestId", "fixtureLabel", "recordedAt", "id", "productId"],
+      "properties": {
+        "kind": { "const": "variant" },
+        "manifestId": { "$ref": "#/$defs/manifestId" },
+        "fixtureLabel": { "type": "string", "minLength": 1 },
+        "recordedAt": { "$ref": "#/$defs/recordedAt" },
+        "id": { "type": "string", "minLength": 1 },
+        "productId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "import": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "manifestId", "fixtureLabel", "recordedAt", "id", "filename"],
+      "properties": {
+        "kind": { "const": "import" },
+        "manifestId": { "$ref": "#/$defs/manifestId" },
+        "fixtureLabel": { "type": "string", "minLength": 1 },
+        "recordedAt": { "$ref": "#/$defs/recordedAt" },
+        "id": { "type": "string", "minLength": 1 },
+        "filename": { "type": "string", "minLength": 1 }
+      }
+    },
+    "object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "manifestId", "fixtureLabel", "recordedAt", "alias", "privateObjectKey", "ownerKind", "ownerId", "disposition"],
+      "properties": {
+        "kind": { "const": "object" },
+        "manifestId": { "$ref": "#/$defs/manifestId" },
+        "fixtureLabel": { "type": "string", "minLength": 1 },
+        "recordedAt": { "$ref": "#/$defs/recordedAt" },
+        "alias": { "type": "string", "minLength": 1 },
+        "privateObjectKey": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "pattern": "^(delivery/[0-9a-f-]+|imports/[0-9a-f-]+\\.csv)$" }
+          ]
+        },
+        "ownerKind": { "enum": ["product", "variant", "import"] },
+        "ownerId": { "type": "string", "minLength": 1 },
+        "disposition": { "enum": ["unresolved", "active_fixture", "historical_retained", "snapshot_ambiguous", "unreferenced_fixture"] }
+      }
+    }
+  }
+}

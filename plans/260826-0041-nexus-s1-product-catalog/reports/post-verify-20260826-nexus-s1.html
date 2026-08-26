@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Nexus S1 Phase 6 verification</title>
+  <style>
+    body { font: 16px/1.45 ui-sans-serif, system-ui, sans-serif; margin: 2rem auto; max-width: 52rem; color: #111; }
+    code, a { word-break: break-word; }
+    .risk { border: 2px solid #8a1f11; padding: 1rem; background: #fff4f1; }
+  </style>
+</head>
+<body>
+  <h1>Nexus S1 verification and Wrangler deployment</h1>
+  <p>Manifest <code>nexus-s1-reconciled-1</code> version 1 is complete: 118/118 ledger rows passed, 1404 artifacts linked. Ledger: <a href="./evidence/evidence-ledger.csv">evidence-ledger.csv</a> / <a href="./evidence/evidence-ledger.json">evidence-ledger.json</a>. Summary input: <a href="./evidence/report-input.json">report-input.json</a>.</p>
+  <p>Approved prototype baseline remains <a href="../../../.artifacts/report/20260826-030504-nexus-prototype/report.html">20260826-030504-nexus-prototype/report.html</a> and <a href="../../../design/approval.md">design/approval.md</a>.</p>
+  <h2>Deployed identity</h2>
+  <ul>
+    <li>Worker: <code>nexus-s1-468cba</code></li>
+    <li>URL: <a href="https://nexus-s1-468cba.cpp-software-solutions.workers.dev">https://nexus-s1-468cba.cpp-software-solutions.workers.dev</a></li>
+    <li>D1: <code>nexus-s1-468cba-db</code> / <code>7424d853-fa0b-4e6c-b341-eca85b82e4bd</code></li>
+    <li>R2: <code>nexus-s1-468cba-private</code></li>
+  </ul>
+  <p>Local: workerd 77/77, Chromium 8/8, Playwright 14/14, typecheck, production import graph clean. Remote: D1 migrations 0001-0003 applied; first and second direct <code>npx wrangler deploy</code> returned the same workers.dev URL and bindings; smoke captured 540 requests. CSV-015 recount proved D1 <code>500+2500+2500+500+2500+1 = 8,501</code> relational records. Cleanup left 0 products/variants/groups/imports and retained <code>store_nexus</code>/<code>nexus</code>.</p>
+  <p>Ledger check accepts one artifact per required class. Remote smoke JSON exists for 50 IDs; CSV-015/DATA-008 now include the 8,501 D1 count. Remaining L/C notes are command-level observations, not a second per-ID screenshot or 25,000,001-byte remote corpus.</p>
+  <h2 class="risk">Accepted public risk</h2>
+  <p>Console read, write, import, and upload routes are intentionally anonymous in S1. No login, session, or Owner authorization UI or config was added. Anonymous users can mutate the catalog and consume Worker, D1, and R2 quota. Size, type, and combination bounds mitigate but do not remove abuse risk. Real identity and permissions belong to S4.</p>
+  <p>This <code>workers.dev</code> site is a public teaching deployment, not a custom-domain or business-critical production/security claim. There is no custom domain and no public R2 route.</p>
+</body>
+</html>

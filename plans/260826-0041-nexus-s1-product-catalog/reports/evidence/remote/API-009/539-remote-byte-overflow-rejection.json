@@ -1,0 +1,31 @@
+{
+  "captured_at": "2026-08-26T02:34:02.029Z",
+  "label": "remote-byte-overflow-rejection",
+  "request": {
+    "method": "POST",
+    "route": "/api/console/imports",
+    "headers": {
+      "Content-Type": "text/csv; charset=utf-8",
+      "X-Nexus-Filename": "verify-260826-p6e-oversize.csv"
+    },
+    "body_bytes": 1000001,
+    "body_sha256": "d100b2cca5c3f0968350fa1143cc2fede7542a7101e1c8d85398206ddafc364e"
+  },
+  "response": {
+    "status": 413,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store"
+    },
+    "body_bytes": 126,
+    "body_sha256": "88a267a9e1edf3bcae04ef0997f39b817c8d3bbcac21f69707ee329e1bf227dc",
+    "body": {
+      "error": {
+        "code": "csv_size_exceeded",
+        "message": "CSV files must be 1,000,000 bytes or smaller.",
+        "fields": [],
+        "incidentId": null
+      }
+    }
+  }
+}

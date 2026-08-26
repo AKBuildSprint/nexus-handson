@@ -1,0 +1,204 @@
+{
+  "captured_at": "2026-08-26T02:32:36.465Z",
+  "label": "schema-preview-zero-write",
+  "request": {
+    "method": "GET",
+    "route": "/api/console/products/by-slug/verify-260826-p6e-variant",
+    "headers": {},
+    "body_bytes": 0,
+    "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"2\"",
+      "cache-control": "no-store"
+    },
+    "body_bytes": 4452,
+    "body_sha256": "d5749b8c490eed47ea9ca9cdb2ae66a7d20eeac9e3b49427800ce2cfcb04abd4",
+    "body": {
+      "id": "prod_23c8f928a7424d00958aebe26433431a",
+      "slug": "verify-260826-p6e-variant",
+      "name": "verify-260826-p6e variant",
+      "status": "active",
+      "type": "variant",
+      "currency": "USD",
+      "basePriceMinor": 1995,
+      "publicDescription": "Public description for verify-260826-p6e variant",
+      "delivery": {
+        "accessTitle": "Download verify-260826-p6e variant",
+        "accessInstructions": "Open the private file from the paid order.",
+        "file": {
+          "present": false
+        }
+      },
+      "optionGroups": [
+        {
+          "id": "grp_f7eadc25fc2144dc9d748b7f64d49b59",
+          "name": "Option 1 renamed",
+          "position": 0,
+          "participating": true,
+          "values": [
+            {
+              "id": "val_7cdcb93632e54de0bb94107b97c6eea7",
+              "label": "Value 1.1 renamed",
+              "position": 0
+            },
+            {
+              "id": "val_f2964fe0993d49efa00e9d56fc1f37c3",
+              "label": "Value 1.2",
+              "position": 1
+            }
+          ]
+        },
+        {
+          "id": "grp_aaffaf272da64f8185e44941a88e8a77",
+          "name": "Option 2",
+          "position": 1,
+          "participating": true,
+          "values": [
+            {
+              "id": "val_dc6033d1e9464671913a64e721b5a898",
+              "label": "Value 2.1",
+              "position": 0
+            },
+            {
+              "id": "val_e38340e90b1349aeb339bc12beadcf3a",
+              "label": "Value 2.2",
+              "position": 1
+            }
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "var_457489ea3b75496ca30269c174b2ce31",
+          "combinationKey": "grp_f7eadc25fc2144dc9d748b7f64d49b59:val_f2964fe0993d49efa00e9d56fc1f37c3|grp_aaffaf272da64f8185e44941a88e8a77:val_e38340e90b1349aeb339bc12beadcf3a",
+          "selectedOptions": [
+            {
+              "groupId": "grp_f7eadc25fc2144dc9d748b7f64d49b59",
+              "groupName": "Option 1 renamed",
+              "valueId": "val_f2964fe0993d49efa00e9d56fc1f37c3",
+              "valueLabel": "Value 1.2"
+            },
+            {
+              "groupId": "grp_aaffaf272da64f8185e44941a88e8a77",
+              "groupName": "Option 2",
+              "valueId": "val_e38340e90b1349aeb339bc12beadcf3a",
+              "valueLabel": "Value 2.2"
+            }
+          ],
+          "sku": "VERIFY-260826-P6E-EDITED",
+          "status": "enabled",
+          "priceOverrideMinor": 2900,
+          "effectivePriceMinor": 2900,
+          "priceSource": "override",
+          "delivery": {
+            "source": "variant_override",
+            "accessTitle": "Edited Variant access",
+            "accessInstructions": "Edited Variant instructions",
+            "file": {
+              "present": false
+            }
+          }
+        },
+        {
+          "id": "var_8e84f5566e0c40c0aee2b67e1fd97ef8",
+          "combinationKey": "grp_f7eadc25fc2144dc9d748b7f64d49b59:val_7cdcb93632e54de0bb94107b97c6eea7|grp_aaffaf272da64f8185e44941a88e8a77:val_dc6033d1e9464671913a64e721b5a898",
+          "selectedOptions": [
+            {
+              "groupId": "grp_f7eadc25fc2144dc9d748b7f64d49b59",
+              "groupName": "Option 1 renamed",
+              "valueId": "val_7cdcb93632e54de0bb94107b97c6eea7",
+              "valueLabel": "Value 1.1 renamed"
+            },
+            {
+              "groupId": "grp_aaffaf272da64f8185e44941a88e8a77",
+              "groupName": "Option 2",
+              "valueId": "val_dc6033d1e9464671913a64e721b5a898",
+              "valueLabel": "Value 2.1"
+            }
+          ],
+          "sku": "VERIFY-260826-P6E-VARIANT-01",
+          "status": "disabled",
+          "priceOverrideMinor": null,
+          "effectivePriceMinor": 1995,
+          "priceSource": "base_price",
+          "delivery": {
+            "source": "product_default",
+            "accessTitle": "Download verify-260826-p6e variant",
+            "accessInstructions": "Open the private file from the paid order.",
+            "file": {
+              "present": false
+            }
+          }
+        },
+        {
+          "id": "var_c797de59b153441cb477a23ea5f66584",
+          "combinationKey": "grp_f7eadc25fc2144dc9d748b7f64d49b59:val_7cdcb93632e54de0bb94107b97c6eea7|grp_aaffaf272da64f8185e44941a88e8a77:val_e38340e90b1349aeb339bc12beadcf3a",
+          "selectedOptions": [
+            {
+              "groupId": "grp_f7eadc25fc2144dc9d748b7f64d49b59",
+              "groupName": "Option 1 renamed",
+              "valueId": "val_7cdcb93632e54de0bb94107b97c6eea7",
+              "valueLabel": "Value 1.1 renamed"
+            },
+            {
+              "groupId": "grp_aaffaf272da64f8185e44941a88e8a77",
+              "groupName": "Option 2",
+              "valueId": "val_e38340e90b1349aeb339bc12beadcf3a",
+              "valueLabel": "Value 2.2"
+            }
+          ],
+          "sku": "VERIFY-260826-P6E-VARIANT-02",
+          "status": "enabled",
+          "priceOverrideMinor": null,
+          "effectivePriceMinor": 1995,
+          "priceSource": "base_price",
+          "delivery": {
+            "source": "product_default",
+            "accessTitle": "Download verify-260826-p6e variant",
+            "accessInstructions": "Open the private file from the paid order.",
+            "file": {
+              "present": false
+            }
+          }
+        },
+        {
+          "id": "var_ce797534116248e5aac156e60a6cb0d9",
+          "combinationKey": "grp_f7eadc25fc2144dc9d748b7f64d49b59:val_f2964fe0993d49efa00e9d56fc1f37c3|grp_aaffaf272da64f8185e44941a88e8a77:val_dc6033d1e9464671913a64e721b5a898",
+          "selectedOptions": [
+            {
+              "groupId": "grp_f7eadc25fc2144dc9d748b7f64d49b59",
+              "groupName": "Option 1 renamed",
+              "valueId": "val_f2964fe0993d49efa00e9d56fc1f37c3",
+              "valueLabel": "Value 1.2"
+            },
+            {
+              "groupId": "grp_aaffaf272da64f8185e44941a88e8a77",
+              "groupName": "Option 2",
+              "valueId": "val_dc6033d1e9464671913a64e721b5a898",
+              "valueLabel": "Value 2.1"
+            }
+          ],
+          "sku": "VERIFY-260826-P6E-VARIANT-03",
+          "status": "enabled",
+          "priceOverrideMinor": null,
+          "effectivePriceMinor": 1995,
+          "priceSource": "base_price",
+          "delivery": {
+            "source": "product_default",
+            "accessTitle": "Download verify-260826-p6e variant",
+            "accessInstructions": "Open the private file from the paid order.",
+            "file": {
+              "present": false
+            }
+          }
+        }
+      ],
+      "updatedAt": "2026-08-26T02:32:36.229Z",
+      "revision": 2
+    }
+  }
+}

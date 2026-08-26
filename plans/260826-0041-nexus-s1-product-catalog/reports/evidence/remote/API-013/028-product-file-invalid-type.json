@@ -1,0 +1,32 @@
+{
+  "captured_at": "2026-08-26T02:32:39.625Z",
+  "label": "product-file-invalid-type",
+  "request": {
+    "method": "PUT",
+    "route": "/api/console/products/prod_64cd7ded1a76450abd4a34ffe8e3fce3/delivery-file",
+    "headers": {
+      "Content-Type": "application/octet-stream",
+      "If-Match": "\"5\"",
+      "X-Nexus-Filename": "verify-260826-p6e-invalid.pdf"
+    },
+    "body_bytes": 16,
+    "body_sha256": "c65dc384edaf635e267ab10141232c6fb5c81c87c33596bbf219e20635077b30"
+  },
+  "response": {
+    "status": 415,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store"
+    },
+    "body_bytes": 142,
+    "body_sha256": "7f438b645da2c039f0c5ef0cc39d2a4d1a2c13c28d92c2f7d4348add0de22cba",
+    "body": {
+      "error": {
+        "code": "delivery_file_type_invalid",
+        "message": "Delivery files must contain actual PDF or ZIP bytes.",
+        "fields": [],
+        "incidentId": null
+      }
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "captured_at": "2026-08-26T02:32:35.216Z",
+  "label": "simple-list",
+  "request": {
+    "method": "GET",
+    "route": "/api/console/products?q=verify-260826-p6e",
+    "headers": {},
+    "body_bytes": 0,
+    "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store"
+    },
+    "body_bytes": 327,
+    "body_sha256": "5273c82fddb6ece4c4d9f3c6d26d762c160be8400bb04054a473b9ba5e99b61d",
+    "body": {
+      "products": [
+        {
+          "id": "prod_64cd7ded1a76450abd4a34ffe8e3fce3",
+          "slug": "verify-260826-p6e-simple",
+          "name": "verify-260826-p6e simple",
+          "status": "active",
+          "type": "simple",
+          "currency": "USD",
+          "minimumEffectivePriceMinor": 1995,
+          "maximumEffectivePriceMinor": 1995,
+          "enabledVariantCount": null,
+          "updatedAt": "2026-08-26T02:32:35.210Z",
+          "revision": 1
+        }
+      ]
+    }
+  }
+}

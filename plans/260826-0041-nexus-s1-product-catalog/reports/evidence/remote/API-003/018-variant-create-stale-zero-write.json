@@ -1,0 +1,23 @@
+{
+  "captured_at": "2026-08-26T02:32:35.827Z",
+  "label": "variant-create-stale-zero-write",
+  "request": {
+    "method": "GET",
+    "route": "/api/console/products?q=verify-260826-p6e-variant",
+    "headers": {},
+    "body_bytes": 0,
+    "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store"
+    },
+    "body_bytes": 15,
+    "body_sha256": "86d8b086af0fc30d06856e218fcfdb6b803f91b45f50b1b753d8deac627fc054",
+    "body": {
+      "products": []
+    }
+  }
+}

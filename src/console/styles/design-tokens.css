@@ -1,0 +1,85 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600&family=Source+Sans+3:wght@400;600;700&display=swap');
+
+:root {
+  color-scheme: light;
+
+  --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --font-body: 'Source Sans 3', 'Helvetica Neue', sans-serif;
+  --weight-regular: 400;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --type-page-size: 1.75rem;
+  --type-page-line: 2rem;
+  --type-section-size: 1.4375rem;
+  --type-section-line: 1.75rem;
+  --type-subhead-size: 1.1875rem;
+  --type-subhead-line: 1.5rem;
+  --type-body-size: 1rem;
+  --type-body-line: 1.5rem;
+  --type-compact-size: 0.875rem;
+  --type-compact-line: 1.25rem;
+  --type-meta-size: 0.75rem;
+  --type-meta-line: 1rem;
+  --tracking-meta: 0.08em;
+
+  --color-canvas: oklch(0.965 0.008 245);
+  --color-surface: oklch(0.985 0.004 245);
+  --color-surface-muted: oklch(0.925 0.012 245);
+  --color-surface-strong: oklch(0.865 0.016 245);
+  --color-ink: oklch(0.22 0.024 245);
+  --color-ink-muted: oklch(0.41 0.022 245);
+  --color-border: oklch(0.79 0.016 245);
+  --color-border-strong: oklch(0.54 0.025 245);
+  --color-accent: oklch(0.675 0.18 45);
+  --color-accent-hover: oklch(0.615 0.18 45);
+  --color-accent-active: oklch(0.555 0.17 45);
+  --color-accent-soft: oklch(0.915 0.045 45);
+  --color-accent-ink: oklch(0.205 0.035 45);
+  --color-success-surface: oklch(0.925 0.045 150);
+  --color-success-ink: oklch(0.3 0.09 150);
+  --color-warning-surface: oklch(0.93 0.07 85);
+  --color-warning-ink: oklch(0.3 0.085 75);
+  --color-error-surface: oklch(0.93 0.045 25);
+  --color-error-ink: oklch(0.33 0.13 25);
+  --color-info-surface: oklch(0.925 0.035 245);
+  --color-info-ink: oklch(0.3 0.095 245);
+  --color-scrim: oklch(0.22 0.024 245 / 0.42);
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-24: 6rem;
+
+  --radius-control: 0.25rem;
+  --radius-surface: 0.5rem;
+  --border-hairline: 0.0625rem;
+  --border-emphasis: 0.125rem;
+
+  --motion-press: 100ms;
+  --motion-state: 180ms;
+  --motion-panel: 240ms;
+  --ease-out: cubic-bezier(0.25, 1, 0.5, 1);
+
+  --focus-ring-width: 0.125rem;
+  --focus-ring-offset: 0.125rem;
+  --target-min: 2.75rem;
+  --layout-rail-width: 13rem;
+  --layout-topbar-height: 3.5rem;
+  --layout-editor-measure: 60rem;
+  --layout-drawer-width: 30rem;
+  --layout-control-wide: 18rem;
+  --layout-control-medium: 12rem;
+  --layout-control-short: 7.5rem;
+  --layout-skeleton-line: 1rem;
+  --layout-meter-height: 0.75rem;
+  --layout-dialog-offset: 4rem;
+  --z-sticky: 20;
+  --z-scrim: 30;
+  --z-dialog: 40;
+}

@@ -1,0 +1,42 @@
+{
+  "captured_at": "2026-08-26T02:32:41.435Z",
+  "label": "partial-groups-added-verify-260826-p6e-eligible",
+  "request": {
+    "method": "GET",
+    "route": "/api/console/products/by-slug/verify-260826-p6e-eligible",
+    "headers": {},
+    "body_bytes": 0,
+    "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"1\"",
+      "cache-control": "no-store"
+    },
+    "body_bytes": 388,
+    "body_sha256": "6bf2bf89494369594895a71085154eb577dc155e06ae794e1e3fe936b9ff28e0",
+    "body": {
+      "id": "prod_d9da22a1465c45fbad89a2e107f1c8f2",
+      "slug": "verify-260826-p6e-eligible",
+      "name": "verify-260826-p6e-eligible",
+      "status": "active",
+      "type": "simple",
+      "currency": "USD",
+      "basePriceMinor": 700,
+      "publicDescription": "",
+      "delivery": {
+        "accessTitle": "Download",
+        "accessInstructions": "Open",
+        "file": {
+          "present": false
+        }
+      },
+      "optionGroups": [],
+      "variants": [],
+      "updatedAt": "2026-08-26T02:32:41.397Z",
+      "revision": 1
+    }
+  }
+}

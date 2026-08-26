@@ -1,0 +1,467 @@
+{
+  "captured_at": "2026-08-26T02:32:43.172Z",
+  "label": "warning-confirmed-added-verify-260826-p6e-warning",
+  "request": {
+    "method": "GET",
+    "route": "/api/console/products/by-slug/verify-260826-p6e-warning",
+    "headers": {},
+    "body_bytes": 0,
+    "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"1\"",
+      "cache-control": "no-store"
+    },
+    "body_bytes": 10821,
+    "body_sha256": "2f1fd315f1b75aaac49e02af7a46c8dcf88e8e326157fc8497817b9d4fa8e56c",
+    "body": {
+      "id": "prod_4361c2f190614501b3576a3387ef3223",
+      "slug": "verify-260826-p6e-warning",
+      "name": "verify-260826-p6e-warning",
+      "status": "active",
+      "type": "variant",
+      "currency": "USD",
+      "basePriceMinor": 700,
+      "publicDescription": "",
+      "delivery": {
+        "accessTitle": "Download",
+        "accessInstructions": "Open",
+        "file": {
+          "present": false
+        }
+      },
+      "optionGroups": [
+        {
+          "id": "csvgrp_a132c786afe44006929d4cb60bccb278",
+          "name": "Theme",
+          "position": 0,
+          "participating": true,
+          "values": [
+            {
+              "id": "csvval_054c6e184f2a4efea789c1f35197dd46",
+              "label": "Theme 1",
+              "position": 0
+            },
+            {
+              "id": "csvval_8ccab4c1a0fe455ab9c5a136b3b4d821",
+              "label": "Theme 2",
+              "position": 1
+            },
+            {
+              "id": "csvval_3327c9f6491840089fce2bc8ff6ca3f6",
+              "label": "Theme 3",
+              "position": 2
+            }
+          ]
+        },
+        {
+          "id": "csvgrp_124b95cc77ea44589962be7fc5162f7c",
+          "name": "License",
+          "position": 1,
+          "participating": true,
+          "values": [
+            {
+              "id": "csvval_72cc65a11a064fab8740b19bdfdf466a",
+              "label": "License 1",
+              "position": 0
+            },
+            {
+              "id": "csvval_018e351a42d847afa96b24b4f21e6ff2",
+              "label": "License 2",
+              "position": 1
+            },
+            {
+              "id": "csvval_ae022895ff6948359f9c136bee926053",
+              "label": "License 3",
+              "position": 2
+            },
+            {
+              "id": "csvval_c8bfe30156da47e29f70970257b011d9",
+              "label": "License 4",
+              "position": 3
+            }
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "csvvar_2c9abd6b006c4fcc9c7393a03b92e2e5",
+          "combinationKey": "csvgrp_a132c786afe44006929d4cb60bccb278:csvval_8ccab4c1a0fe455ab9c5a136b3b4d821|csvgrp_124b95cc77ea44589962be7fc5162f7c:csvval_018e351a42d847afa96b24b4f21e6ff2",
+          "selectedOptions": [
+            {
+              "groupId": "csvgrp_a132c786afe44006929d4cb60bccb278",
+              "groupName": "Theme",
+              "valueId": "csvval_8ccab4c1a0fe455ab9c5a136b3b4d821",
+              "valueLabel": "Theme 2"
+            },
+            {
+              "groupId": "csvgrp_124b95cc77ea44589962be7fc5162f7c",
+              "groupName": "License",
+              "valueId": "csvval_018e351a42d847afa96b24b4f21e6ff2",
+              "valueLabel": "License 2"
+            }
+          ],
+          "sku": "VERIFY-260826-P6E-WARNING-2-2",
+          "status": "enabled",
+          "priceOverrideMinor": null,
+          "effectivePriceMinor": 700,
+          "priceSource": "base_price",
+          "delivery": {
+            "source": "product_default",
+            "accessTitle": "Download",
+            "accessInstructions": "Open",
+            "file": {
+              "present": false
+            }
+          }
+        },
+        {
+          "id": "csvvar_3a4a3136594141a9881113dec5ddeb07",
+          "combinationKey": "csvgrp_a132c786afe44006929d4cb60bccb278:csvval_054c6e184f2a4efea789c1f35197dd46|csvgrp_124b95cc77ea44589962be7fc5162f7c:csvval_c8bfe30156da47e29f70970257b011d9",
+          "selectedOptions": [
+            {
+              "groupId": "csvgrp_a132c786afe44006929d4cb60bccb278",
+              "groupName": "Theme",
+              "valueId": "csvval_054c6e184f2a4efea789c1f35197dd46",
+              "valueLabel": "Theme 1"
+            },
+            {
+              "groupId": "csvgrp_124b95cc77ea44589962be7fc5162f7c",
+              "groupName": "License",
+              "valueId": "csvval_c8bfe30156da47e29f70970257b011d9",
+              "valueLabel": "License 4"
+            }
+          ],
+          "sku": "VERIFY-260826-P6E-WARNING-1-4",
+          "status": "enabled",
+          "priceOverrideMinor": null,
+          "effectivePriceMinor": 700,
+          "priceSource": "base_price",
+          "delivery": {
+            "source": "product_default",
+            "accessTitle": "Download",
+            "accessInstructions": "Open",
+            "file": {
+              "present": false
+            }
+          }
+        },
+        {
+          "id": "csvvar_48a67be644304715bcfe2bd098d6817f",
+          "combinationKey": "csvgrp_a132c786afe44006929d4cb60bccb278:csvval_3327c9f6491840089fce2bc8ff6ca3f6|csvgrp_124b95cc77ea44589962be7fc5162f7c:csvval_c8bfe30156da47e29f70970257b011d9",
+          "selectedOptions": [
+            {
+              "groupId": "csvgrp_a132c786afe44006929d4cb60bccb278",
+              "groupName": "Theme",
+              "valueId": "csvval_3327c9f6491840089fce2bc8ff6ca3f6",
+              "valueLabel": "Theme 3"
+            },
+            {
+              "groupId": "csvgrp_124b95cc77ea44589962be7fc5162f7c",
+              "groupName": "License",
+              "valueId": "csvval_c8bfe30156da47e29f70970257b011d9",
+              "valueLabel": "License 4"
+            }
+          ],
+          "sku": "VERIFY-260826-P6E-WARNING-3-4",
+          "status": "enabled",
+          "priceOverrideMinor": null,
+          "effectivePriceMinor": 700,
+          "priceSource": "base_price",
+          "delivery": {
+            "source": "product_default",
+            "accessTitle": "Download",
+            "accessInstructions": "Open",
+            "file": {
+              "present": false
+            }
+          }
+        },
+        {
+          "id": "csvvar_68e201e2755d487fa0520786d40bb08d",
+          "combinationKey": "csvgrp_a132c786afe44006929d4cb60bccb278:csvval_054c6e184f2a4efea789c1f35197dd46|csvgrp_124b95cc77ea44589962be7fc5162f7c:csvval_ae022895ff6948359f9c136bee926053",
+          "selectedOptions": [
+            {
+              "groupId": "csvgrp_a132c786afe44006929d4cb60bccb278",
+              "groupName": "Theme",
+              "valueId": "csvval_054c6e184f2a4efea789c1f35197dd46",
+              "valueLabel": "Theme 1"
+            },
+            {
+              "groupId": "csvgrp_124b95cc77ea44589962be7fc5162f7c",
+              "groupName": "License",
+              "valueId": "csvval_ae022895ff6948359f9c136bee926053",
+              "valueLabel": "License 3"
+            }
+          ],
+          "sku": "VERIFY-260826-P6E-WARNING-1-3",
+          "status": "enabled",
+          "priceOverrideMinor": null,
+          "effectivePriceMinor": 700,
+          "priceSource": "base_price",
+          "delivery": {
+            "source": "product_default",
+            "accessTitle": "Download",
+            "accessInstructions": "Open",
+            "file": {
+              "present": false
+            }
+          }
+        },
+        {
+          "id": "csvvar_6b7f7362130748d49e6650e67d2655a4",
+          "combinationKey": "csvgrp_a132c786afe44006929d4cb60bccb278:csvval_3327c9f6491840089fce2bc8ff6ca3f6|csvgrp_124b95cc77ea44589962be7fc5162f7c:csvval_72cc65a11a064fab8740b19bdfdf466a",
+          "selectedOptions": [
+            {
+              "groupId": "csvgrp_a132c786afe44006929d4cb60bccb278",
+              "groupName": "Theme",
+              "valueId": "csvval_3327c9f6491840089fce2bc8ff6ca3f6",
+              "valueLabel": "Theme 3"
+            },
+            {
+              "groupId": "csvgrp_124b95cc77ea44589962be7fc5162f7c",
+              "groupName": "License",
+              "valueId": "csvval_72cc65a11a064fab8740b19bdfdf466a",
+              "valueLabel": "License 1"
+            }
+          ],
+          "sku": "VERIFY-260826-P6E-WARNING-3-1",
+          "status": "enabled",
+          "priceOverrideMinor": null,
+          "effectivePriceMinor": 700,
+          "priceSource": "base_price",
+          "delivery": {
+            "source": "product_default",
+            "accessTitle": "Download",
+            "accessInstructions": "Open",
+            "file": {
+              "present": false
+            }
+          }
+        },
+        {
+          "id": "csvvar_86da39ea23ce42da8e9d7982f0b99745",
+          "combinationKey": "csvgrp_a132c786afe44006929d4cb60bccb278:csvval_054c6e184f2a4efea789c1f35197dd46|csvgrp_124b95cc77ea44589962be7fc5162f7c:csvval_72cc65a11a064fab8740b19bdfdf466a",
+          "selectedOptions": [
+            {
+              "groupId": "csvgrp_a132c786afe44006929d4cb60bccb278",
+              "groupName": "Theme",
+              "valueId": "csvval_054c6e184f2a4efea789c1f35197dd46",
+              "valueLabel": "Theme 1"
+            },
+            {
+              "groupId": "csvgrp_124b95cc77ea44589962be7fc5162f7c",
+              "groupName": "License",
+              "valueId": "csvval_72cc65a11a064fab8740b19bdfdf466a",
+              "valueLabel": "License 1"
+            }
+          ],
+          "sku": "VERIFY-260826-P6E-WARNING-1-1",
+          "status": "enabled",
+          "priceOverrideMinor": null,
+          "effectivePriceMinor": 700,
+          "priceSource": "base_price",
+          "delivery": {
+            "source": "product_default",
+            "accessTitle": "Download",
+            "accessInstructions": "Open",
+            "file": {
+              "present": false
+            }
+          }
+        },
+        {
+          "id": "csvvar_c34b71c397c44971a1006de9f555869c",
+          "combinationKey": "csvgrp_a132c786afe44006929d4cb60bccb278:csvval_054c6e184f2a4efea789c1f35197dd46|csvgrp_124b95cc77ea44589962be7fc5162f7c:csvval_018e351a42d847afa96b24b4f21e6ff2",
+          "selectedOptions": [
+            {
+              "groupId": "csvgrp_a132c786afe44006929d4cb60bccb278",
+              "groupName": "Theme",
+              "valueId": "csvval_054c6e184f2a4efea789c1f35197dd46",
+              "valueLabel": "Theme 1"
+            },
+            {
+              "groupId": "csvgrp_124b95cc77ea44589962be7fc5162f7c",
+              "groupName": "License",
+              "valueId": "csvval_018e351a42d847afa96b24b4f21e6ff2",
+              "valueLabel": "License 2"
+            }
+          ],
+          "sku": "VERIFY-260826-P6E-WARNING-1-2",
+          "status": "enabled",
+          "priceOverrideMinor": null,
+          "effectivePriceMinor": 700,
+          "priceSource": "base_price",
+          "delivery": {
+            "source": "product_default",
+            "accessTitle": "Download",
+            "accessInstructions": "Open",
+            "file": {
+              "present": false
+            }
+          }
+        },
+        {
+          "id": "csvvar_c4501321d23848ce8e8bf4cfa0251774",
+          "combinationKey": "csvgrp_a132c786afe44006929d4cb60bccb278:csvval_3327c9f6491840089fce2bc8ff6ca3f6|csvgrp_124b95cc77ea44589962be7fc5162f7c:csvval_ae022895ff6948359f9c136bee926053",
+          "selectedOptions": [
+            {
+              "groupId": "csvgrp_a132c786afe44006929d4cb60bccb278",
+              "groupName": "Theme",
+              "valueId": "csvval_3327c9f6491840089fce2bc8ff6ca3f6",
+              "valueLabel": "Theme 3"
+            },
+            {
+              "groupId": "csvgrp_124b95cc77ea44589962be7fc5162f7c",
+              "groupName": "License",
+              "valueId": "csvval_ae022895ff6948359f9c136bee926053",
+              "valueLabel": "License 3"
+            }
+          ],
+          "sku": "VERIFY-260826-P6E-WARNING-3-3",
+          "status": "enabled",
+          "priceOverrideMinor": null,
+          "effectivePriceMinor": 700,
+          "priceSource": "base_price",
+          "delivery": {
+            "source": "product_default",
+            "accessTitle": "Download",
+            "accessInstructions": "Open",
+            "file": {
+              "present": false
+            }
+          }
+        },
+        {
+          "id": "csvvar_cdbf3e84382b4a368a45cabfd97beefa",
+          "combinationKey": "csvgrp_a132c786afe44006929d4cb60bccb278:csvval_8ccab4c1a0fe455ab9c5a136b3b4d821|csvgrp_124b95cc77ea44589962be7fc5162f7c:csvval_72cc65a11a064fab8740b19bdfdf466a",
+          "selectedOptions": [
+            {
+              "groupId": "csvgrp_a132c786afe44006929d4cb60bccb278",
+              "groupName": "Theme",
+              "valueId": "csvval_8ccab4c1a0fe455ab9c5a136b3b4d821",
+              "valueLabel": "Theme 2"
+            },
+            {
+              "groupId": "csvgrp_124b95cc77ea44589962be7fc5162f7c",
+              "groupName": "License",
+              "valueId": "csvval_72cc65a11a064fab8740b19bdfdf466a",
+              "valueLabel": "License 1"
+            }
+          ],
+          "sku": "VERIFY-260826-P6E-WARNING-2-1",
+          "status": "enabled",
+          "priceOverrideMinor": null,
+          "effectivePriceMinor": 700,
+          "priceSource": "base_price",
+          "delivery": {
+            "source": "product_default",
+            "accessTitle": "Download",
+            "accessInstructions": "Open",
+            "file": {
+              "present": false
+            }
+          }
+        },
+        {
+          "id": "csvvar_d2c2f5f6466340d48cd9929bbf5302c4",
+          "combinationKey": "csvgrp_a132c786afe44006929d4cb60bccb278:csvval_8ccab4c1a0fe455ab9c5a136b3b4d821|csvgrp_124b95cc77ea44589962be7fc5162f7c:csvval_c8bfe30156da47e29f70970257b011d9",
+          "selectedOptions": [
+            {
+              "groupId": "csvgrp_a132c786afe44006929d4cb60bccb278",
+              "groupName": "Theme",
+              "valueId": "csvval_8ccab4c1a0fe455ab9c5a136b3b4d821",
+              "valueLabel": "Theme 2"
+            },
+            {
+              "groupId": "csvgrp_124b95cc77ea44589962be7fc5162f7c",
+              "groupName": "License",
+              "valueId": "csvval_c8bfe30156da47e29f70970257b011d9",
+              "valueLabel": "License 4"
+            }
+          ],
+          "sku": "VERIFY-260826-P6E-WARNING-2-4",
+          "status": "enabled",
+          "priceOverrideMinor": null,
+          "effectivePriceMinor": 700,
+          "priceSource": "base_price",
+          "delivery": {
+            "source": "product_default",
+            "accessTitle": "Download",
+            "accessInstructions": "Open",
+            "file": {
+              "present": false
+            }
+          }
+        },
+        {
+          "id": "csvvar_e358b3a776ea46a4b8383bad48e33804",
+          "combinationKey": "csvgrp_a132c786afe44006929d4cb60bccb278:csvval_3327c9f6491840089fce2bc8ff6ca3f6|csvgrp_124b95cc77ea44589962be7fc5162f7c:csvval_018e351a42d847afa96b24b4f21e6ff2",
+          "selectedOptions": [
+            {
+              "groupId": "csvgrp_a132c786afe44006929d4cb60bccb278",
+              "groupName": "Theme",
+              "valueId": "csvval_3327c9f6491840089fce2bc8ff6ca3f6",
+              "valueLabel": "Theme 3"
+            },
+            {
+              "groupId": "csvgrp_124b95cc77ea44589962be7fc5162f7c",
+              "groupName": "License",
+              "valueId": "csvval_018e351a42d847afa96b24b4f21e6ff2",
+              "valueLabel": "License 2"
+            }
+          ],
+          "sku": "VERIFY-260826-P6E-WARNING-3-2",
+          "status": "enabled",
+          "priceOverrideMinor": null,
+          "effectivePriceMinor": 700,
+          "priceSource": "base_price",
+          "delivery": {
+            "source": "product_default",
+            "accessTitle": "Download",
+            "accessInstructions": "Open",
+            "file": {
+              "present": false
+            }
+          }
+        },
+        {
+          "id": "csvvar_fc87848fe1b54f749f161772ad722c60",
+          "combinationKey": "csvgrp_a132c786afe44006929d4cb60bccb278:csvval_8ccab4c1a0fe455ab9c5a136b3b4d821|csvgrp_124b95cc77ea44589962be7fc5162f7c:csvval_ae022895ff6948359f9c136bee926053",
+          "selectedOptions": [
+            {
+              "groupId": "csvgrp_a132c786afe44006929d4cb60bccb278",
+              "groupName": "Theme",
+              "valueId": "csvval_8ccab4c1a0fe455ab9c5a136b3b4d821",
+              "valueLabel": "Theme 2"
+            },
+            {
+              "groupId": "csvgrp_124b95cc77ea44589962be7fc5162f7c",
+              "groupName": "License",
+              "valueId": "csvval_ae022895ff6948359f9c136bee926053",
+              "valueLabel": "License 3"
+            }
+          ],
+          "sku": "VERIFY-260826-P6E-WARNING-2-3",
+          "status": "enabled",
+          "priceOverrideMinor": null,
+          "effectivePriceMinor": 700,
+          "priceSource": "base_price",
+          "delivery": {
+            "source": "product_default",
+            "accessTitle": "Download",
+            "accessInstructions": "Open",
+            "file": {
+              "present": false
+            }
+          }
+        }
+      ],
+      "updatedAt": "2026-08-26T02:32:43.100Z",
+      "revision": 1
+    }
+  }
+}

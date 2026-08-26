@@ -1,0 +1,21 @@
+{
+  "captured_at": "2026-08-26T02:32:33.459Z",
+  "label": "route--console-products",
+  "request": {
+    "method": "GET",
+    "route": "/console/products",
+    "headers": {},
+    "body_bytes": 0,
+    "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html",
+      "cache-control": "public, max-age=0, must-revalidate"
+    },
+    "body_bytes": 519,
+    "body_sha256": "498da471c2c6153a2d8472f5d91f9ca6a69bd6d107a1311379f615506ff657e1",
+    "body": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <meta name=\"description\" content=\"Nexus Operations Console for managing digital Products and Variants\" />\n    <title>Nexus Operations Console</title>\n    <script type=\"module\" crossorigin src=\"/assets/index-D3pY7DcT.js\"></script>\n    <link rel=\"stylesheet\" crossorigin href=\"/assets/index-D2y_nmDk.css\">\n  </head>\n  <body>\n    <div id=\"root\"></div>\n  </body>\n</html>\n"
+  }
+}

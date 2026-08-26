@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.artifacts/
+.wrangler*/
+playwright-report/
+test-results/
+.vitest-attachments/
+plans/260826-0041-nexus-s1-product-catalog/reports/evidence/private/

@@ -1,0 +1,48 @@
+{
+  "name": "nexus-operations-console",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run test:workerd && npm run test:browser",
+    "test:workerd": "vitest run",
+    "test:browser": "vitest run --config vitest.browser.config.ts",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "build": "npm run typecheck && vite build && npm run assert:production-import-graph",
+    "assert:production-import-graph": "tsx scripts/assert-production-import-graph.ts",
+    "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "verification:ledger:init": "tsx scripts/verification/evidence-ledger.ts init",
+    "verification:ledger:check": "tsx scripts/verification/evidence-ledger.ts check",
+    "verification:ledger:summary": "tsx scripts/verification/evidence-ledger.ts summary",
+    "verification:fixtures": "tsx scripts/verification/verification-fixtures.ts",
+    "verification:remote:smoke": "tsx tests/integration/remote-contract-smoke.ts"
+  },
+  "dependencies": {
+    "papaparse": "5.7.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.54.0",
+    "@cloudflare/vitest-pool-workers": "0.22.0",
+    "@playwright/test": "1.62.1",
+    "@types/node": "24.13.3",
+    "@types/papaparse": "5.5.2",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "@vitejs/plugin-react": "6.1.0",
+    "@vitest/browser-playwright": "4.1.11",
+    "tsx": "4.20.6",
+    "typescript": "7.0.2",
+    "vite": "8.2.2",
+    "vitest": "4.1.11",
+    "wrangler": "4.126.0"
+  }
+}

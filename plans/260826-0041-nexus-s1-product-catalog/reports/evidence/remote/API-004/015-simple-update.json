@@ -1,0 +1,63 @@
+{
+  "captured_at": "2026-08-26T02:32:35.519Z",
+  "label": "simple-update",
+  "request": {
+    "method": "PUT",
+    "route": "/api/console/products/prod_64cd7ded1a76450abd4a34ffe8e3fce3",
+    "headers": {
+      "If-Match": "\"1\""
+    },
+    "body_bytes": 340,
+    "body_sha256": "61dbce42007b2ac6e5ee170b9809e7964f2310a3239134164f8dc90f22129be5",
+    "json": {
+      "product": {
+        "name": "verify-260826-p6e simple edited",
+        "basePrice": "19.95",
+        "currency": "USD",
+        "status": "active",
+        "publicDescription": "Edited public description",
+        "delivery": {
+          "accessTitle": "Download verify-260826-p6e simple edited",
+          "accessInstructions": "Open the private file from the paid order."
+        }
+      },
+      "optionLabels": {
+        "groups": []
+      },
+      "variantEdits": []
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"2\"",
+      "cache-control": "no-store"
+    },
+    "body_bytes": 499,
+    "body_sha256": "ed46a932cc463c0440ddb411fec8dc73da64f16dbc7a01656fefb9ad31953756",
+    "body": {
+      "product": {
+        "id": "prod_64cd7ded1a76450abd4a34ffe8e3fce3",
+        "slug": "verify-260826-p6e-simple",
+        "name": "verify-260826-p6e simple edited",
+        "status": "active",
+        "type": "simple",
+        "currency": "USD",
+        "basePriceMinor": 1995,
+        "publicDescription": "Edited public description",
+        "delivery": {
+          "accessTitle": "Download verify-260826-p6e simple edited",
+          "accessInstructions": "Open the private file from the paid order.",
+          "file": {
+            "present": false
+          }
+        },
+        "optionGroups": [],
+        "variants": [],
+        "updatedAt": "2026-08-26T02:32:35.590Z",
+        "revision": 2
+      }
+    }
+  }
+}

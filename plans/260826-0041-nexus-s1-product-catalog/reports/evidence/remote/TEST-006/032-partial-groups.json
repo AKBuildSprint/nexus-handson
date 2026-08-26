@@ -1,0 +1,338 @@
+{
+  "captured_at": "2026-08-26T02:32:41.311Z",
+  "label": "partial-groups",
+  "request": {
+    "method": "POST",
+    "route": "/api/console/imports",
+    "headers": {
+      "Content-Type": "text/csv; charset=utf-8",
+      "X-Nexus-Filename": "verify-260826-p6e-partial.csv"
+    },
+    "body_bytes": 5162,
+    "body_sha256": "6ec20d3826580ccc3a1448ba5fb48bdad082f23a69acc9709230426c60125934"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store"
+    },
+    "body_bytes": 8361,
+    "body_sha256": "b0e308c52c82aeadec6044d7b2fbe6f4727e6e88931f86124ffa57c087a14c36",
+    "body": {
+      "importId": "imp_a4847c470e1242c8a3f90cf992e9f885",
+      "filename": "verify-260826-p6e-partial.csv",
+      "counts": {
+        "added": 1,
+        "duplicate": 0,
+        "rejected": 31
+      },
+      "groups": [
+        {
+          "productSlug": "verify-260826-p6e-eligible",
+          "detectedType": "simple",
+          "derivedCombinationCount": 0,
+          "outcome": "added",
+          "rows": [
+            {
+              "row": 1,
+              "productSlug": "verify-260826-p6e-eligible",
+              "variantSku": null,
+              "outcome": "added",
+              "field": null,
+              "code": null,
+              "reason": "A new simple Product was added."
+            }
+          ]
+        },
+        {
+          "productSlug": "verify-260826-p6e-blocked-31",
+          "detectedType": "variant",
+          "derivedCombinationCount": 31,
+          "outcome": "rejected",
+          "rows": [
+            {
+              "row": 2,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-1",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 3,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-2",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 4,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-3",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 5,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-4",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 6,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-5",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 7,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-6",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 8,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-7",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 9,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-8",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 10,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-9",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 11,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-10",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 12,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-11",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 13,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-12",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 14,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-13",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 15,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-14",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 16,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-15",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 17,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-16",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 18,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-17",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 19,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-18",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 20,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-19",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 21,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-20",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 22,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-21",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 23,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-22",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 24,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-23",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 25,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-24",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 26,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-25",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 27,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-26",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 28,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-27",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 29,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-28",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 30,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-29",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 31,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-30",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            },
+            {
+              "row": 32,
+              "productSlug": "verify-260826-p6e-blocked-31",
+              "variantSku": "VERIFY-260826-P6E-BLOCKED-31",
+              "outcome": "rejected",
+              "field": null,
+              "code": "variant_limit_exceeded",
+              "reason": "31 combinations exceeds the maximum of 30. This Product group is rejected."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

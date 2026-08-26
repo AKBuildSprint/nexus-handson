@@ -1,0 +1,202 @@
+{
+  "captured_at": "2026-08-26T02:32:36.349Z",
+  "label": "schema-replacement-preview",
+  "request": {
+    "method": "POST",
+    "route": "/api/console/products/schema/preview",
+    "headers": {
+      "If-Match": "\"2\""
+    },
+    "body_bytes": 2508,
+    "body_sha256": "eabdf82cc3a82345b701290520258705b680838c567db76642f9ad483d3e347e",
+    "json": {
+      "productId": "prod_23c8f928a7424d00958aebe26433431a",
+      "productSlug": "verify-260826-p6e-variant",
+      "product": {
+        "name": "verify-260826-p6e variant",
+        "basePrice": "19.95",
+        "currency": "USD",
+        "status": "active",
+        "publicDescription": "Public description for verify-260826-p6e variant",
+        "delivery": {
+          "accessTitle": "Download verify-260826-p6e variant",
+          "accessInstructions": "Open the private file from the paid order."
+        }
+      },
+      "schema": {
+        "groups": [
+          {
+            "draftRef": "existing-group-grp_f7eadc25fc2144dc9d748b7f64d49b59",
+            "id": "grp_f7eadc25fc2144dc9d748b7f64d49b59",
+            "name": "Option 1 renamed",
+            "position": 0,
+            "participating": true,
+            "values": [
+              {
+                "draftRef": "existing-value-val_f2964fe0993d49efa00e9d56fc1f37c3",
+                "id": "val_f2964fe0993d49efa00e9d56fc1f37c3",
+                "label": "Value 1.2",
+                "position": 0
+              },
+              {
+                "draftRef": "verify-260826-p6e-replacement-value",
+                "id": null,
+                "label": "Replacement",
+                "position": 1
+              }
+            ]
+          },
+          {
+            "draftRef": "existing-group-grp_aaffaf272da64f8185e44941a88e8a77",
+            "id": "grp_aaffaf272da64f8185e44941a88e8a77",
+            "name": "Option 2",
+            "position": 1,
+            "participating": true,
+            "values": [
+              {
+                "draftRef": "existing-value-val_dc6033d1e9464671913a64e721b5a898",
+                "id": "val_dc6033d1e9464671913a64e721b5a898",
+                "label": "Value 2.1",
+                "position": 0
+              },
+              {
+                "draftRef": "existing-value-val_e38340e90b1349aeb339bc12beadcf3a",
+                "id": "val_e38340e90b1349aeb339bc12beadcf3a",
+                "label": "Value 2.2",
+                "position": 1
+              }
+            ]
+          }
+        ],
+        "rows": [
+          {
+            "id": "var_ce797534116248e5aac156e60a6cb0d9",
+            "selectedValueRefs": [
+              "existing-value-val_f2964fe0993d49efa00e9d56fc1f37c3",
+              "existing-value-val_dc6033d1e9464671913a64e721b5a898"
+            ],
+            "sku": "VERIFY-260826-P6E-VARIANT-03",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": "var_457489ea3b75496ca30269c174b2ce31",
+            "selectedValueRefs": [
+              "existing-value-val_f2964fe0993d49efa00e9d56fc1f37c3",
+              "existing-value-val_e38340e90b1349aeb339bc12beadcf3a"
+            ],
+            "sku": "VERIFY-260826-P6E-EDITED",
+            "status": "enabled",
+            "priceOverride": "24.50",
+            "delivery": {
+              "source": "variant_override",
+              "accessTitle": "Edited Variant access",
+              "accessInstructions": "Edited Variant instructions"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-replacement-value",
+              "existing-value-val_dc6033d1e9464671913a64e721b5a898"
+            ],
+            "sku": "VERIFY-260826-P6E-REPLACEMENT-3",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-replacement-value",
+              "existing-value-val_e38340e90b1349aeb339bc12beadcf3a"
+            ],
+            "sku": "VERIFY-260826-P6E-REPLACEMENT-4",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          }
+        ],
+        "confirmCombinations": false
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store"
+    },
+    "body_bytes": 1415,
+    "body_sha256": "7a1493a410cd44b594aae3a3ad3d4e87e80632d5936db2df4fed659d5f2f79a7",
+    "body": {
+      "previewHash": "6d7f2cd6136ae0c284256a24f883cf4e5d100435a0e3a3bf35a988de5dc98fff",
+      "combinationCount": 4,
+      "confirmationRequired": false,
+      "blocked": false,
+      "rows": [
+        {
+          "outcome": "retained",
+          "variantId": "var_ce797534116248e5aac156e60a6cb0d9",
+          "selectedValueRefs": [
+            "existing-value-val_f2964fe0993d49efa00e9d56fc1f37c3",
+            "existing-value-val_dc6033d1e9464671913a64e721b5a898"
+          ],
+          "sku": "VERIFY-260826-P6E-VARIANT-03",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "retained",
+          "variantId": "var_457489ea3b75496ca30269c174b2ce31",
+          "selectedValueRefs": [
+            "existing-value-val_f2964fe0993d49efa00e9d56fc1f37c3",
+            "existing-value-val_e38340e90b1349aeb339bc12beadcf3a"
+          ],
+          "sku": "VERIFY-260826-P6E-EDITED",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-replacement-value",
+            "existing-value-val_dc6033d1e9464671913a64e721b5a898"
+          ],
+          "sku": "VERIFY-260826-P6E-REPLACEMENT-3",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-replacement-value",
+            "existing-value-val_e38340e90b1349aeb339bc12beadcf3a"
+          ],
+          "sku": "VERIFY-260826-P6E-REPLACEMENT-4",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "will_disable",
+          "variantId": "var_8e84f5566e0c40c0aee2b67e1fd97ef8",
+          "selectedValueRefs": [],
+          "sku": "VERIFY-260826-P6E-VARIANT-01",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "will_disable",
+          "variantId": "var_c797de59b153441cb477a23ea5f66584",
+          "selectedValueRefs": [],
+          "sku": "VERIFY-260826-P6E-VARIANT-02",
+          "skuSuggested": false
+        }
+      ]
+    }
+  }
+}

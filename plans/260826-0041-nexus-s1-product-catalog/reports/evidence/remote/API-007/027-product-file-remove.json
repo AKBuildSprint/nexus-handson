@@ -1,0 +1,30 @@
+{
+  "captured_at": "2026-08-26T02:32:39.533Z",
+  "label": "product-file-remove",
+  "request": {
+    "method": "DELETE",
+    "route": "/api/console/products/prod_64cd7ded1a76450abd4a34ffe8e3fce3/delivery-file",
+    "headers": {
+      "If-Match": "\"4\""
+    },
+    "body_bytes": 0,
+    "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"5\"",
+      "cache-control": "no-store"
+    },
+    "body_bytes": 91,
+    "body_sha256": "9d2c7ce259d2b3a3bbdf476e95ea8f6f54039896b2bd3c7490dd8f6fc44c2627",
+    "body": {
+      "productId": "prod_64cd7ded1a76450abd4a34ffe8e3fce3",
+      "file": {
+        "present": false
+      },
+      "revision": 5
+    }
+  }
+}

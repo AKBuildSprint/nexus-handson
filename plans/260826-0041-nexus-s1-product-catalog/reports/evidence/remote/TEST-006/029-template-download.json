@@ -1,0 +1,22 @@
+{
+  "captured_at": "2026-08-26T02:32:39.749Z",
+  "label": "template-download",
+  "request": {
+    "method": "GET",
+    "route": "/api/console/imports/template",
+    "headers": {},
+    "body_bytes": 0,
+    "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/csv; charset=utf-8",
+      "content-disposition": "attachment; filename=\"nexus-product-import-template.csv\"",
+      "cache-control": "no-store"
+    },
+    "body_bytes": 760,
+    "body_sha256": "2e102df05707d1093d671d4b289876b2fe0137dd194d9652c21540ea36c085a4",
+    "body": "product_slug,product_name,base_price,currency,product_status,public_description,access_title,access_instructions,variant_sku,variant_price_override,variant_status,option_1_name,option_1_value,option_2_name,option_2_value,option_3_name,option_3_value,option_4_name,option_4_value,option_5_name,option_5_value\nfield-notes,Field Notes,24.00,USD,active,A concise guide,Download Field Notes,Open the PDF from your order,,,,,,,,,,,,,\nfocus-pack,Focus Pack,36.00,USD,draft,Desktop focus templates,Download Focus Pack,Open the ZIP from your order,FOCUS-DARK,,enabled,Theme,Dark,License,Personal,,,,,,\nfocus-pack,Focus Pack,36.00,USD,draft,Desktop focus templates,Download Focus Pack,Open the ZIP from your order,FOCUS-LIGHT,,enabled,Theme,Light,License,Personal,,,,,,\n"
+  }
+}

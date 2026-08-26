@@ -1,0 +1,8 @@
+{
+  "status": 200,
+  "counts": {
+    "added": 500,
+    "duplicate": 0,
+    "rejected": 0
+  }
+}

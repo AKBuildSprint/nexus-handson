@@ -1,0 +1,3 @@
+product_slug,product_name,base_price,currency,product_status,public_description,access_title,access_instructions,variant_sku,variant_price_override,variant_status,option_1_name,option_1_value,option_2_name,option_2_value,option_3_name,option_3_value,option_4_name,option_4_value,option_5_name,option_5_value
+alpha-pack,Alpha Pack,15.00,USD,active,,Download,Open,SHARED-SKU,,enabled,Theme,Dark,,,,,,,,
+beta-pack,Beta Pack,15.00,USD,active,,Download,Open,SHARED-SKU,,enabled,Theme,Light,,,,,,,,

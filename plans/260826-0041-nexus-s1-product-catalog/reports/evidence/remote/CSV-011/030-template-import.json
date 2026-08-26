@@ -1,0 +1,77 @@
+{
+  "captured_at": "2026-08-26T02:32:40.269Z",
+  "label": "template-import",
+  "request": {
+    "method": "POST",
+    "route": "/api/console/imports",
+    "headers": {
+      "Content-Type": "text/csv; charset=utf-8",
+      "X-Nexus-Filename": "nexus-product-import-template.csv"
+    },
+    "body_bytes": 760,
+    "body_sha256": "2e102df05707d1093d671d4b289876b2fe0137dd194d9652c21540ea36c085a4"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store"
+    },
+    "body_bytes": 960,
+    "body_sha256": "7bbc00b94a28d1d34ed291966414bde65b37a7ce178b37e38429f1a23c92f543",
+    "body": {
+      "importId": "imp_d8eacb5a573b4e8ba564d38ff609b958",
+      "filename": "nexus-product-import-template.csv",
+      "counts": {
+        "added": 0,
+        "duplicate": 3,
+        "rejected": 0
+      },
+      "groups": [
+        {
+          "productSlug": "field-notes",
+          "detectedType": "simple",
+          "derivedCombinationCount": 0,
+          "outcome": "duplicate",
+          "rows": [
+            {
+              "row": 1,
+              "productSlug": "field-notes",
+              "variantSku": null,
+              "outcome": "duplicate",
+              "field": null,
+              "code": null,
+              "reason": "The exact simple Product already exists; no records were changed."
+            }
+          ]
+        },
+        {
+          "productSlug": "focus-pack",
+          "detectedType": "variant",
+          "derivedCombinationCount": 2,
+          "outcome": "duplicate",
+          "rows": [
+            {
+              "row": 2,
+              "productSlug": "focus-pack",
+              "variantSku": "FOCUS-DARK",
+              "outcome": "duplicate",
+              "field": null,
+              "code": null,
+              "reason": "The exact SKU and option combination already exist; no records were changed."
+            },
+            {
+              "row": 3,
+              "productSlug": "focus-pack",
+              "variantSku": "FOCUS-LIGHT",
+              "outcome": "duplicate",
+              "field": null,
+              "code": null,
+              "reason": "The exact SKU and option combination already exist; no records were changed."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

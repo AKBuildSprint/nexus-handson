@@ -1,0 +1,151 @@
+{
+  "captured_at": "2026-08-26T02:32:43.015Z",
+  "label": "warning-confirmed",
+  "request": {
+    "method": "POST",
+    "route": "/api/console/imports",
+    "headers": {
+      "Content-Type": "text/csv; charset=utf-8",
+      "X-Nexus-Filename": "verify-260826-p6e-warning.csv",
+      "X-Nexus-Confirm-Variants": "true"
+    },
+    "body_bytes": 2228,
+    "body_sha256": "2022cd0de1d921855e4db5440f42c73ea24ed9b164ca0b74dca0b8e1fb0febd1"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store"
+    },
+    "body_bytes": 2574,
+    "body_sha256": "ce47934f2addcff7179b11856d3a30bd17f4d8f3dc31d2733bac681a46186864",
+    "body": {
+      "importId": "imp_5e21f625b1194acf96d7b18235bbef3e",
+      "filename": "verify-260826-p6e-warning.csv",
+      "counts": {
+        "added": 12,
+        "duplicate": 0,
+        "rejected": 0
+      },
+      "groups": [
+        {
+          "productSlug": "verify-260826-p6e-warning",
+          "detectedType": "variant",
+          "derivedCombinationCount": 12,
+          "outcome": "added",
+          "rows": [
+            {
+              "row": 1,
+              "productSlug": "verify-260826-p6e-warning",
+              "variantSku": "VERIFY-260826-P6E-WARNING-1-1",
+              "outcome": "added",
+              "field": null,
+              "code": null,
+              "reason": "A new exact Variant identity was added."
+            },
+            {
+              "row": 2,
+              "productSlug": "verify-260826-p6e-warning",
+              "variantSku": "VERIFY-260826-P6E-WARNING-1-2",
+              "outcome": "added",
+              "field": null,
+              "code": null,
+              "reason": "A new exact Variant identity was added."
+            },
+            {
+              "row": 3,
+              "productSlug": "verify-260826-p6e-warning",
+              "variantSku": "VERIFY-260826-P6E-WARNING-1-3",
+              "outcome": "added",
+              "field": null,
+              "code": null,
+              "reason": "A new exact Variant identity was added."
+            },
+            {
+              "row": 4,
+              "productSlug": "verify-260826-p6e-warning",
+              "variantSku": "VERIFY-260826-P6E-WARNING-1-4",
+              "outcome": "added",
+              "field": null,
+              "code": null,
+              "reason": "A new exact Variant identity was added."
+            },
+            {
+              "row": 5,
+              "productSlug": "verify-260826-p6e-warning",
+              "variantSku": "VERIFY-260826-P6E-WARNING-2-1",
+              "outcome": "added",
+              "field": null,
+              "code": null,
+              "reason": "A new exact Variant identity was added."
+            },
+            {
+              "row": 6,
+              "productSlug": "verify-260826-p6e-warning",
+              "variantSku": "VERIFY-260826-P6E-WARNING-2-2",
+              "outcome": "added",
+              "field": null,
+              "code": null,
+              "reason": "A new exact Variant identity was added."
+            },
+            {
+              "row": 7,
+              "productSlug": "verify-260826-p6e-warning",
+              "variantSku": "VERIFY-260826-P6E-WARNING-2-3",
+              "outcome": "added",
+              "field": null,
+              "code": null,
+              "reason": "A new exact Variant identity was added."
+            },
+            {
+              "row": 8,
+              "productSlug": "verify-260826-p6e-warning",
+              "variantSku": "VERIFY-260826-P6E-WARNING-2-4",
+              "outcome": "added",
+              "field": null,
+              "code": null,
+              "reason": "A new exact Variant identity was added."
+            },
+            {
+              "row": 9,
+              "productSlug": "verify-260826-p6e-warning",
+              "variantSku": "VERIFY-260826-P6E-WARNING-3-1",
+              "outcome": "added",
+              "field": null,
+              "code": null,
+              "reason": "A new exact Variant identity was added."
+            },
+            {
+              "row": 10,
+              "productSlug": "verify-260826-p6e-warning",
+              "variantSku": "VERIFY-260826-P6E-WARNING-3-2",
+              "outcome": "added",
+              "field": null,
+              "code": null,
+              "reason": "A new exact Variant identity was added."
+            },
+            {
+              "row": 11,
+              "productSlug": "verify-260826-p6e-warning",
+              "variantSku": "VERIFY-260826-P6E-WARNING-3-3",
+              "outcome": "added",
+              "field": null,
+              "code": null,
+              "reason": "A new exact Variant identity was added."
+            },
+            {
+              "row": 12,
+              "productSlug": "verify-260826-p6e-warning",
+              "variantSku": "VERIFY-260826-P6E-WARNING-3-4",
+              "outcome": "added",
+              "field": null,
+              "code": null,
+              "reason": "A new exact Variant identity was added."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

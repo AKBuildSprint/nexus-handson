@@ -1,0 +1,37 @@
+{
+  "captured_at": "2026-08-26T02:32:42.121Z",
+  "label": "warning-missing-confirmation",
+  "request": {
+    "method": "POST",
+    "route": "/api/console/imports",
+    "headers": {
+      "Content-Type": "text/csv; charset=utf-8",
+      "X-Nexus-Filename": "verify-260826-p6e-warning.csv"
+    },
+    "body_bytes": 2228,
+    "body_sha256": "2022cd0de1d921855e4db5440f42c73ea24ed9b164ca0b74dca0b8e1fb0febd1"
+  },
+  "response": {
+    "status": 422,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store"
+    },
+    "body_bytes": 331,
+    "body_sha256": "54773f5cb7a914cc8da5a7adca3978b30a061feb5e8e958d1d8b411d8255a015",
+    "body": {
+      "error": {
+        "code": "variant_confirmation_required",
+        "message": "Confirm every eligible Product group with 11 to 30 combinations.",
+        "fields": [
+          {
+            "path": "/headers/X-Nexus-Confirm-Variants",
+            "code": "variant_confirmation_required",
+            "message": "Set X-Nexus-Confirm-Variants:true after reviewing the eligible warning groups."
+          }
+        ],
+        "incidentId": null
+      }
+    }
+  }
+}

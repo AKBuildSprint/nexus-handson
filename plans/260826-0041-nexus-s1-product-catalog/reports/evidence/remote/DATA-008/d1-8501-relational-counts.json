@@ -1,0 +1,14 @@
+{
+  "prefix": "verify-260826-csv015",
+  "query": "count products/groups/values/variants/memberships/imports for verify-260826-csv015",
+  "observed": {
+    "products": 500,
+    "option_groups": 2500,
+    "option_values": 2500,
+    "variants": 500,
+    "memberships": 2500,
+    "imports": 1,
+    "total": 8501
+  },
+  "pass": true
+}

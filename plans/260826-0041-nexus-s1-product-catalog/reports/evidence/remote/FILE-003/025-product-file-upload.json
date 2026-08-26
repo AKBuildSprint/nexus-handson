@@ -1,0 +1,35 @@
+{
+  "captured_at": "2026-08-26T02:32:38.285Z",
+  "label": "product-file-upload",
+  "request": {
+    "method": "PUT",
+    "route": "/api/console/products/prod_64cd7ded1a76450abd4a34ffe8e3fce3/delivery-file",
+    "headers": {
+      "Content-Type": "application/octet-stream",
+      "If-Match": "\"2\"",
+      "X-Nexus-Filename": "verify-260826-p6e-a.pdf"
+    },
+    "body_bytes": 36,
+    "body_sha256": "a75d4efba96d5b9f142a89635ef9d7b1ee857e5ea78a66d8f217d508097c0d43"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"3\"",
+      "cache-control": "no-store"
+    },
+    "body_bytes": 155,
+    "body_sha256": "a9de206d834f9f47b0f448e5a87f60357f33e75d8445b37fe4c4f14d1be080b4",
+    "body": {
+      "productId": "prod_64cd7ded1a76450abd4a34ffe8e3fce3",
+      "file": {
+        "present": true,
+        "filename": "verify-260826-p6e-a.pdf",
+        "sizeBytes": 36,
+        "kind": "pdf"
+      },
+      "revision": 3
+    }
+  }
+}

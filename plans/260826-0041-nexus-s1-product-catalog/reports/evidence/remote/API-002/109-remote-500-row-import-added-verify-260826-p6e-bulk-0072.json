@@ -1,0 +1,158 @@
+{
+  "captured_at": "2026-08-26T02:32:53.945Z",
+  "label": "remote-500-row-import-added-verify-260826-p6e-bulk-0072",
+  "request": {
+    "method": "GET",
+    "route": "/api/console/products/by-slug/verify-260826-p6e-bulk-0072",
+    "headers": {},
+    "body_bytes": 0,
+    "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "etag": "W/\"1\"",
+      "cache-control": "no-store"
+    },
+    "body_bytes": 3005,
+    "body_sha256": "795e3d50f1a50a553436f63b8341ad17cdc4db0a1b32bcc511453be21c489695",
+    "body": {
+      "id": "prod_471efba860ed4bf298e6f2dbb8ed13ca",
+      "slug": "verify-260826-p6e-bulk-0072",
+      "name": "verify-260826-p6e Bulk 0072",
+      "status": "active",
+      "type": "variant",
+      "currency": "USD",
+      "basePriceMinor": 100,
+      "publicDescription": "",
+      "delivery": {
+        "accessTitle": "Download verify-260826-p6e Bulk 0072",
+        "accessInstructions": "Open the file from your order",
+        "file": {
+          "present": false
+        }
+      },
+      "optionGroups": [
+        {
+          "id": "csvgrp_ec631f52601e4fe3853154a241c6a86c",
+          "name": "Option 1",
+          "position": 0,
+          "participating": true,
+          "values": [
+            {
+              "id": "csvval_768ddd6f4e794e34bd690d69070db548",
+              "label": "Value 0072-1",
+              "position": 0
+            }
+          ]
+        },
+        {
+          "id": "csvgrp_c65a2afe69264a0db525e96001b51484",
+          "name": "Option 2",
+          "position": 1,
+          "participating": true,
+          "values": [
+            {
+              "id": "csvval_565332243dc345b1853838aa2859f0dc",
+              "label": "Value 0072-2",
+              "position": 0
+            }
+          ]
+        },
+        {
+          "id": "csvgrp_49bb4cdc3c5a4a099be6d82d232e85aa",
+          "name": "Option 3",
+          "position": 2,
+          "participating": true,
+          "values": [
+            {
+              "id": "csvval_23ac600611144a4188aa812f055ddb4f",
+              "label": "Value 0072-3",
+              "position": 0
+            }
+          ]
+        },
+        {
+          "id": "csvgrp_75d1ae245abe45698ae4f23762746a52",
+          "name": "Option 4",
+          "position": 3,
+          "participating": true,
+          "values": [
+            {
+              "id": "csvval_9b4e475bbabe4a769a7090a43878ee65",
+              "label": "Value 0072-4",
+              "position": 0
+            }
+          ]
+        },
+        {
+          "id": "csvgrp_5cffdcb7f57c406ea6b4f6691888d535",
+          "name": "Option 5",
+          "position": 4,
+          "participating": true,
+          "values": [
+            {
+              "id": "csvval_7b15b18372524445a2b158f80953523f",
+              "label": "Value 0072-5",
+              "position": 0
+            }
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": "csvvar_3497ebde072449c1b690ac30c390b938",
+          "combinationKey": "csvgrp_ec631f52601e4fe3853154a241c6a86c:csvval_768ddd6f4e794e34bd690d69070db548|csvgrp_c65a2afe69264a0db525e96001b51484:csvval_565332243dc345b1853838aa2859f0dc|csvgrp_49bb4cdc3c5a4a099be6d82d232e85aa:csvval_23ac600611144a4188aa812f055ddb4f|csvgrp_75d1ae245abe45698ae4f23762746a52:csvval_9b4e475bbabe4a769a7090a43878ee65|csvgrp_5cffdcb7f57c406ea6b4f6691888d535:csvval_7b15b18372524445a2b158f80953523f",
+          "selectedOptions": [
+            {
+              "groupId": "csvgrp_ec631f52601e4fe3853154a241c6a86c",
+              "groupName": "Option 1",
+              "valueId": "csvval_768ddd6f4e794e34bd690d69070db548",
+              "valueLabel": "Value 0072-1"
+            },
+            {
+              "groupId": "csvgrp_c65a2afe69264a0db525e96001b51484",
+              "groupName": "Option 2",
+              "valueId": "csvval_565332243dc345b1853838aa2859f0dc",
+              "valueLabel": "Value 0072-2"
+            },
+            {
+              "groupId": "csvgrp_49bb4cdc3c5a4a099be6d82d232e85aa",
+              "groupName": "Option 3",
+              "valueId": "csvval_23ac600611144a4188aa812f055ddb4f",
+              "valueLabel": "Value 0072-3"
+            },
+            {
+              "groupId": "csvgrp_75d1ae245abe45698ae4f23762746a52",
+              "groupName": "Option 4",
+              "valueId": "csvval_9b4e475bbabe4a769a7090a43878ee65",
+              "valueLabel": "Value 0072-4"
+            },
+            {
+              "groupId": "csvgrp_5cffdcb7f57c406ea6b4f6691888d535",
+              "groupName": "Option 5",
+              "valueId": "csvval_7b15b18372524445a2b158f80953523f",
+              "valueLabel": "Value 0072-5"
+            }
+          ],
+          "sku": "VERIFY-260826-P6E-BULK-0072",
+          "status": "enabled",
+          "priceOverrideMinor": null,
+          "effectivePriceMinor": 100,
+          "priceSource": "base_price",
+          "delivery": {
+            "source": "product_default",
+            "accessTitle": "Download verify-260826-p6e Bulk 0072",
+            "accessInstructions": "Open the file from your order",
+            "file": {
+              "present": false
+            }
+          }
+        }
+      ],
+      "updatedAt": "2026-08-26T02:32:44.061Z",
+      "revision": 1
+    }
+  }
+}

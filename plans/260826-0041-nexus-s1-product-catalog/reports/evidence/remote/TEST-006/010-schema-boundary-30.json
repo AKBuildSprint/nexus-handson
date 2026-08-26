@@ -1,0 +1,826 @@
+{
+  "captured_at": "2026-08-26T02:32:34.380Z",
+  "label": "schema-boundary-30",
+  "request": {
+    "method": "POST",
+    "route": "/api/console/products/schema/preview",
+    "headers": {},
+    "body_bytes": 9023,
+    "body_sha256": "65fe1b3cadf5a05a3cfded1c32a5d0ebfa9b113ccc3acdbed65f956bfc2c7d9b",
+    "json": {
+      "productId": null,
+      "productSlug": "verify-260826-p6e-boundary-30",
+      "product": {
+        "name": "verify-260826-p6e boundary 30",
+        "basePrice": "19.95",
+        "currency": "USD",
+        "status": "active",
+        "publicDescription": "Public description for verify-260826-p6e boundary 30",
+        "delivery": {
+          "accessTitle": "Download verify-260826-p6e boundary 30",
+          "accessInstructions": "Open the private file from the paid order."
+        }
+      },
+      "schema": {
+        "groups": [
+          {
+            "draftRef": "verify-260826-p6e-boundary-30-group-1",
+            "id": null,
+            "name": "Option 1",
+            "position": 0,
+            "participating": true,
+            "values": [
+              {
+                "draftRef": "verify-260826-p6e-boundary-30-value-1-1",
+                "id": null,
+                "label": "Value 1.1",
+                "position": 0
+              },
+              {
+                "draftRef": "verify-260826-p6e-boundary-30-value-1-2",
+                "id": null,
+                "label": "Value 1.2",
+                "position": 1
+              },
+              {
+                "draftRef": "verify-260826-p6e-boundary-30-value-1-3",
+                "id": null,
+                "label": "Value 1.3",
+                "position": 2
+              },
+              {
+                "draftRef": "verify-260826-p6e-boundary-30-value-1-4",
+                "id": null,
+                "label": "Value 1.4",
+                "position": 3
+              },
+              {
+                "draftRef": "verify-260826-p6e-boundary-30-value-1-5",
+                "id": null,
+                "label": "Value 1.5",
+                "position": 4
+              }
+            ]
+          },
+          {
+            "draftRef": "verify-260826-p6e-boundary-30-group-2",
+            "id": null,
+            "name": "Option 2",
+            "position": 1,
+            "participating": true,
+            "values": [
+              {
+                "draftRef": "verify-260826-p6e-boundary-30-value-2-1",
+                "id": null,
+                "label": "Value 2.1",
+                "position": 0
+              },
+              {
+                "draftRef": "verify-260826-p6e-boundary-30-value-2-2",
+                "id": null,
+                "label": "Value 2.2",
+                "position": 1
+              },
+              {
+                "draftRef": "verify-260826-p6e-boundary-30-value-2-3",
+                "id": null,
+                "label": "Value 2.3",
+                "position": 2
+              },
+              {
+                "draftRef": "verify-260826-p6e-boundary-30-value-2-4",
+                "id": null,
+                "label": "Value 2.4",
+                "position": 3
+              },
+              {
+                "draftRef": "verify-260826-p6e-boundary-30-value-2-5",
+                "id": null,
+                "label": "Value 2.5",
+                "position": 4
+              },
+              {
+                "draftRef": "verify-260826-p6e-boundary-30-value-2-6",
+                "id": null,
+                "label": "Value 2.6",
+                "position": 5
+              }
+            ]
+          }
+        ],
+        "rows": [
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-1",
+              "verify-260826-p6e-boundary-30-value-2-1"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-01",
+            "status": "enabled",
+            "priceOverride": "24.50",
+            "delivery": {
+              "source": "variant_override",
+              "accessTitle": "Variant download",
+              "accessInstructions": "Open the Variant package."
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-1",
+              "verify-260826-p6e-boundary-30-value-2-2"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-02",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-1",
+              "verify-260826-p6e-boundary-30-value-2-3"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-03",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-1",
+              "verify-260826-p6e-boundary-30-value-2-4"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-04",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-1",
+              "verify-260826-p6e-boundary-30-value-2-5"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-05",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-1",
+              "verify-260826-p6e-boundary-30-value-2-6"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-06",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-2",
+              "verify-260826-p6e-boundary-30-value-2-1"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-07",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-2",
+              "verify-260826-p6e-boundary-30-value-2-2"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-08",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-2",
+              "verify-260826-p6e-boundary-30-value-2-3"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-09",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-2",
+              "verify-260826-p6e-boundary-30-value-2-4"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-10",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-2",
+              "verify-260826-p6e-boundary-30-value-2-5"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-11",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-2",
+              "verify-260826-p6e-boundary-30-value-2-6"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-12",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-3",
+              "verify-260826-p6e-boundary-30-value-2-1"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-13",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-3",
+              "verify-260826-p6e-boundary-30-value-2-2"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-14",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-3",
+              "verify-260826-p6e-boundary-30-value-2-3"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-15",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-3",
+              "verify-260826-p6e-boundary-30-value-2-4"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-16",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-3",
+              "verify-260826-p6e-boundary-30-value-2-5"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-17",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-3",
+              "verify-260826-p6e-boundary-30-value-2-6"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-18",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-4",
+              "verify-260826-p6e-boundary-30-value-2-1"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-19",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-4",
+              "verify-260826-p6e-boundary-30-value-2-2"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-20",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-4",
+              "verify-260826-p6e-boundary-30-value-2-3"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-21",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-4",
+              "verify-260826-p6e-boundary-30-value-2-4"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-22",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-4",
+              "verify-260826-p6e-boundary-30-value-2-5"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-23",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-4",
+              "verify-260826-p6e-boundary-30-value-2-6"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-24",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-5",
+              "verify-260826-p6e-boundary-30-value-2-1"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-25",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-5",
+              "verify-260826-p6e-boundary-30-value-2-2"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-26",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-5",
+              "verify-260826-p6e-boundary-30-value-2-3"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-27",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-5",
+              "verify-260826-p6e-boundary-30-value-2-4"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-28",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-5",
+              "verify-260826-p6e-boundary-30-value-2-5"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-29",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          },
+          {
+            "id": null,
+            "selectedValueRefs": [
+              "verify-260826-p6e-boundary-30-value-1-5",
+              "verify-260826-p6e-boundary-30-value-2-6"
+            ],
+            "sku": "VERIFY-260826-P6E-BOUNDARY-30-30",
+            "status": "enabled",
+            "priceOverride": null,
+            "delivery": {
+              "source": "product_default"
+            }
+          }
+        ],
+        "confirmCombinations": true
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store"
+    },
+    "body_bytes": 6247,
+    "body_sha256": "e36561afae9af6dba9e5ba1cc7df76ce3bff3308cc4e0cb61fb26afae93b8485",
+    "body": {
+      "previewHash": "56b84a9d1969855ffb1c9c6fda4e4c14e854cede7b50e83b450924e0eb3af0f1",
+      "combinationCount": 30,
+      "confirmationRequired": true,
+      "blocked": false,
+      "rows": [
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-1",
+            "verify-260826-p6e-boundary-30-value-2-1"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-01",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-1",
+            "verify-260826-p6e-boundary-30-value-2-2"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-02",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-1",
+            "verify-260826-p6e-boundary-30-value-2-3"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-03",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-1",
+            "verify-260826-p6e-boundary-30-value-2-4"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-04",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-1",
+            "verify-260826-p6e-boundary-30-value-2-5"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-05",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-1",
+            "verify-260826-p6e-boundary-30-value-2-6"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-06",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-2",
+            "verify-260826-p6e-boundary-30-value-2-1"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-07",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-2",
+            "verify-260826-p6e-boundary-30-value-2-2"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-08",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-2",
+            "verify-260826-p6e-boundary-30-value-2-3"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-09",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-2",
+            "verify-260826-p6e-boundary-30-value-2-4"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-10",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-2",
+            "verify-260826-p6e-boundary-30-value-2-5"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-11",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-2",
+            "verify-260826-p6e-boundary-30-value-2-6"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-12",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-3",
+            "verify-260826-p6e-boundary-30-value-2-1"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-13",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-3",
+            "verify-260826-p6e-boundary-30-value-2-2"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-14",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-3",
+            "verify-260826-p6e-boundary-30-value-2-3"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-15",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-3",
+            "verify-260826-p6e-boundary-30-value-2-4"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-16",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-3",
+            "verify-260826-p6e-boundary-30-value-2-5"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-17",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-3",
+            "verify-260826-p6e-boundary-30-value-2-6"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-18",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-4",
+            "verify-260826-p6e-boundary-30-value-2-1"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-19",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-4",
+            "verify-260826-p6e-boundary-30-value-2-2"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-20",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-4",
+            "verify-260826-p6e-boundary-30-value-2-3"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-21",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-4",
+            "verify-260826-p6e-boundary-30-value-2-4"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-22",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-4",
+            "verify-260826-p6e-boundary-30-value-2-5"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-23",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-4",
+            "verify-260826-p6e-boundary-30-value-2-6"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-24",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-5",
+            "verify-260826-p6e-boundary-30-value-2-1"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-25",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-5",
+            "verify-260826-p6e-boundary-30-value-2-2"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-26",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-5",
+            "verify-260826-p6e-boundary-30-value-2-3"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-27",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-5",
+            "verify-260826-p6e-boundary-30-value-2-4"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-28",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-5",
+            "verify-260826-p6e-boundary-30-value-2-5"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-29",
+          "skuSuggested": false
+        },
+        {
+          "outcome": "new",
+          "variantId": null,
+          "selectedValueRefs": [
+            "verify-260826-p6e-boundary-30-value-1-5",
+            "verify-260826-p6e-boundary-30-value-2-6"
+          ],
+          "sku": "VERIFY-260826-P6E-BOUNDARY-30-30",
+          "skuSuggested": false
+        }
+      ]
+    }
+  }
+}
