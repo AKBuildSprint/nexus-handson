@@ -4,14 +4,11 @@ import { preflightExactMatch } from '../../src/import/exact-match';
 import { ImportPersistenceError, executeImportWrite, IMPORT_TOTAL_STATEMENTS } from '../../src/import/import-write';
 import { parseCsvBytes } from '../../src/import/csv-parser';
 import { validateCsvRows } from '../../src/import/csv-validator';
-import { CSV_CONTENT_TYPE, CSV_FILENAME_HEADER, CSV_HEADER, CSV_HEADER_LINE, serializeCsvRow, type CsvRow, type ImportResultResponse } from '../../src/shared/csv-contract';
+import { CSV_CONTENT_TYPE, CSV_FILENAME_HEADER, CSV_HEADER, CSV_HEADER_LINE, CSV_TEMPLATE, serializeCsvRow, type CsvRow, type ImportResultResponse } from '../../src/shared/csv-contract';
 import identityConflicts from '../fixtures/import/identity-conflicts.csv?raw';
 import mixedShapes from '../fixtures/import/mixed-shapes.csv?raw';
-import templateFixture from '../fixtures/import/unified-template.csv?raw';
 import worstCase from '../fixtures/import/worst-case-500-rows.csv?raw';
 import { resetCatalog, workerRequest } from '../support/catalog-test-env';
-
-const template = templateFixture.replaceAll('\r\n', '\n');
 
 function simpleRow(slug: string): CsvRow {
   const row = Object.fromEntries(CSV_HEADER.map((column) => [column, ''])) as CsvRow;
@@ -66,9 +63,10 @@ describe('CSV R2 and D1 lifecycle', () => {
     const templateResponse = await workerRequest('/api/console/imports/template');
     expect(templateResponse.headers.get('Content-Type')).toBe(CSV_CONTENT_TYPE);
     expect(templateResponse.headers.get('Content-Disposition')).toBe('attachment; filename="nexus-product-import-template.csv"');
-    expect(await templateResponse.text()).toBe(template);
+    const templateBytes = new Uint8Array(await templateResponse.arrayBuffer());
+    expect(templateBytes).toEqual(new TextEncoder().encode(CSV_TEMPLATE));
 
-    const firstResponse = await postCsv(template);
+    const firstResponse = await postCsv(templateBytes);
     expect(firstResponse.status).toBe(200);
     const first = await firstResponse.json() as ImportResultResponse;
     expect(first.counts).toEqual({ added: 3, duplicate: 0, rejected: 0 });
@@ -76,7 +74,7 @@ describe('CSV R2 and D1 lifecycle', () => {
     expect((await env.FILES.list({ prefix: 'imports/' })).objects).toHaveLength(1);
 
     const before = await env.DB.prepare("SELECT revision, import_fingerprint FROM products WHERE slug='focus-pack'").first();
-    const repeat = await (await postCsv(template)).json() as ImportResultResponse;
+    const repeat = await (await postCsv(templateBytes)).json() as ImportResultResponse;
     expect(repeat.counts).toEqual({ added: 0, duplicate: 3, rejected: 0 });
     expect(await env.DB.prepare("SELECT revision, import_fingerprint FROM products WHERE slug='focus-pack'").first()).toEqual(before);
     expect((await env.FILES.list({ prefix: 'imports/' })).objects).toHaveLength(2);
@@ -180,7 +178,7 @@ describe('CSV R2 and D1 lifecycle', () => {
 
   it('deletes the original and rolls back catalog rows on a D1 batch failure', async () => {
     await env.DB.prepare("CREATE TRIGGER force_import_failure BEFORE INSERT ON imports BEGIN SELECT RAISE(ABORT, 'forced'); END").run();
-    const response = await postCsv(template);
+    const response = await postCsv(CSV_TEMPLATE);
     expect(response.status).toBe(500);
     expect(await env.DB.prepare('SELECT count(*) AS count FROM products').first<number>('count')).toBe(0);
     expect((await env.FILES.list({ prefix: 'imports/' })).objects).toHaveLength(0);
@@ -204,9 +202,9 @@ describe('CSV R2 and D1 lifecycle', () => {
   });
 
   it('fails guarded statement 45 on concurrent drift and rolls back every batch-created row', async () => {
-    expect((await postCsv(template)).status).toBe(200);
+    expect((await postCsv(CSV_TEMPLATE)).status).toBe(200);
     const extra = serializeCsvRow(simpleRow('batch-new-peer'));
-    const source = `${template.trimEnd()}\n${extra}\n`;
+    const source = `${CSV_TEMPLATE.trimEnd()}\n${extra}\n`;
     const plan = await preflightExactMatch(env.DB, parsedValidation(source));
     await env.DB.prepare("UPDATE products SET revision=revision+1 WHERE slug='focus-pack'").run();
     let failure: unknown;

@@ -1,1 +1,1 @@
-*.csv text eol=lf
+tests/fixtures/import/*.csv text eol=lf
