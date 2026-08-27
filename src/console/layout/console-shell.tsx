@@ -4,10 +4,19 @@ interface ConsoleShellProps {
   children: ReactNode;
   scenarioControls?: ReactNode;
   railNote?: ReactNode;
+  activeDestination?: 'Products' | 'Orders';
   onOpenProducts: (trigger: HTMLElement) => boolean;
+  onOpenOrders?: (trigger: HTMLElement) => boolean;
 }
 
-export function ConsoleShell({ children, scenarioControls, railNote, onOpenProducts }: ConsoleShellProps) {
+export function ConsoleShell({
+  children,
+  scenarioControls,
+  railNote,
+  activeDestination = 'Products',
+  onOpenProducts,
+  onOpenOrders,
+}: ConsoleShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -44,9 +53,10 @@ export function ConsoleShell({ children, scenarioControls, railNote, onOpenProdu
           <span>Operations Console</span>
         </div>
         <nav className="console-nav">
-          <button className="active" type="button" onClick={(event) => onOpenProducts(event.currentTarget)}>
+          <button className={activeDestination === 'Products' ? 'active' : undefined} aria-current={activeDestination === 'Products' ? 'page' : undefined} type="button" onClick={(event) => onOpenProducts(event.currentTarget)}>
             Products
           </button>
+          {onOpenOrders ? <button className={activeDestination === 'Orders' ? 'active' : undefined} aria-current={activeDestination === 'Orders' ? 'page' : undefined} type="button" onClick={(event) => onOpenOrders(event.currentTarget)}>Orders</button> : null}
         </nav>
         <p className="console-rail-note">
           {railNote ?? 'Frontend design prototype. Scenario data is isolated from future production inputs.'}
@@ -54,7 +64,7 @@ export function ConsoleShell({ children, scenarioControls, railNote, onOpenProdu
       </aside>
 
       <header className="console-topbar">
-        <strong>Nexus · Products</strong>
+        <strong>Nexus · {activeDestination}</strong>
         <button
           ref={menuButtonRef}
           className="button"
@@ -72,6 +82,7 @@ export function ConsoleShell({ children, scenarioControls, railNote, onOpenProdu
           <button
             className="button"
             type="button"
+            aria-current={activeDestination === 'Products' ? 'page' : undefined}
             onClick={(event) => {
               onOpenProducts(menuButtonRef.current ?? event.currentTarget);
               closeMenu();
@@ -79,6 +90,19 @@ export function ConsoleShell({ children, scenarioControls, railNote, onOpenProdu
           >
             Products
           </button>
+          {onOpenOrders ? (
+            <button
+              className="button"
+              type="button"
+              aria-current={activeDestination === 'Orders' ? 'page' : undefined}
+              onClick={(event) => {
+                onOpenOrders(menuButtonRef.current ?? event.currentTarget);
+                closeMenu();
+              }}
+            >
+              Orders
+            </button>
+          ) : null}
           <button className="button" type="button" onClick={closeMenu}>
             Close menu
           </button>

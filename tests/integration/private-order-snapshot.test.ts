@@ -33,7 +33,9 @@ describe('private Order item snapshot resolver', () => {
   it('resolves simple Product defaults and returns an immutable copied value', async () => {
     const resolveOrderItemCatalogSnapshot = createOrderItemCatalogSnapshotResolver(env.DB);
     const product = await createSimple();
-    const snapshot = await resolveOrderItemCatalogSnapshot({ productId: product.id, variantId: null });
+    const resolution = await resolveOrderItemCatalogSnapshot({ productId: product.id, variantId: null });
+    const snapshot = resolution.snapshot;
+    expect(resolution.productRevision).toBe(product.revision);
     expect(snapshot).toMatchObject({ productId: product.id, variantId: null, unitPriceMinor: 2400, accessTitle: SIMPLE_CORE.delivery.accessTitle });
     await env.DB.prepare("UPDATE products SET name='Changed', base_price_minor=9999, delivery_access_title='Changed' WHERE id=?").bind(product.id).run();
     expect(snapshot).toMatchObject({ productName: 'Field Notes', unitPriceMinor: 2400, accessTitle: SIMPLE_CORE.delivery.accessTitle });
@@ -46,7 +48,14 @@ describe('private Order item snapshot resolver', () => {
     const variant = product.variants[0];
     await expect(resolveOrderItemCatalogSnapshot({ productId: product.id, variantId: null })).rejects.toMatchObject({ code: 'variant_not_found' });
     const inherited = await resolveOrderItemCatalogSnapshot({ productId: product.id, variantId: variant.id });
-    expect(inherited).toMatchObject({ variantSku: variant.sku, selectedOptions: [{ groupName: 'Theme', valueLabel: 'Dark' }], unitPriceMinor: 3600 });
+    expect(inherited).toMatchObject({
+      productRevision: product.revision,
+      snapshot: {
+        variantSku: variant.sku,
+        selectedOptions: [{ groupName: 'Theme', valueLabel: 'Dark' }],
+        unitPriceMinor: 3600,
+      },
+    });
 
     const update = {
       product: { ...VARIANT_CORE, status: 'active' },
@@ -58,7 +67,10 @@ describe('private Order item snapshot resolver', () => {
     });
     product = (await updated.json() as { product: ProductDetailResponse }).product;
     const overridden = await resolveOrderItemCatalogSnapshot({ productId: product.id, variantId: variant.id });
-    expect(overridden).toMatchObject({ unitPriceMinor: 4000, accessTitle: 'Private Variant', accessInstructions: 'Open Variant' });
+    expect(overridden).toMatchObject({
+      productRevision: product.revision,
+      snapshot: { unitPriceMinor: 4000, accessTitle: 'Private Variant', accessInstructions: 'Open Variant' },
+    });
 
     await env.DB.prepare("UPDATE product_variants SET current_schema=0, status='disabled' WHERE id=?").bind(variant.id).run();
     await expect(resolveOrderItemCatalogSnapshot({ productId: product.id, variantId: variant.id })).rejects.toMatchObject({ code: 'variant_not_found' });

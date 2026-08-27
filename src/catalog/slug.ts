@@ -18,6 +18,6 @@ export function slugifyProductName(name: string): string {
   return slug || 'product';
 }
 
-export function stableId(prefix: 'prod' | 'grp' | 'val' | 'var'): string {
+export function stableId(prefix: 'prod' | 'grp' | 'val' | 'var' | 'cust' | 'ord' | 'line' | 'hist' | 'access' | 'idem'): string {
   return `${prefix}_${crypto.randomUUID().replaceAll('-', '')}`;
 }

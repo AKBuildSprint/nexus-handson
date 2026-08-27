@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Kế hoạch triển khai Nexus S2 Storefront và Orders">
+<title>Nexus S2: Storefront và Orders</title>
+<style>
+:root {
+  --paper: #faf7f2;
+  --panel: #f0ebe1;
+  --ink: #0a0a0a;
+  --muted: #6b6258;
+  --accent: #b8232c;
+  --line: #c9c0b4;
+  --deep: #2c2925;
+  --font-display: Georgia, "Times New Roman", serif;
+  --font-body: Aptos, "Segoe UI", sans-serif;
+  --font-mono: "Cascadia Mono", Consolas, monospace;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+  --ease: cubic-bezier(.25, 1, .5, 1);
+}
+* { box-sizing: border-box; }
+html { background: var(--paper); color: var(--ink); scroll-behavior: smooth; }
+body { margin: 0; font-family: var(--font-body); font-size: 16px; line-height: 1.6; background-color: var(--paper); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.78' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E"); }
+a { color: inherit; text-decoration-color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover { color: var(--accent); }
+button { font: inherit; color: inherit; }
+button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.skip { position: fixed; top: -80px; left: var(--space-4); z-index: 20; padding: var(--space-3) var(--space-4); background: var(--accent); color: var(--paper); transition: top 150ms var(--ease); }
+.skip:focus { top: var(--space-4); }
+.shell { max-width: 1440px; margin: 0 auto; padding: 0 var(--space-6); }
+.topline { display: flex; justify-content: space-between; gap: var(--space-4); padding: var(--space-4) 0; border-bottom: 1px solid var(--ink); font-family: var(--font-mono); font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; }
+.topline span:last-child { color: var(--muted); text-align: right; }
+.cover { display: grid; grid-template-columns: minmax(0, 7fr) minmax(260px, 3fr); gap: var(--space-12); min-height: 72dvh; align-items: end; padding: var(--space-24) 0 var(--space-16); border-bottom: 1px solid var(--ink); }
+.cover h1 { max-width: 11ch; margin: 0; font: 400 clamp(3rem, 7vw, 6rem)/.98 var(--font-display); letter-spacing: -.035em; text-wrap: balance; }
+.cover h1 em { color: var(--accent); font-style: italic; }
+.cover p { max-width: 55ch; margin: var(--space-6) 0 0; font-size: 1.1rem; text-wrap: pretty; }
+.cover-aside { align-self: stretch; display: flex; flex-direction: column; justify-content: space-between; padding: var(--space-6) 0 0 var(--space-6); border-left: 1px solid var(--ink); }
+.label { margin: 0; font-family: var(--font-mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.cover-aside strong { display: block; margin-top: var(--space-2); font: 400 1.65rem/1.1 var(--font-display); }
+.cover-aside ul { padding: 0; margin: var(--space-8) 0 0; list-style: none; }
+.cover-aside li { padding: var(--space-2) 0; border-top: 1px solid var(--line); }
+.cover-aside li::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: var(--space-2); background: var(--accent); }
+.nav { position: sticky; top: 0; z-index: 10; display: flex; gap: var(--space-4); align-items: center; overflow-x: auto; padding: var(--space-3) 0; background: var(--paper); border-bottom: 1px solid var(--line); }
+.nav a { flex: 0 0 auto; font-family: var(--font-mono); font-size: .75rem; letter-spacing: .05em; text-decoration: none; text-transform: uppercase; }
+.nav a:hover { color: var(--accent); }
+section { padding: var(--space-16) 0; border-bottom: 1px solid var(--line); }
+.section-head { display: grid; grid-template-columns: 2fr 5fr; gap: var(--space-8); align-items: baseline; margin-bottom: var(--space-8); }
+h2 { max-width: 14ch; margin: 0; font: 400 clamp(2rem, 3.8vw, 3.6rem)/1.05 var(--font-display); letter-spacing: -.025em; text-wrap: balance; }
+.section-head p { max-width: 62ch; margin: 0; color: var(--muted); }
+.contract { display: grid; grid-template-columns: 1fr 1.25fr 1fr; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
+.contract > div { min-height: 190px; padding: var(--space-6); border-right: 1px solid var(--ink); }
+.contract > div:last-child { border-right: 0; }
+.contract h3 { margin: var(--space-8) 0 var(--space-2); font: 400 1.45rem/1.1 var(--font-display); }
+.contract p { margin: 0; color: var(--muted); }
+.contract .accent-cell { background: var(--accent); color: var(--paper); }
+.contract .accent-cell p, .contract .accent-cell .label { color: var(--paper); }
+.flows { display: grid; grid-template-columns: 5fr 3fr; gap: var(--space-12); }
+.flow-tabs { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-6); }
+.tab, .open-phase, .modal-close { min-height: 44px; border: 1px solid var(--ink); border-radius: 0; background: transparent; padding: var(--space-2) var(--space-3); cursor: pointer; transition: transform 150ms var(--ease), background 150ms var(--ease), color 150ms var(--ease); }
+.tab:hover, .open-phase:hover, .modal-close:hover { transform: translateY(-2px); background: var(--ink); color: var(--paper); }
+.tab:active, .open-phase:active, .modal-close:active { transform: translateY(1px); }
+.tab[aria-selected="true"] { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+.flow-panel { min-height: 228px; padding: var(--space-6); border-top: 2px solid var(--ink); border-bottom: 1px solid var(--ink); }
+.flow-panel h3 { margin: 0 0 var(--space-3); font: 400 1.6rem/1.1 var(--font-display); }
+.flow-panel p { max-width: 60ch; margin: 0; }
+.flow-panel ol { padding-left: var(--space-6); margin: var(--space-4) 0 0; }
+.flow-notes { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--ink); }
+.flow-notes li { padding: var(--space-4) 0; border-bottom: 1px solid var(--line); }
+.flow-notes strong { display: block; font-family: var(--font-mono); font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; }
+.roadmap-tools { display: flex; justify-content: space-between; gap: var(--space-4); align-items: end; margin-bottom: var(--space-6); }
+.roadmap-tools p { margin: 0; color: var(--muted); }
+.filters { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.filter { min-height: 44px; border: 1px solid var(--line); border-radius: 0; background: var(--panel); padding: var(--space-2) var(--space-3); cursor: pointer; }
+.filter[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.phase-list { border-top: 2px solid var(--ink); }
+.phase { display: grid; grid-template-columns: 92px minmax(0, 1fr) minmax(220px, .8fr); gap: var(--space-6); padding: var(--space-8) 0; border-bottom: 1px solid var(--line); }
+.phase-number { color: var(--accent); font: 400 3.2rem/.9 var(--font-display); }
+.phase h3 { margin: 0 0 var(--space-2); font: 400 clamp(1.65rem, 2.5vw, 2.35rem)/1.08 var(--font-display); text-wrap: balance; }
+.phase p { margin: 0; color: var(--muted); }
+.meta { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-4) 0; font-family: var(--font-mono); font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
+.meta span { padding: var(--space-1) var(--space-2); border: 1px solid var(--line); }
+.meta .p1 { color: var(--accent); border-color: var(--accent); }
+.phase ul { margin: var(--space-4) 0 0; padding-left: var(--space-4); }
+.phase li { margin: var(--space-1) 0; }
+.phase-side { display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-4); }
+.phase-side dl { margin: 0; }
+.phase-side dt { margin-top: var(--space-3); font-family: var(--font-mono); font-size: .72rem; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; }
+.phase-side dd { margin: var(--space-1) 0 0; font-size: .9rem; }
+.open-phase { align-self: flex-start; font-family: var(--font-mono); font-size: .78rem; letter-spacing: .04em; }
+.risks { display: grid; grid-template-columns: 1.2fr .8fr; gap: var(--space-12); }
+.risk-list { margin: 0; padding: 0; list-style: none; border-top: 2px solid var(--ink); }
+.risk-list li { display: grid; grid-template-columns: 100px 1fr; gap: var(--space-4); padding: var(--space-4) 0; border-bottom: 1px solid var(--line); }
+.risk-list b { color: var(--accent); font-family: var(--font-mono); font-size: .75rem; letter-spacing: .04em; }
+.callout { padding: var(--space-6); background: var(--deep); color: var(--paper); align-self: start; }
+.callout h3 { margin: 0 0 var(--space-3); font: 400 1.6rem/1.1 var(--font-display); }
+.callout p { margin: 0; color: var(--paper); }
+.citations { columns: 2; column-gap: var(--space-12); margin: 0; padding: 0; list-style: none; }
+.citations li { break-inside: avoid; margin-bottom: var(--space-4); padding-bottom: var(--space-4); border-bottom: 1px solid var(--line); }
+.citations b { display: block; font-family: var(--font-mono); font-size: .75rem; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+footer { display: flex; justify-content: space-between; gap: var(--space-4); padding: var(--space-6) 0; color: var(--muted); font-family: var(--font-mono); font-size: .75rem; }
+dialog { width: min(960px, calc(100% - 32px)); max-height: min(86dvh, 980px); padding: 0; border: 1px solid var(--ink); border-radius: 0; background: var(--paper); color: var(--ink); }
+dialog::backdrop { background: #2c2925cc; }
+.modal-head { position: sticky; top: 0; display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--ink); background: var(--paper); }
+.modal-head p { margin: 0; font-family: var(--font-mono); font-size: .75rem; color: var(--muted); }
+.modal-close { flex: 0 0 auto; }
+.markdown { padding: var(--space-8) var(--space-6); }
+.markdown h1 { margin: var(--space-8) 0 var(--space-4); font: 400 2.5rem/1.08 var(--font-display); }
+.markdown h2 { max-width: none; margin: var(--space-8) 0 var(--space-3); font: 400 1.8rem/1.1 var(--font-display); }
+.markdown p { max-width: 72ch; }
+.markdown ul, .markdown ol { max-width: 76ch; padding-left: var(--space-6); }
+.markdown li { margin: var(--space-2) 0; }
+.markdown code { padding: 2px 4px; background: var(--panel); font-family: var(--font-mono); font-size: .9em; }
+.markdown pre { overflow: auto; padding: var(--space-4); background: var(--deep); color: var(--paper); }
+.markdown pre code { padding: 0; background: transparent; }
+.markdown .frontmatter { padding: var(--space-4); border-left: 2px solid var(--accent); background: var(--panel); font-family: var(--font-mono); white-space: pre-wrap; }
+.markdown .task { list-style: none; margin-left: calc(var(--space-6) * -1); }
+.markdown .task input { margin-right: var(--space-2); accent-color: var(--accent); }
+.markdown table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.markdown th, .markdown td { padding: var(--space-2); border: 1px solid var(--line); text-align: left; vertical-align: top; }
+@media (max-width: 820px) { .shell { padding: 0 var(--space-4); } .cover, .section-head, .flows, .risks { grid-template-columns: 1fr; gap: var(--space-6); } .cover { min-height: auto; padding: var(--space-16) 0 var(--space-12); } .cover-aside { border-left: 0; border-top: 1px solid var(--ink); padding: var(--space-6) 0 0; } .contract { grid-template-columns: 1fr; } .contract > div { min-height: auto; border-right: 0; border-bottom: 1px solid var(--ink); } .contract > div:last-child { border-bottom: 0; } .phase { grid-template-columns: 64px 1fr; gap: var(--space-4); } .phase-side { grid-column: 2; } .phase-number { font-size: 2.5rem; } .citations { columns: 1; } }
+@media (max-width: 520px) { .topline { font-size: .65rem; } .topline span:last-child { display: none; } .phase { grid-template-columns: 1fr; } .phase-side { grid-column: 1; } .risk-list li { grid-template-columns: 1fr; gap: var(--space-2); } .markdown { padding: var(--space-6) var(--space-4); } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Đến nội dung chính</a>
+<div class="shell">
+  <header>
+    <div class="topline"><span>Nexus / Implementation Plan</span><span>27 Aug 2026 · HTML authoritative</span></div>
+    <div class="cover">
+      <div>
+        <p class="label">S2 · Storefront + Orders</p>
+        <h1>Catalog chung. <em>Order bất biến.</em></h1>
+        <p>Một Storefront độc lập đọc catalog S1. Worker giữ price authority, ghi Order atomic, và mở private page bằng capability không đi qua network URL.</p>
+      </div>
+      <aside class="cover-aside" aria-label="Tóm tắt plan">
+        <div><p class="label">Thiết kế đọc như</p><strong>Editorial technical brief cho maintainer triển khai một transaction-sensitive product slice.</strong></div>
+        <ul><li>5 phases tuần tự</li><li>P1 data integrity</li><li>2-origin evidence</li><li>Không payment/auth/delivery</li></ul>
+      </aside>
+    </div>
+    <nav class="nav" aria-label="Điều hướng plan"><a href="#outcome">Outcome</a><a href="#flows">Flows</a><a href="#roadmap">Roadmap</a><a href="#risks">Risks</a><a href="#sources">Sources</a></nav>
+  </header>
+  <main id="main">
+    <section id="outcome">
+      <div class="section-head"><h2>Outcome đã chốt</h2><p>Không có catalog replica. Không có client monetary authority. Không có auth tạm thời, payment provider, delivery grant, cart hoặc multi-line Order.</p></div>
+      <div class="contract" aria-label="Kiến trúc S2">
+        <div><p class="label">01 · Storefront</p><h3>App độc lập</h3><p>Static assets riêng. Chỉ gọi configured Nexus API. Không nhận D1/R2 binding.</p></div>
+        <div class="accent-cell"><p class="label">02 · Worker authority</p><h3>Catalog, price, transaction</h3><p>Resolver hiện có xác thực selection. Captured Product revision bảo vệ snapshot khỏi concurrent catalog edit. D1 batch commit hoặc rollback full aggregate.</p></div>
+        <div><p class="label">03 · Safe projections</p><h3>Customer + Console</h3><p>Customer thấy purchase-time selection và payment next-step. Console demo thấy operational fields. Cả hai đều không thấy delivery/capability secrets.</p></div>
+      </div>
+    </section>
+    <section id="flows">
+      <div class="section-head"><h2>Ba user flows</h2><p>UI không sửa server truth. Mỗi flow kết thúc ở persisted projection từ Worker.</p></div>
+      <div class="flows">
+        <div>
+          <div class="flow-tabs" role="tablist" aria-label="User flows">
+            <button class="tab" type="button" role="tab" aria-selected="true" aria-controls="flow-content" data-flow="customer">Customer order</button>
+            <button class="tab" type="button" role="tab" aria-selected="false" aria-controls="flow-content" data-flow="private">Private reopen</button>
+            <button class="tab" type="button" role="tab" aria-selected="false" aria-controls="flow-content" data-flow="console">Console visibility</button>
+          </div>
+          <div id="flow-content" class="flow-panel" role="tabpanel"></div>
+        </div>
+        <ul class="flow-notes"><li><strong>Money</strong>Browser sends identity and quantity only. Worker derives unit price, amount, total, currency.</li><li><strong>Capability</strong>Web Crypto value travels in an explicit header. Reopenable URL retains it only after <code>#</code>.</li><li><strong>Idempotency</strong>Retry keeps the same caller-held idempotency identity and capability. One Order aggregate survives.</li></ul>
+      </div>
+    </section>
+    <section id="roadmap">
+      <div class="roadmap-tools"><div><p class="label">Implementation roadmap</p><h2>Five gated phases</h2></div><div class="filters" aria-label="Lọc phases"><button class="filter" type="button" aria-pressed="true" data-filter="all">All</button><button class="filter" type="button" aria-pressed="false" data-filter="foundation">Foundation</button><button class="filter" type="button" aria-pressed="false" data-filter="surface">Surfaces</button><button class="filter" type="button" aria-pressed="false" data-filter="verify">Verify</button></div></div>
+      <div id="phase-list" class="phase-list"></div>
+    </section>
+    <section id="risks">
+      <div class="section-head"><h2>Rủi ro được khóa trước code</h2><p>Red-team gate đã thay đổi plan tại ba điểm P1: capability retry, snapshot concurrency, và token transport.</p></div>
+      <div class="risks"><ul class="risk-list"><li><b>P1 · Retry</b><span>Capability do Storefront tạo và giữ trong retry state. Idempotency retry dùng lại đúng capability; server chỉ giữ digest.</span></li><li><b>P1 · Snapshot</b><span>Resolver trả Product revision cùng snapshot. Batch có final failing assertion cho exact revision đó; catalog edit xen kẽ rollback toàn bộ aggregate.</span></li><li><b>P1 · URL leak</b><span>Capability không ở path/query. Private route dùng fragment, page chuyển giá trị đó sang one allow-listed request header.</span></li><li><b>P1 · CORS</b><span>Không reflect Origin, wildcard, credential CORS hoặc Console CORS. Allow-list chỉ cho configured Storefront origin và headers cần thiết.</span></li></ul><aside class="callout"><p class="label">Acceptance boundary</p><h3>Anonymous Console vẫn là demo risk.</h3><p>S4 sở hữu identity/permissions. S5 sở hữu payment/delivery. S2 không báo cáo hai capability này là hoàn thành.</p></aside></div>
+    </section>
+    <section id="sources">
+      <div class="section-head"><h2>Source authority</h2><p>Plan dựa vào scope đã chốt, S1 source hiện có và D1 semantics hiện hành. Không dùng S2 brief, report hoặc plan cũ.</p></div>
+      <ul class="citations"><li><b>Approved scope</b><a href="../reports/brainstorm-2026-08-27-nexus-s2-storefront-orders.md">plans/reports/brainstorm-2026-08-27-nexus-s2-storefront-orders.md</a></li><li><b>Public catalog</b><a href="../../src/catalog/public-catalog.ts">src/catalog/public-catalog.ts</a></li><li><b>Internal snapshot</b><a href="../../src/catalog/private-order-snapshot.ts">src/catalog/private-order-snapshot.ts</a></li><li><b>Worker dispatch</b><a href="../../src/worker/index.ts">src/worker/index.ts</a></li><li><b>D1 transaction semantics</b><a href="https://developers.cloudflare.com/d1/worker-api/d1-database/">developers.cloudflare.com/d1/worker-api/d1-database/</a></li><li><b>Static Worker assets</b><a href="https://developers.cloudflare.com/workers/static-assets/">developers.cloudflare.com/workers/static-assets/</a></li></ul>
+    </section>
+  </main>
+  <footer><span>Primary artifact: plan.html</span><span>Open questions: None</span></footer>
+</div>
+<dialog id="detail-modal" aria-labelledby="modal-title"><div class="modal-head"><div><p id="modal-label">Phase detail</p><strong id="modal-title">Phase</strong></div><button class="modal-close" type="button">Close</button></div><article id="modal-body" class="markdown"></article></dialog>
+<script type="text/plain" id="phase-1">---
+phase: 1
+title: "Independent Storefront Boundary"
+status: pending
+priority: P1
+dependencies: []
+---
+# Phase 1: Independent Storefront Boundary
+## Overview
+Create the independently deployable Storefront boundary and two-origin local test topology while keeping the existing Console deployment intact. This phase does not create Order APIs or grant Storefront direct D1/R2 access.
+## Requirements
+- Separate HTML entry, React bootstrap, Vite config, static Worker manifest/name, and deployment commands.
+- Explicit API-base configuration only. No Console import, D1, or R2 access.
+- Existing Console entry and default build remain intact.
+- Local/E2E tooling runs Storefront and API/Console at different origins.
+## Architecture
+```text
+storefront static Worker -> configured API origin -> Nexus API Worker
+no DB/R2 bindings                                  -> DB + private FILES
+```
+## Related Code Files
+- Create: `storefront/index.html`, `storefront/src/main.tsx`, `storefront/src/storefront-app.tsx`, `storefront/src/api-client.ts`, `storefront/src/styles.css`.
+- Create: `storefront/vite.config.ts`, `storefront/wrangler.jsonc`.
+- Modify: `package.json`, `playwright.config.ts`.
+- Modify after confirmed provisioning only: `resource-identities.json`.
+## Implementation Steps
+1. Add dedicated Storefront root, shell, and configured API seam. Do not copy `src/console/**`.
+2. Build a static-assets Worker with SPA fallback and no `DB`/`FILES` bindings.
+3. Add explicit Storefront dev/build/preview/deploy commands and separate build metadata path.
+4. Start Storefront and API/Console at distinct local origins for true CORS evidence.
+5. Provision one Storefront identity, persist returned origin, then feed it to API CORS configuration.
+## Success Criteria
+- [ ] Storefront and Console have distinct outputs and local origins.
+- [ ] Storefront has no direct storage binding or Console production import.
+- [ ] Existing Console deep links and API routing remain baseline.
+## Risk Assessment
+Second Vite config must not overwrite Console metadata. Never guess a `workers.dev` origin.
+## Security Considerations
+API origin is public configuration. Never put credentials, private keys, or raw Order capabilities in build configuration.</script>
+<script type="text/plain" id="phase-2">---
+phase: 2
+title: "Order Persistence"
+status: pending
+priority: P1
+dependencies: [1]
+---
+# Phase 2: Order Persistence
+## Overview
+Add an immutable D1 Order aggregate: Customer reuse, exactly one line, snapshot, history, capability digest, and idempotency outcome.
+## Requirements
+- Append `0004-orders.sql`; do not rewrite S1 migrations.
+- Customer is unique per Store by server-normalized email. Latest name updates Customer; historic Order snapshot remains immutable.
+- Exactly one line, quantity `1–99`, `pending_payment`, server-derived amount/total/currency.
+- Resolver returns the snapshot plus exact Product revision. Batch revalidates that captured revision.
+- Persist only capability digest. Raw value is never persisted or logged.
+## Architecture
+`src/orders/` owns validation, command/query persistence, private access, and safe projections. The command uses one D1 batch. A final failing assertion verifies the captured Product revision and rolls back all writes after concurrent catalog edits.
+## Related Code Files
+- Create: `migrations/0004-orders.sql` and bounded `src/orders/` modules.
+- Modify: `src/catalog/catalog-types.ts`, `src/catalog/private-order-snapshot.ts`, `src/catalog/slug.ts`.
+- Modify: Workerd migration/reset harness and integration tests.
+## Implementation Steps
+1. Define internal versus Customer/Console-safe projections.
+2. Add Store-scoped constraints/indexes for Customer, Order, line, history, access digest, idempotency, and immutable snapshots.
+3. Register migration and update FK-safe reset order.
+4. Normalize/validate name, email, selection, quantity, idempotency, and opaque capability server-side.
+5. Resolve snapshot plus revision; derive money; digest capability; commit one batch with captured-revision final assertion.
+6. Add internal read projections and retention regression coverage.
+## Success Criteria
+- [ ] Simple and enabled Variant snapshots persist correctly; invalid selection cannot persist.
+- [ ] Email reuse, quantity, one-line, server money, and history immutability hold.
+- [ ] Interleaved catalog edit aborts full aggregate with no stale snapshot.
+- [ ] Idempotent retry returns one aggregate without raw capability persistence.
+## Risk Assessment
+A pre-read without captured-revision guard is stale under concurrent Console edit.
+## Security Considerations
+Capability is high-entropy Web Crypto input. Persist/compare only digest and scope every query by Store.</script>
+<script type="text/plain" id="phase-3">---
+phase: 3
+title: "Order API and Privacy"
+status: pending
+priority: P1
+dependencies: [2]
+---
+# Phase 3: Order API and Privacy
+## Overview
+Expose Storefront create/private read and reduced Console Orders API through the Nexus Worker with narrow configured-origin CORS.
+## Requirements
+- Storefront gets catalog, creates Order, and reads private Order via explicit routes.
+- Capability travels only in `X-Nexus-Order-Capability`; private URL has fragment-only capability.
+- Private read needs Store-scoped reference and valid header capability. Reference/email, altered token, cross-Store lookup do not reveal existence.
+- Customer and Console responses have separate allow-lists without delivery/capability data.
+## Architecture
+Dedicated Storefront-Order and Console-Order routes enter existing Worker dispatch. One CORS helper validates exact configured Origin, `OPTIONS`, allowed methods, `Idempotency-Key`, and `X-Nexus-Order-Capability`. It never reflects Origin or widens Console CORS.
+## Related Code Files
+- Create: `src/worker/storefront-order-routes.ts`, `src/worker/console-order-routes.ts`, `src/worker/storefront-cors.ts`.
+- Modify: `src/worker/index.ts`, `http-response.ts`, `environment.ts`, `storefront-product-routes.ts`, `wrangler.jsonc`.
+- Create: route, CORS, and Console projection integration tests.
+## Implementation Steps
+1. Finalize minimum catalog/create/private-read/OPTIONS contract with no money authority in client payload.
+2. Add configured Storefront origin binding and regenerated Worker types.
+3. Apply CORS to success, validation error, unexpected error, and preflight responses.
+4. Map create/private-read outcomes to existing JSON envelope without token/snapshot echo.
+5. Add reduced anonymous-demo Console Orders route and register routes before fallback.
+6. Test allowed/denied CORS, lost-response retry, denial privacy, money authority, and redaction.
+## Success Criteria
+- [ ] Only configured Storefront origin gets CORS.
+- [ ] Private read requires header capability and returns approved fields only.
+- [ ] Raw capability appears in neither request URL, log, error body, Customer, nor Console response.
+## Risk Assessment
+CORS only on success breaks actual client errors. Global CORS exposes Console unnecessarily.
+## Security Considerations
+No wildcard/reflective/credentialed CORS. Redact idempotency and capability headers from diagnostics.</script>
+<script type="text/plain" id="phase-4">---
+phase: 4
+title: "Storefront and Console"
+status: pending
+priority: P1
+dependencies: [3]
+---
+# Phase 4: Storefront and Console
+## Overview
+Implement Customer catalog, checkout, private Order page, and Console Orders route against safe server projections.
+## Requirements
+- Refetch public catalog at page activation. No realtime sync or local catalog database.
+- Simple Product submits null Variant. Variant Product requires one enabled matching Variant.
+- Checkout validates name/email/quantity for UX only and renders server money.
+- Capability and idempotency identity stay in retry state; successful private URL keeps capability only in fragment.
+- Console supports loading, empty, error, table, mobile card, deep-link, and safe redaction states.
+## Architecture
+Storefront owns cross-origin API client and state. Console extends `ProductionConsoleApp`, same-origin `api-client.ts`, and `ConsoleShell`. Dedicated view models prevent `OrderItemCatalogSnapshot` private fields entering rendering.
+## Related Code Files
+- Create: Storefront selection, checkout, private page, view models, API client modules.
+- Create: `src/console/orders/orders-screen.tsx`, `src/console/orders/order-ui-types.ts`.
+- Modify: Console router, API client, shell navigation, and layout CSS.
+- Create: Browser contract tests for both surfaces.
+## Implementation Steps
+1. Render catalog and Simple/Variant selection from `PublicCatalogResponse`.
+2. Generate one Web Crypto capability and idempotency identity at checkout start; reuse both for retry.
+3. Navigate to Storefront-relative `location.hash` private route; private page sends fragment in header.
+4. Refetch on page activation after Console catalog change.
+5. Add Console Orders route, safe view model, desktop/mobile screen, navigation, deep-link/history support.
+6. Add browser accessibility, error, retry, redaction, selection, and quantity contract tests.
+## Success Criteria
+- [ ] Simple and Variant journeys reach fragment-only private page with server-returned fields.
+- [ ] Invalid variant/quantity cannot submit through UI.
+- [ ] Retry returns original Order without duplication.
+- [ ] No surface renders delivery/access/capability values.
+## Risk Assessment
+Do not use browser storage or path/query for raw capability. Do not reuse Product detail view types.
+## Security Considerations
+Redact errors/telemetry/debug output. Client validation is UX only.</script>
+<script type="text/plain" id="phase-5">---
+phase: 5
+title: "Cross-Surface Verification"
+status: pending
+priority: P1
+dependencies: [4]
+---
+# Phase 5: Cross-Surface Verification
+## Overview
+Prove S2 across D1, Worker, independent Storefront, Console, two-origin Playwright, and controlled remote deployment.
+## Requirements
+- Workerd owns transaction/CORS/privacy/retention proof. Browser owns state/a11y. Playwright owns real two-origin journeys.
+- Preserve S1 catalog privacy, Product/Variant purchasability, routing, import, and file retention regressions.
+- Verify both Customer Order types, Customer history, captured-revision conflict, header/fragment transport, idempotency, and rollback.
+## Related Code Files
+- Modify existing test support and S1 regression integration tests.
+- Create Orders route/persistence/CORS integration tests plus Storefront/Console browser/E2E specs.
+- Modify Playwright/package/deployment configs; update README only if commands change.
+## Implementation Steps
+1. Run focused Workerd migration, command, route, CORS, privacy, retention, and interleaving rollback tests.
+2. Run browser contracts for Customer and Console rendering boundaries.
+3. Run real two-origin Playwright: Console edit/refetch, Simple/Variant Order, retry, private reload, denied token/origin, Console deep link/mobile.
+4. Run typecheck, full suites, and both builds. Fix regressions without weakening S1 tests.
+5. Inspect resources; apply append-only migration; deploy Storefront to obtain origin; configure/deploy API CORS; smoke both origins.
+6. Record sanitized evidence and never clean up snapshot-referenced files.
+## Success Criteria
+- [ ] Every approved outcome has focused local and cross-surface evidence.
+- [ ] No partial/duplicate/stale/leaked/broad-CORS aggregate exists.
+- [ ] Deployments are independent and share only API/catalog contract.
+- [ ] S1 behavior remains green.
+## Risk Assessment
+One-origin E2E is not CORS evidence. Remote fixtures can create cleanup ambiguity.
+## Security Considerations
+Use demo fixtures only. Redact email, private URL, capability, private-file key, and credentials.</script>
+<script>
+const flowData = {
+  customer: { title: 'Customer order', text: 'Customer chọn một Product line, nhập name/email và quantity. Simple Product không có Variant. Variant Product không thể submit cho tới khi có một enabled Variant hợp lệ.', steps: ['Storefront refetch public catalog', 'Customer chọn selection hợp lệ', 'Storefront gửi IDs, quantity, idempotency và capability header', 'Worker snapshot, price, transaction', 'Storefront mở private fragment URL'] },
+  private: { title: 'Private reopen', text: 'Reference và email không phải credential. Static app nhận URL fragment, sau đó gửi capability qua exact allow-listed header để đọc reduced Customer projection.', steps: ['Browser tải static route, fragment không được gửi', 'Page đọc location.hash', 'Worker so digest trong Store scope', 'Customer thấy reference, selection, money, status, next-step'] },
+  console: { title: 'Console visibility', text: 'Console S1 vẫn anonymous-demo. Orders list lấy reduced operational projection và không tính lại giá hay render delivery/capability fields.', steps: ['Worker đọc persisted Order projection', 'Console route /console/orders tải states', 'Desktop table và mobile card dùng cùng safe model', 'Không có auth/payment/delivery scope creep'] }
+};
+const phases = [
+  { id: 1, tag: 'foundation', title: 'Independent Storefront Boundary', deps: 'None', objective: 'Tách Storefront deploy/build/test topology khỏi Console hiện có.', bullets: ['Static Worker riêng, không DB/R2', 'API base explicit', 'Two-origin local harness', 'Không đoán production origin'], files: ['storefront/**', 'package.json', 'playwright.config.ts'], success: 'Storefront và Console chạy/build độc lập.', gate: 'Build isolation + two-origin baseline', source: 'phase-1' },
+  { id: 2, tag: 'foundation', title: 'Order Persistence', deps: 'Phase 1', objective: 'Persist immutable, atomic, one-line Order aggregate.', bullets: ['Append-only migration', 'Customer reuse + snapshots', 'Captured revision guard', 'Digest-only capability'], files: ['migrations/0004-orders.sql', 'src/orders/**', 'catalog snapshot seam'], success: 'No partial, duplicate, or stale snapshot aggregate.', gate: 'Workerd transaction + constraint tests', source: 'phase-2' },
+  { id: 3, tag: 'foundation', title: 'Order API and Privacy', deps: 'Phase 2', objective: 'Expose safe Storefront and Console Order APIs with restrictive CORS.', bullets: ['Create/private read', 'Fragment + header capability', 'CORS success/error/preflight', 'Reduced Console projection'], files: ['src/worker/*order*', 'src/worker/storefront-cors.ts', 'wrangler.jsonc'], success: 'Only configured origin can use Storefront contract.', gate: 'Integration CORS/privacy/idempotency tests', source: 'phase-3' },
+  { id: 4, tag: 'surface', title: 'Storefront and Console', deps: 'Phase 3', objective: 'Ship Customer checkout/private page and Console Orders UI.', bullets: ['Simple + Variant journeys', 'Quantity 1–99', 'Retry-state capability', 'Responsive redacted Orders list'], files: ['storefront/src/**', 'src/console/orders/**', 'Console router/shell'], success: 'Both surfaces render server projections safely.', gate: 'Browser contract + accessibility tests', source: 'phase-4' },
+  { id: 5, tag: 'verify', title: 'Cross-Surface Verification', deps: 'Phase 4', objective: 'Prove all outcomes locally and across actual separate origins.', bullets: ['Interleaving rollback', 'Two-origin Playwright', 'S1 regression safety', 'Controlled remote smoke'], files: ['tests/**', 'playwright.config.ts', 'deployment configs'], success: 'No privacy, CORS, atomicity, or history regression.', gate: 'Focused suites + builds + remote smoke', source: 'phase-5' }
+];
+function renderFlow(key) { const d = flowData[key]; document.getElementById('flow-content').innerHTML = `<h3>${d.title}</h3><p>${d.text}</p><ol>${d.steps.map(s => `<li>${s}</li>`).join('')}</ol>`; }
+function esc(s) { return s.replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' })[c]); }
+function inline(s) { return esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>'); }
+function renderMarkdown(source) {
+  const lines = source.trim().split('\n'); let html = '', i = 0, inFront = false, front = [], inCode = false, code = [];
+  while (i < lines.length) { const line = lines[i];
+    if (line === '---') { if (!inFront && i === 0) { inFront = true; i++; continue; } if (inFront) { html += `<pre class="frontmatter">${esc(front.join('\n'))}</pre>`; front=[]; inFront=false; i++; continue; } html += '<hr>'; i++; continue; }
+    if (inFront) { front.push(line); i++; continue; }
+    if (line.startsWith('```')) { if (inCode) { html += `<pre><code>${esc(code.join('\n'))}</code></pre>`; code=[]; inCode=false; } else inCode=true; i++; continue; }
+    if (inCode) { code.push(line); i++; continue; }
+    if (!line.trim()) { i++; continue; }
+    if (/^### /.test(line)) { html += `<h3>${inline(line.slice(4))}</h3>`; i++; continue; }
+    if (/^## /.test(line)) { html += `<h2>${inline(line.slice(3))}</h2>`; i++; continue; }
+    if (/^# /.test(line)) { html += `<h1>${inline(line.slice(2))}</h1>`; i++; continue; }
+    if (/^> /.test(line)) { html += `<blockquote>${inline(line.slice(2))}</blockquote>`; i++; continue; }
+    if (/^- \[ \] /.test(line)) { const tasks=[]; while(i<lines.length && /^- \[ \] /.test(lines[i])) { tasks.push(`<li class="task"><input type="checkbox" disabled> ${inline(lines[i].slice(6))}</li>`); i++; } html += `<ul>${tasks.join('')}</ul>`; continue; }
+    if (/^- /.test(line)) { const items=[]; while(i<lines.length && /^- /.test(lines[i])) { items.push(`<li>${inline(lines[i].slice(2))}</li>`); i++; } html += `<ul>${items.join('')}</ul>`; continue; }
+    if (/^\d+\. /.test(line)) { const items=[]; while(i<lines.length && /^\d+\. /.test(lines[i])) { items.push(`<li>${inline(lines[i].replace(/^\d+\. /,''))}</li>`); i++; } html += `<ol>${items.join('')}</ol>`; continue; }
+    html += `<p>${inline(line)}</p>`; i++;
+  }
+  return html;
+}
+function renderPhases(filter='all') { const root = document.getElementById('phase-list'); root.innerHTML = phases.filter(p => filter === 'all' || p.tag === filter).map(p => `<article class="phase"><div class="phase-number">0${p.id}</div><div><h3>${p.title}</h3><p>${p.objective}</p><div class="meta"><span>Pending</span><span class="p1">P1</span><span>Depends: ${p.deps}</span></div><ul>${p.bullets.map(x => `<li>${x}</li>`).join('')}</ul></div><div class="phase-side"><dl><dt>Related files</dt><dd>${p.files.map(f => `<code>${f}</code>`).join('<br>')}</dd><dt>Success highlight</dt><dd>${p.success}</dd><dt>Validation gate</dt><dd>${p.gate}</dd></dl><button class="open-phase" type="button" data-source="${p.source}" data-title="Phase ${p.id}: ${p.title}">Open full phase</button></div></article>`).join(''); }
+renderFlow('customer'); renderPhases();
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected','false')); b.setAttribute('aria-selected','true'); renderFlow(b.dataset.flow); }));
+document.querySelectorAll('.filter').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('.filter').forEach(x => x.setAttribute('aria-pressed','false')); b.setAttribute('aria-pressed','true'); renderPhases(b.dataset.filter); }));
+const modal = document.getElementById('detail-modal'); const body = document.getElementById('modal-body'); const title = document.getElementById('modal-title');
+document.getElementById('phase-list').addEventListener('click', e => { const b = e.target.closest('.open-phase'); if (!b) return; title.textContent = b.dataset.title; document.getElementById('modal-label').textContent = 'Full markdown detail'; body.innerHTML = renderMarkdown(document.getElementById(b.dataset.source).textContent); modal.showModal(); });
+document.querySelector('.modal-close').addEventListener('click', () => modal.close());
+modal.addEventListener('click', e => { if (e.target === modal) modal.close(); });
+</script>
+</body>
+</html>

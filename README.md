@@ -1,8 +1,8 @@
-# Nexus Product Catalog Console
+# Nexus Console, API, and Storefront
 
-Nexus is a React/Vite catalog Console served by a Cloudflare Worker. Product data is stored in D1 through the `DB` binding, and delivery files plus retained CSV originals are stored in a private R2 bucket through the `FILES` binding. The Console supports simple and Variant Products, private delivery configuration, schema preview/apply, and the unified CSV import contract.
+Nexus has two independently built and deployed surfaces: the React/Vite Console served by the API Worker, and a static Storefront that calls that Worker from a distinct origin. Product and Order data is stored in D1 through the `DB` binding, while delivery files and retained CSV originals stay in a private R2 bucket through the `FILES` binding.
 
-This repository is configured for a public `workers.dev` teaching deployment. It has no custom domain and no public R2 route.
+This repository is configured for public `workers.dev` teaching deployments. It has no custom domain and no public R2 route.
 
 ## Requirements
 
@@ -18,21 +18,23 @@ The pinned verification toolchain is recorded in `package.json`: Cloudflare Vite
 
 ## Local development
 
-Apply all D1 migrations to the local binding before starting the app:
+Apply all D1 migrations to the local API binding first:
 
 ```sh
 npx wrangler d1 migrations apply nexus-s1-468cba-db --local
-npm run dev
 ```
 
-Vite serves the Console and Worker locally. Open `/console/products`. The supported Console routes are:
+Run the API/Console and Storefront from separate terminals. These ports match the local `STOREFRONT_ORIGIN` in [`wrangler.jsonc`](./wrangler.jsonc); the Storefront's API origin is supplied independently at Vite build/dev time:
 
-- `/console/products`
-- `/console/products/new`
-- `/console/products/:productSlug`
-- `/console/products/import`
+```sh
+# Terminal 1: API and Console
+npm run dev:console -- --host 127.0.0.1 --port 5173
 
-Local D1/R2 state lives under Wrangler's ignored local state directory. Production config does not set `remote: true`; local development therefore cannot silently mutate the remote bindings.
+# Terminal 2: Storefront
+VITE_STOREFRONT_API_BASE_URL=http://127.0.0.1:5173 npm run dev:storefront -- --host 127.0.0.1 --port 5174
+```
+
+`npm run dev` remains the API/Console default. Open `/console/products` or `/console/orders` on the API/Console origin, and open `/` on the Storefront origin. Local D1/R2 state lives under Wrangler's ignored local state directory; production config does not set `remote: true`, so local development cannot silently mutate remote bindings.
 
 ## Checks
 
@@ -42,12 +44,15 @@ npm run test:unit
 npm run test:integration
 npm run test:browser
 npm run test:e2e
-npm run build
+npm run build:console
+VITE_STOREFRONT_API_BASE_URL=http://127.0.0.1:5173 npm run build:storefront
 ```
 
-`npm test` runs the workerd and browser Vitest suites. `npm run build` type-checks, builds the Worker/client bundle, and rejects a production import graph that reaches prototype scenario data.
+The two production builds are independent. `npm run build` remains the API/Console default; `build:console` is its explicit alias, while `build:storefront` uses [`storefront/vite.config.ts`](./storefront/vite.config.ts). The corresponding artifacts can be inspected independently with `npm run preview:console` and `npm run preview:storefront`; all command ownership remains in [`package.json`](./package.json).
 
-Playwright starts the local Vite application itself. Its Product, Variant, and CSV suites use unique verification names against the current local API state; they do not provide a general Product delete endpoint.
+`npm test` runs the workerd and browser Vitest suites. The Console build type-checks, builds the Worker/client bundle, and rejects a production import graph that reaches prototype scenario data.
+
+Playwright starts both local Vite applications itself at distinct origins. Its Product, Variant, Order, and CSV suites use unique verification names against the current local API state; they do not provide a general Product delete endpoint.
 
 ## Locked evidence tooling
 
@@ -68,13 +73,13 @@ The summary is report input only. It does not infer a pass from a command exit.
 
 ## Remote resource and deployment sequence
 
-The persisted identities are:
+The persisted API-side identities are:
 
 - Worker: `nexus-s1-468cba`
 - D1 database: `nexus-s1-468cba-db` (`DB`)
 - Private R2 bucket: `nexus-s1-468cba-private` (`FILES`)
 
-Inspect the authenticated account and exact resources before mutation:
+The Storefront Worker name is intentionally not embedded in [`storefront/wrangler.jsonc`](./storefront/wrangler.jsonc); its deploy command requires an appended confirmed name. Inspect the authenticated account and exact resources before mutation:
 
 ```sh
 npx wrangler whoami
@@ -82,27 +87,35 @@ npx wrangler d1 list
 npx wrangler r2 bucket list
 ```
 
-Do not create replacement resources when an identity is absent or ambiguous. Resolve that condition against `resource-identities.json` and `wrangler.jsonc` first. The configured remote sequence uses direct Wrangler commands:
+Do not create replacement resources when an identity is absent or ambiguous. Resolve that condition against [`resource-identities.json`](./resource-identities.json), [`wrangler.jsonc`](./wrangler.jsonc), and [`storefront/wrangler.jsonc`](./storefront/wrangler.jsonc) first.
+
+Use confirmed values for `$D1_DATABASE_NAME`, `$STOREFRONT_WORKER_NAME`, and the two exact deployed HTTPS origins below; do not construct or guess a Worker origin. Deployment order is dependency-bearing:
 
 ```sh
-npx wrangler d1 migrations apply nexus-s1-468cba-db --remote
-npm run build
-npx wrangler deploy
+# 1. Apply pending migrations, including the append-only Orders migration, before the API deploy.
+npx wrangler d1 migrations apply "$D1_DATABASE_NAME" --remote
+
+# 2. Build/deploy Storefront against the exact existing API origin; capture its returned origin.
+VITE_STOREFRONT_API_BASE_URL="$EXACT_API_ORIGIN" npm run deploy:storefront -- "$STOREFRONT_WORKER_NAME"
+
+# 3. Build/deploy API/Console with the exact deployed Storefront origin.
+npm run deploy:console -- "STOREFRONT_ORIGIN:$EXACT_STOREFRONT_ORIGIN"
 ```
 
-There is intentionally no deploy wrapper. `wrangler.jsonc` sets `workers_dev: true`, `preview_urls: false`, SPA asset fallback, and Worker-first routing for `/api` and `/api/*`. It defines no `route`, `routes`, custom domain, `r2.dev` exposure, or public R2 read route.
+[`migrations/0004-orders.sql`](./migrations/0004-orders.sql) is appended after the S1 migrations; never rewrite an applied migration. The Storefront build-time `VITE_STOREFRONT_API_BASE_URL` and API Worker runtime `STOREFRONT_ORIGIN` are opposite sides of the two-origin contract. Each value must be an origin only, with no credentials, path, query, or fragment. The deploy arguments above are values appended to the scripts' existing `--name` and `--var` options in [`package.json`](./package.json).
 
-No deployment is claimed by this README. A controller must capture the returned `*.workers.dev` URL and run the remote gates before reporting deployment success.
+There is intentionally no generic deploy wrapper. The two Wrangler configs keep `workers_dev: true` and `preview_urls: false`; only the API Worker binds D1/R2 and routes `/api` Worker-first.
+
+No deployment is claimed by this README. A controller must capture both returned `*.workers.dev` origins and run the remote gates before reporting deployment success.
 
 ## Remote smoke and private fixtures
 
-Create a unique lowercase verification prefix and initialize the ignored private fixture manifest. The base URL must be the exact deployed HTTPS `workers.dev` origin:
+Create a unique lowercase verification prefix and initialize the ignored private fixture manifest. `$EXACT_API_ORIGIN` must be the exact deployed API/Console HTTPS origin captured from Wrangler, not a constructed hostname:
 
 ```sh
 PREFIX=verify-260826-a1
-BASE_URL=https://nexus-s1-468cba.<account-subdomain>.workers.dev
+BASE_URL="$EXACT_API_ORIGIN"
 PRIVATE_FIXTURES=plans/260826-0041-nexus-s1-product-catalog/reports/evidence/private/verification-fixtures.json
-
 npm run verification:fixtures -- init \
   --fixture-manifest "$PRIVATE_FIXTURES" \
   --prefix "$PREFIX" \
@@ -145,4 +158,8 @@ Cleanup must never use a broad name or R2 prefix sweep. Preserve non-fixture row
 
 ## Accepted public risk
 
-Console read, write, import, and upload routes are intentionally anonymous in S1. Anonymous users can mutate the catalog and consume Worker, D1, and R2 quota; size, type, and combination bounds mitigate but do not remove abuse risk. The `workers.dev` site is a public teaching deployment, not a custom-domain or business-critical production/security claim. Real identity and permissions belong to S4.
+Console read/write/import/upload routes and its read-only Orders view remain intentionally anonymous through this teaching slice. Anonymous visitors can mutate catalog state, create Storefront Orders, view the Console's reduced Customer/Order projection, and consume Worker, D1, and R2 quota; input bounds mitigate but do not remove abuse risk.
+
+The Storefront's private Order capability remains only in the URL fragment and explicit API header. It is still a bearer secret: never log, publish, paste, or share a private Order URL or raw capability. Neither surface may expose delivery configuration, private object identity, or the raw capability in public output.
+
+These public `workers.dev` surfaces are anonymous demos, not a custom-domain, business-critical production, payment, or security claim. Real identity and permissions remain later-scope work.

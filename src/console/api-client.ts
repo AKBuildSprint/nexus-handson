@@ -16,6 +16,7 @@ import {
   isImportResultResponse,
   type ImportResultResponse,
 } from '../shared/csv-contract';
+import type { ConsoleOrderListResponse } from './orders/order-ui-types';
 
 interface ErrorEnvelope {
   error: {
@@ -75,6 +76,10 @@ export async function fetchProducts(
   if (status !== 'all') params.set('status', status);
   const suffix = params.size > 0 ? `?${params}` : '';
   return decode(await fetch(`/api/console/products${suffix}`, { headers: { Accept: 'application/json' }, signal }));
+}
+
+export async function fetchOrders(signal?: AbortSignal): Promise<ConsoleOrderListResponse> {
+  return decode(await fetch('/api/console/orders', { headers: { Accept: 'application/json' }, signal }));
 }
 
 export async function fetchProductBySlug(slug: string): Promise<{ product: ProductDetailResponse; revision: number }> {

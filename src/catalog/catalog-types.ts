@@ -188,6 +188,11 @@ export interface OrderItemCatalogSnapshot {
   privateFileKey: string | null;
 }
 
+export interface OrderItemCatalogResolution {
+  productRevision: number;
+  snapshot: OrderItemCatalogSnapshot;
+}
+
 export interface CatalogFieldError {
   path: string;
   code: string;

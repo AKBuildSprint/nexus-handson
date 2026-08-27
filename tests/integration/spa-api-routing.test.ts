@@ -32,7 +32,13 @@ describe('local SPA/API dispatch', () => {
     },
   );
 
-  it.each(['/console/products', '/console/products/new', '/console/products/focus-pack', '/console/products/import'])(
+  it.each([
+    '/console/products',
+    '/console/products/new',
+    '/console/products/focus-pack',
+    '/console/products/import',
+    '/console/orders',
+  ])(
     'defers the Console deep link %s to the SPA assets binding',
     async (pathname) => {
       const assetFetch = vi.fn(async () =>
