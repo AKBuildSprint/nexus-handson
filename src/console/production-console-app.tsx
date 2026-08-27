@@ -19,9 +19,12 @@ import {
   removeDeliveryFile,
   replaceDeliveryFile,
   updateProduct,
+  fetchOrders,
 } from './api-client';
 import { ConsoleShell } from './layout/console-shell';
 import { ProductEditorScreen } from './products/product-editor-screen';
+import { OrdersScreen } from './orders/orders-screen';
+import type { ConsoleOrderView, ConsoleOrdersState } from './orders/order-ui-types';
 import { ProductListScreen } from './products/product-list-screen';
 import type {
   ProductEditorFixture,
@@ -31,7 +34,7 @@ import type {
   VariantFixture,
 } from './products/product-ui-types';
 
-type ConsoleRoute = { kind: 'list' } | { kind: 'new' } | { kind: 'edit'; slug: string } | { kind: 'import' };
+type ConsoleRoute = { kind: 'list' } | { kind: 'new' } | { kind: 'edit'; slug: string } | { kind: 'import' } | { kind: 'orders' };
 type PendingFile = File | 'remove' | null;
 
 const EMPTY_PRODUCT: ProductEditorFixture = {
@@ -46,6 +49,7 @@ const EMPTY_PRODUCT: ProductEditorFixture = {
 };
 
 function parseRoute(pathname: string): ConsoleRoute {
+  if (pathname === '/console/orders') return { kind: 'orders' };
   if (pathname === '/console/products/new') return { kind: 'new' };
   if (pathname === '/console/products/import') return { kind: 'import' };
   const match = /^\/console\/products\/([^/]+)$/.exec(pathname);
@@ -60,6 +64,7 @@ function parseRoute(pathname: string): ConsoleRoute {
 }
 
 function routePath(route: ConsoleRoute): string {
+  if (route.kind === 'orders') return '/console/orders';
   if (route.kind === 'new') return '/console/products/new';
   if (route.kind === 'import') return '/console/products/import';
   if (route.kind === 'edit') return `/console/products/${encodeURIComponent(route.slug)}`;
@@ -209,6 +214,9 @@ export function ProductionConsoleApp() {
   const [listItems, setListItems] = useState<ProductListItem[]>([]);
   const [listState, setListState] = useState<ProductListState>('loading');
   const [criteria, setCriteria] = useState<{ query: string; status: 'all' | ProductStatus }>({ query: '', status: 'all' });
+  const [orders, setOrders] = useState<ConsoleOrderView[]>([]);
+  const [ordersState, setOrdersState] = useState<ConsoleOrdersState>('loading');
+  const [ordersRequest, setOrdersRequest] = useState(0);
   const [detail, setDetail] = useState<ProductDetailResponse | null>(null);
   const [detailLifecycle, setDetailLifecycle] = useState<ProductEditorScenario['lifecycle']>('loading');
   const [revision, setRevision] = useState<number | null>(null);
@@ -273,6 +281,19 @@ export function ProductionConsoleApp() {
     });
     return () => { active = false; };
   }, [criteria, route.kind]);
+
+  useEffect(() => {
+    if (route.kind !== 'orders') return;
+    const controller = new AbortController();
+    setOrdersState('loading');
+    void fetchOrders(controller.signal).then((response) => {
+      setOrders(response.orders);
+      setOrdersState(response.orders.length === 0 ? 'empty' : 'ready');
+    }).catch((error) => {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) setOrdersState('error');
+    });
+    return () => controller.abort();
+  }, [ordersRequest, route.kind]);
 
   const loadDetail = useCallback((slug: string) => {
     const requestSequence = detailRequestRef.current + 1;
@@ -478,7 +499,9 @@ export function ProductionConsoleApp() {
   }, [detail, revision]);
 
   let content;
-  if (route.kind === 'list') {
+  if (route.kind === 'orders') {
+    content = <OrdersScreen state={ordersState} orders={orders} onRetry={() => setOrdersRequest((current) => current + 1)} />;
+  } else if (route.kind === 'list') {
     content = <ProductListScreen
       state={listState}
       products={summaries}
@@ -511,7 +534,9 @@ export function ProductionConsoleApp() {
   }
 
   return <ConsoleShell
-    railNote="Manage Product pricing, Variants, and private delivery files."
+    activeDestination={route.kind === 'orders' ? 'Orders' : 'Products'}
+    railNote={route.kind === 'orders' ? 'Review safe Customer Order projections.' : 'Manage Product pricing, Variants, and private delivery files.'}
     onOpenProducts={() => navigate({ kind: 'list' })}
+    onOpenOrders={() => navigate({ kind: 'orders' })}
   >{content}</ConsoleShell>;
 }

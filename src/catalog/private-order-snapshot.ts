@@ -1,4 +1,4 @@
-import type { OrderItemCatalogSnapshot } from './catalog-types';
+import type { OrderItemCatalogResolution, OrderItemCatalogSnapshot } from './catalog-types';
 import { CatalogValidationError } from './catalog-types';
 import { BOOTSTRAP_STORE_ID } from './catalog-read';
 
@@ -11,6 +11,7 @@ interface SnapshotProductRow {
   delivery_access_title: string;
   delivery_access_instructions: string;
   delivery_file_key: string | null;
+  revision: number;
 }
 
 interface SnapshotVariantRow {
@@ -25,7 +26,7 @@ interface SnapshotVariantRow {
 
 export type ResolveOrderItemCatalogSnapshot = (
   input: { productId: string; variantId: string | null },
-) => Promise<OrderItemCatalogSnapshot>;
+) => Promise<OrderItemCatalogResolution>;
 
 export function createOrderItemCatalogSnapshotResolver(db: D1Database): ResolveOrderItemCatalogSnapshot {
   return function resolveOrderItemCatalogSnapshot(input) {
@@ -36,10 +37,10 @@ export function createOrderItemCatalogSnapshotResolver(db: D1Database): ResolveO
 async function resolveSnapshot(
   input: { productId: string; variantId: string | null },
   db: D1Database,
-): Promise<OrderItemCatalogSnapshot> {
+): Promise<OrderItemCatalogResolution> {
   const product = await db.prepare(
     `SELECT id, name, product_type, currency, base_price_minor,
-            delivery_access_title, delivery_access_instructions, delivery_file_key
+            delivery_access_title, delivery_access_instructions, delivery_file_key, revision
        FROM products
       WHERE store_id = ? AND id = ? AND status = 'active'`,
   ).bind(BOOTSTRAP_STORE_ID, input.productId).first<SnapshotProductRow>();
@@ -51,16 +52,19 @@ async function resolveSnapshot(
       throw new CatalogValidationError('variant_not_found', 'A simple Product does not accept a Variant selection.', [], 404);
     }
     return {
-      productId: product.id,
-      productName: product.name,
-      variantId: null,
-      variantSku: null,
-      selectedOptions: [],
-      unitPriceMinor: product.base_price_minor,
-      currency: product.currency,
-      accessTitle: product.delivery_access_title,
-      accessInstructions: product.delivery_access_instructions,
-      privateFileKey: product.delivery_file_key,
+      productRevision: product.revision,
+      snapshot: {
+        productId: product.id,
+        productName: product.name,
+        variantId: null,
+        variantSku: null,
+        selectedOptions: [],
+        unitPriceMinor: product.base_price_minor,
+        currency: product.currency,
+        accessTitle: product.delivery_access_title,
+        accessInstructions: product.delivery_access_instructions,
+        privateFileKey: product.delivery_file_key,
+      },
     };
   }
   if (input.variantId === null) {
@@ -94,15 +98,18 @@ async function resolveSnapshot(
   }
   const inherited = variant.delivery_source === 'product_default';
   return {
-    productId: product.id,
-    productName: product.name,
-    variantId: variant.id,
-    variantSku: variant.sku,
-    selectedOptions: selected.results.map((option) => ({ ...option })),
-    unitPriceMinor: variant.price_override_minor ?? product.base_price_minor,
-    currency: product.currency,
-    accessTitle: inherited ? product.delivery_access_title : variant.delivery_access_title ?? '',
-    accessInstructions: inherited ? product.delivery_access_instructions : variant.delivery_access_instructions ?? '',
-    privateFileKey: inherited ? product.delivery_file_key : variant.delivery_file_key,
+    productRevision: product.revision,
+    snapshot: {
+      productId: product.id,
+      productName: product.name,
+      variantId: variant.id,
+      variantSku: variant.sku,
+      selectedOptions: selected.results.map((option) => ({ ...option })),
+      unitPriceMinor: variant.price_override_minor ?? product.base_price_minor,
+      currency: product.currency,
+      accessTitle: inherited ? product.delivery_access_title : variant.delivery_access_title ?? '',
+      accessInstructions: inherited ? product.delivery_access_instructions : variant.delivery_access_instructions ?? '',
+      privateFileKey: inherited ? product.delivery_file_key : variant.delivery_file_key,
+    },
   };
 }

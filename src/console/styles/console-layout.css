@@ -600,6 +600,88 @@ legend {
   font-variant-numeric: tabular-nums;
 }
 
+.orders-table {
+  table-layout: auto;
+}
+
+.orders-table th,
+.orders-table td {
+  min-width: var(--layout-control-short);
+}
+
+.orders-table th:nth-child(3),
+.orders-table td:nth-child(3) {
+  min-width: var(--layout-control-wide);
+}
+
+.order-reference,
+.order-total {
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.order-list-mobile {
+  display: none;
+}
+
+.order-summary-card {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+  border-block-end: var(--border-hairline) solid var(--color-border);
+}
+
+.order-summary-card header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.order-summary-card h2 {
+  overflow-wrap: anywhere;
+  font-family: var(--font-body);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+}
+
+.order-summary-card dl {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.order-summary-card dl div {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+.order-summary-card dt {
+  color: var(--color-ink-muted);
+  font-size: var(--type-meta-size);
+  font-weight: var(--weight-semibold);
+  line-height: var(--type-meta-line);
+}
+
+.order-summary-card dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  text-align: end;
+}
+
+.order-summary-card dd span {
+  color: var(--color-ink-muted);
+}
+
+.order-skeleton-row {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
 .product-list-mobile,
 .variant-list-mobile {
   display: none;
@@ -1155,6 +1237,10 @@ legend {
 
   .product-list-mobile,
   .variant-list-mobile {
+    display: grid;
+  }
+
+  .order-list-mobile {
     display: grid;
   }
 

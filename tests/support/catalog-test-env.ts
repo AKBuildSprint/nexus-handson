@@ -2,6 +2,7 @@ import { applyD1Migrations, env, type D1Migration } from 'cloudflare:test';
 import migrationOne from '../../migrations/0001-store-products.sql?raw';
 import migrationTwo from '../../migrations/0002-product-variants.sql?raw';
 import migrationThree from '../../migrations/0003-imports.sql?raw';
+import migrationFour from '../../migrations/0004-orders.sql?raw';
 import worker from '../../src/worker';
 
 function splitMigrationSql(sql: string): string[] {
@@ -71,6 +72,7 @@ const catalogMigrations: D1Migration[] = [
   { name: '0001-store-products.sql', queries: splitMigrationSql(migrationOne) },
   { name: '0002-product-variants.sql', queries: splitMigrationSql(migrationTwo) },
   { name: '0003-imports.sql', queries: splitMigrationSql(migrationThree) },
+  { name: '0004-orders.sql', queries: splitMigrationSql(migrationFour) },
 ];
 
 export function applyCatalogMigrations(): Promise<void> {
@@ -79,6 +81,12 @@ export function applyCatalogMigrations(): Promise<void> {
 
 export async function resetCatalog(): Promise<void> {
   const tables = [
+    'order_idempotency',
+    'order_access',
+    'order_history',
+    'order_lines',
+    'orders',
+    'customers',
     'product_variant_values',
     'product_variants',
     'product_option_values',
@@ -92,10 +100,13 @@ export async function resetCatalog(): Promise<void> {
   await applyCatalogMigrations();
 }
 
+export const TEST_STOREFRONT_ORIGIN = 'https://storefront.test';
+
 export function workerRequest(path: string, init?: RequestInit): Promise<Response> {
   return worker.fetch(new Request(`https://local.invalid${path}`, init), {
     DB: env.DB,
     FILES: env.FILES,
+    STOREFRONT_ORIGIN: TEST_STOREFRONT_ORIGIN,
     ASSETS: { fetch: () => Promise.resolve(new Response('asset')) } as unknown as Fetcher,
   });
 }

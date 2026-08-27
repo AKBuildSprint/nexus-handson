@@ -9,7 +9,9 @@ import {
   serializeCsvRow,
   type CsvRow,
 } from '../../src/shared/csv-contract';
-import unifiedTemplate from '../fixtures/import/unified-template.csv?raw';
+import unifiedTemplateFixture from '../fixtures/import/unified-template.csv?raw';
+
+const unifiedTemplate = unifiedTemplateFixture.replaceAll('\r\n', '\n');
 
 function simpleRow(slug: string): CsvRow {
   const row = Object.fromEntries(CSV_HEADER.map((column) => [column, ''])) as CsvRow;

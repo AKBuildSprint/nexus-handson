@@ -7,9 +7,11 @@ import { validateCsvRows } from '../../src/import/csv-validator';
 import { CSV_CONTENT_TYPE, CSV_FILENAME_HEADER, CSV_HEADER, CSV_HEADER_LINE, serializeCsvRow, type CsvRow, type ImportResultResponse } from '../../src/shared/csv-contract';
 import identityConflicts from '../fixtures/import/identity-conflicts.csv?raw';
 import mixedShapes from '../fixtures/import/mixed-shapes.csv?raw';
-import template from '../fixtures/import/unified-template.csv?raw';
+import templateFixture from '../fixtures/import/unified-template.csv?raw';
 import worstCase from '../fixtures/import/worst-case-500-rows.csv?raw';
 import { resetCatalog, workerRequest } from '../support/catalog-test-env';
+
+const template = templateFixture.replaceAll('\r\n', '\n');
 
 function simpleRow(slug: string): CsvRow {
   const row = Object.fromEntries(CSV_HEADER.map((column) => [column, ''])) as CsvRow;
