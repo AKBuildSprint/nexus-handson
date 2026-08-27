@@ -1,7 +1,7 @@
 ---
 phase: 3
 title: "Order API and Privacy"
-status: pending
+status: completed
 priority: P1
 effort: ""
 dependencies: [2]
@@ -50,18 +50,18 @@ The private Storefront page reads its capability from `location.hash` and sends 
 
 ## Todo
 
-- [ ] Add constrained Storefront CORS and API-origin configuration.
-- [ ] Implement private Customer and reduced Console Order routes.
-- [ ] Preserve JSON/API dispatch compatibility and private-field redaction.
-- [ ] Prove allowed and denied origin behavior with Worker integration tests.
+- [x] Add constrained Storefront CORS and API-origin configuration.
+- [x] Implement private Customer and reduced Console Order routes.
+- [x] Preserve JSON/API dispatch compatibility and private-field redaction.
+- [x] Prove allowed and denied origin behavior with Worker integration tests.
 
 ## Success Criteria
 
-- [ ] Only the configured Storefront origin can read the Storefront API cross-origin; unrelated origins never receive permissive CORS.
-- [ ] Private Order read requires a valid capability supplied in the allowed header and returns only the approved Customer projection.
-- [ ] Static/Worker request URLs, logs, and error bodies never contain the raw capability; private URL capability remains fragment-only.
-- [ ] Console API displays the approved demo fields without private delivery/capability data.
-- [ ] All Order route errors keep the established JSON envelope and never log or echo a raw capability.
+- [x] Only the configured Storefront origin can read the Storefront API cross-origin; unrelated origins never receive permissive CORS.
+- [x] Private Order read requires a valid capability supplied in the allowed header and returns only the approved Customer projection.
+- [x] Static/Worker request URLs, logs, and error bodies never contain the raw capability; private URL capability remains fragment-only.
+- [x] Console API displays the approved demo fields without private delivery/capability data.
+- [x] All Order route errors keep the established JSON envelope and never log or echo a raw capability.
 
 ## Risk Assessment
 

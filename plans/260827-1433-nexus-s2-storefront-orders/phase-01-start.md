@@ -1,7 +1,7 @@
 ---
 phase: 1
 title: "Independent Storefront Boundary"
-status: pending
+status: completed
 priority: P1
 effort: ""
 dependencies: []
@@ -48,16 +48,16 @@ storefront static Worker ──fetch(configured API origin)──> Nexus API Wor
 
 ## Todo
 
-- [ ] Create the isolated Storefront client/build/deploy boundary.
-- [ ] Preserve the Console asset/build contract.
-- [ ] Establish the two-origin local test harness.
-- [ ] Record no guessed production origin or resource identity.
+- [x] Create the isolated Storefront client/build/deploy boundary.
+- [x] Preserve the Console asset/build contract.
+- [x] Establish the two-origin local test harness.
+- [x] Record no guessed production origin or resource identity.
 
 ## Success Criteria
 
-- [ ] Storefront and Console produce separate asset outputs and can be launched at different local origins.
-- [ ] Storefront contains no direct D1/R2 binding or Console production import.
-- [ ] Existing Console deep links and API Worker-first routing remain the compatibility baseline.
+- [x] Storefront and Console produce separate asset outputs and can be launched at different local origins.
+- [x] Storefront contains no direct D1/R2 binding or Console production import.
+- [x] Existing Console deep links and API Worker-first routing remain the compatibility baseline.
 
 ## Risk Assessment
 

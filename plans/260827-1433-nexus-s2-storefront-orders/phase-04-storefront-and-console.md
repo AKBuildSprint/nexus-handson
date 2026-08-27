@@ -1,7 +1,7 @@
 ---
 phase: 4
 title: "Storefront and Console"
-status: pending
+status: completed
 priority: P1
 effort: ""
 dependencies: [3]
@@ -49,18 +49,18 @@ Use typed view models dedicated to Storefront and Console Orders. Do not reuse `
 
 ## Todo
 
-- [ ] Build the separate Customer catalog, checkout, and private Order journey.
-- [ ] Add Storefront refetch and idempotent retry UX.
-- [ ] Add Console Orders routing, navigation, and responsive safe projection.
-- [ ] Cover UI contracts without duplicating server authority.
+- [x] Build the separate Customer catalog, checkout, and private Order journey.
+- [x] Add Storefront refetch and idempotent retry UX.
+- [x] Add Console Orders routing, navigation, and responsive safe projection.
+- [x] Cover UI contracts without duplicating server authority.
 
 ## Success Criteria
 
-- [ ] Simple and Variant Customer flows reach a fragment-only private Order page with server-returned purchase-time fields.
-- [ ] Variant Product cannot submit without one enabled valid selection; quantity controls remain within `1–99`.
-- [ ] Retryable/lost-response submit reuses its in-memory idempotency identity and capability and returns the original Order without duplicate creation.
-- [ ] Private page and Console Orders never render access content, private-file identity, raw capability, or capability URL.
-- [ ] Console Orders works via direct URL, navigation, back/forward, desktop table, and 375px mobile card view.
+- [x] Simple and Variant Customer flows reach a fragment-only private Order page with server-returned purchase-time fields.
+- [x] Variant Product cannot submit without one enabled valid selection; quantity controls remain within `1–99`.
+- [x] Retryable/lost-response submit reuses its in-memory idempotency identity and capability and returns the original Order without duplicate creation.
+- [x] Private page and Console Orders never render access content, private-file identity, raw capability, or capability URL.
+- [x] Console Orders works via direct URL, navigation, back/forward, desktop table, and 375px mobile card view.
 
 ## Risk Assessment
 

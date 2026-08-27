@@ -1,7 +1,7 @@
 ---
 phase: 2
 title: "Order Persistence"
-status: pending
+status: completed
 priority: P1
 effort: ""
 dependencies: [1]
@@ -50,18 +50,18 @@ The command must not trust a pre-read snapshot by itself. It resolves the snapsh
 
 ## Todo
 
-- [ ] Append and register the Orders migration.
-- [ ] Implement atomic, idempotent Order aggregate persistence.
-- [ ] Preserve immutable Customer/catalog/delivery snapshots.
-- [ ] Prove storage constraints and rollback behavior in Workerd integration coverage.
+- [x] Append and register the Orders migration.
+- [x] Implement atomic, idempotent Order aggregate persistence.
+- [x] Preserve immutable Customer/catalog/delivery snapshots.
+- [x] Prove storage constraints and rollback behavior in Workerd integration coverage.
 
 ## Success Criteria
 
-- [ ] A Simple Product and an enabled Variant produce valid internal snapshots; missing/disabled/mismatched Variant selection does not persist an Order.
-- [ ] Quantity bounds, normalized email reuse, latest-name update, historic Customer snapshot, pending status, server money, and exactly-one-line constraints hold.
-- [ ] A price/status/Variant/delivery edit interleaved after resolver read and before batch assertion aborts the full aggregate; no stale snapshot commits.
-- [ ] Repeated/concurrent-equivalent idempotency input yields one aggregate/result; injected later failure leaves no partial Customer, Order, line, history, access, or idempotency rows.
-- [ ] Raw capability token and private snapshot fields are absent from persistence projections intended for responses/logging.
+- [x] A Simple Product and an enabled Variant produce valid internal snapshots; missing/disabled/mismatched Variant selection does not persist an Order.
+- [x] Quantity bounds, normalized email reuse, latest-name update, historic Customer snapshot, pending status, server money, and exactly-one-line constraints hold.
+- [x] A price/status/Variant/delivery edit interleaved after resolver read and before batch assertion aborts the full aggregate; no stale snapshot commits.
+- [x] Repeated/concurrent-equivalent idempotency input yields one aggregate/result; injected later failure leaves no partial Customer, Order, line, history, access, or idempotency rows.
+- [x] Raw capability token and private snapshot fields are absent from persistence projections intended for responses/logging.
 
 ## Risk Assessment
 

@@ -1,7 +1,7 @@
 ---
 phase: 5
 title: "Cross-Surface Verification"
-status: pending
+status: in-progress
 priority: P1
 effort: ""
 dependencies: [4]
@@ -45,17 +45,17 @@ Use layered evidence. Workerd integration owns transaction, query, CORS, capabil
 
 ## Todo
 
-- [ ] Prove persistence, atomicity, CORS, privacy, and S1 regressions locally.
-- [ ] Prove both Customer journeys and Console visibility under two origins.
+- [x] Prove persistence, atomicity, CORS, privacy, and S1 regressions locally.
+- [x] Prove both Customer journeys and Console visibility under two origins.
 - [ ] Build/typecheck all changed surfaces and deploy in dependency order.
-- [ ] Capture sanitized evidence and safe cleanup boundaries.
+- [x] Capture sanitized evidence and safe cleanup boundaries.
 
 ## Success Criteria
 
-- [ ] Every approved S2 outcome has focused local evidence and a corresponding cross-surface journey.
+- [x] Every approved S2 outcome has focused local evidence and a corresponding cross-surface journey.
 - [ ] No test or remote smoke finds partial Order state, duplicate Order, stale snapshot after captured-revision conflict, monetary authority leak, private-field/capability leak, broad CORS, or catalog-history mutation.
 - [ ] Storefront and API deployments are independent, share only the API/catalog contract, and work at their configured origins.
-- [ ] Existing S1 catalog/import/file/privacy behavior remains green.
+- [x] Existing S1 catalog/import/file/privacy behavior remains green.
 
 ## Risk Assessment
 

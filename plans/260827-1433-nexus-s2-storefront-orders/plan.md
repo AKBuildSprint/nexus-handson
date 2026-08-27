@@ -1,7 +1,7 @@
 ---
 title: "Nexus S2 Storefront and Orders"
 description: "Implement an independent Storefront and an immutable, server-priced Order journey on the S1 shared catalog."
-status: pending
+status: in-progress
 priority: P1
 effort: ""
 branch: main
@@ -46,21 +46,21 @@ Independent Storefront static app
 
 | Phase | Name | Status | Dependency |
 |---|---|---|---|
-| 1 | [Independent Storefront Boundary](./phase-01-start.md) | Pending | None |
-| 2 | [Order Persistence](./phase-02-order-persistence.md) | Pending | Phase 1 |
-| 3 | [Order API and Privacy](./phase-03-order-api-and-privacy.md) | Pending | Phase 2 |
-| 4 | [Storefront and Console](./phase-04-storefront-and-console.md) | Pending | Phase 3 |
-| 5 | [Cross-Surface Verification](./phase-05-cross-surface-verification.md) | Pending | Phase 4 |
+| 1 | [Independent Storefront Boundary](./phase-01-start.md) | Completed | None |
+| 2 | [Order Persistence](./phase-02-order-persistence.md) | Completed | Phase 1 |
+| 3 | [Order API and Privacy](./phase-03-order-api-and-privacy.md) | Completed | Phase 2 |
+| 4 | [Storefront and Console](./phase-04-storefront-and-console.md) | Completed | Phase 3 |
+| 5 | [Cross-Surface Verification](./phase-05-cross-surface-verification.md) | In Progress | Phase 4 |
 
 ## Success criteria
 
-- [ ] Console catalog edits are visible after Storefront refetch; no catalog replica exists.
-- [ ] Simple and enabled Variant Product journeys create exactly one one-line `pending_payment` Order at server-computed money.
-- [ ] Customer reuse is scoped by normalized email; later name changes do not rewrite historic Order snapshots.
-- [ ] Valid private capability reopens only its Order; reference/email, altered token, cross-Store lookup, Customer/Console payloads, and logs do not expose secrets or delivery data.
-- [ ] Retry/double submit is idempotent; aggregate-write failure rolls back all Order-related persistence.
-- [ ] Storefront CORS is limited to the configured origin; Console retains its S1 anonymous-demo boundary.
-- [ ] Two-origin integration and browser/E2E evidence cover both Customer journeys, Console Orders, privacy, CORS, atomicity, and catalog/file retention.
+- [x] Console catalog edits are visible after Storefront refetch; no catalog replica exists.
+- [x] Simple and enabled Variant Product journeys create exactly one one-line `pending_payment` Order at server-computed money.
+- [x] Customer reuse is scoped by normalized email; later name changes do not rewrite historic Order snapshots.
+- [x] Valid private capability reopens only its Order; reference/email, altered token, cross-Store lookup, Customer/Console payloads, and logs do not expose secrets or delivery data.
+- [x] Retry/double submit is idempotent; aggregate-write failure rolls back all Order-related persistence.
+- [x] Storefront CORS is limited to the configured origin; Console retains its S1 anonymous-demo boundary.
+- [x] Two-origin integration and browser/E2E evidence cover both Customer journeys, Console Orders, privacy, CORS, atomicity, and catalog/file retention.
 
 ## Source authority
 
