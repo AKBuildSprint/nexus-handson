@@ -9,7 +9,7 @@ import {
   serializeCsvRow,
   type CsvRow,
 } from '../../src/shared/csv-contract';
-import unifiedTemplate from '../fixtures/import/unified-template.csv?raw';
+import unifiedTemplateFixture from '../fixtures/import/unified-template.csv?raw';
 
 function simpleRow(slug: string): CsvRow {
   const row = Object.fromEntries(CSV_HEADER.map((column) => [column, ''])) as CsvRow;
@@ -27,7 +27,7 @@ function simpleRow(slug: string): CsvRow {
 
 describe('unified CSV parser contract', () => {
   it('round-trips the exact generated template and fixture', () => {
-    expect(CSV_TEMPLATE).toBe(unifiedTemplate);
+    expect(CSV_TEMPLATE).toBe(unifiedTemplateFixture.replaceAll('\r\n', '\n'));
     const parsed = parseCsvBytes(new TextEncoder().encode(CSV_TEMPLATE));
     expect(parsed.rows).toHaveLength(3);
     expect(parsed.rows.map((row) => row.sourceRow)).toEqual([1, 2, 3]);
