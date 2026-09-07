@@ -83,6 +83,7 @@ describe('Order aggregate persistence', () => {
       totalMinor: 4800,
       currency: 'USD',
     });
+    expect(order.refundRequest).toBeNull();
     expect(await orderTableCounts()).toEqual([1, 1, 1, 1, 1, 1]);
     expect(await env.DB.prepare(
       'SELECT sequence, action, previous_status, status, source, refund_request_id FROM order_history',
@@ -105,6 +106,9 @@ describe('Order aggregate persistence', () => {
     const consoleOrders = await listConsoleOrders(env.DB);
     expect(consoleOrders).toHaveLength(1);
     expect(JSON.stringify({ order, consoleOrders })).not.toMatch(/capability|accessTitle|accessInstructions|privateFileKey/);
+    expect(consoleOrders[0]).not.toHaveProperty('refundRequest');
+    expect(consoleOrders[0]).not.toHaveProperty('history');
+    expect(JSON.stringify(consoleOrders)).not.toContain('refundRequest');
   });
 
   it('uses enabled Variant selection and rejects missing, disabled, or mismatched selection without writes', async () => {

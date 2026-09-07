@@ -1,4 +1,4 @@
-export type OrderStatus = 'pending_payment';
+export type OrderStatus = 'pending_payment' | 'paid' | 'fulfilled' | 'cancelled';
 
 export interface OrderFieldError {
   path: string;
@@ -54,8 +54,7 @@ export interface OrderProductProjection {
     selectedOptions: OrderSelectedOption[];
   };
 }
-
-export interface CustomerOrderProjection {
+export interface OrderPurchaseProjection {
   reference: string;
   status: OrderStatus;
   product: OrderProductProjection;
@@ -66,9 +65,51 @@ export interface CustomerOrderProjection {
   createdAt: string;
 }
 
-export interface ConsoleOrderProjection extends CustomerOrderProjection {
+export interface OrderRefundRequest {
+  id: string;
+  reason: string;
+  status: 'pending';
+  createdAt: string;
+}
+
+export interface OrderHistoryEntry {
+  sequence: number;
+  action: 'order_created' | 'mark_paid' | 'mark_fulfilled' | 'cancel' | 'refund_requested';
+  fromStatus: OrderStatus | null;
+  toStatus: OrderStatus;
+  source: 'storefront' | 'console';
+  refundRequestId: string | null;
+  createdAt: string;
+}
+
+export type ConsoleOrderAction = 'mark_paid' | 'mark_fulfilled' | 'cancel';
+
+export interface CustomerOrderProjection extends OrderPurchaseProjection {
+  refundRequest: OrderRefundRequest | null;
+}
+
+export interface ConsoleOrderProjection extends OrderPurchaseProjection {
   customer: {
     name: string;
     email: string;
   };
+}
+
+export interface ConsoleOrderDetailProjection extends ConsoleOrderProjection {
+  history: OrderHistoryEntry[];
+  refundRequest: OrderRefundRequest | null;
+  allowedActions: ConsoleOrderAction[];
+}
+
+export interface OrderCommandResult {
+  outcome: 'applied' | 'already_applied';
+  replayed: boolean;
+  resultStatus: OrderStatus;
+}
+
+export interface ConsoleOrderListQuery {
+  q: string;
+  status: 'all' | OrderStatus;
+  refund: 'all' | 'pending';
+  cursor: string | null;
 }
