@@ -10,15 +10,15 @@ async function seedProduct(id: string, storeId = 'store_nexus') {
 }
 
 describe('catalog migration boundaries', () => {
-  it('is idempotent and keeps exactly thirteen domain tables', async () => {
+  it('is idempotent and keeps exactly fifteen domain tables', async () => {
     await applyCatalogMigrations();
     const tables = await env.DB.prepare(
       "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT IN ('d1_migrations', '_cf_METADATA') ORDER BY name",
     ).all<{ name: string }>();
     expect(tables.results.map((row) => row.name)).toEqual([
-      'customers', 'imports', 'order_access', 'order_history', 'order_idempotency',
+      'customers', 'imports', 'order_access', 'order_commands', 'order_history', 'order_idempotency',
       'order_lines', 'orders', 'product_option_groups', 'product_option_values',
-      'product_variant_values', 'product_variants', 'products', 'stores',
+      'product_variant_values', 'product_variants', 'products', 'refund_requests', 'stores',
     ]);
     expect(await env.DB.prepare("SELECT count(*) AS count FROM stores WHERE id='store_nexus' AND slug='nexus'").first<number>('count')).toBe(1);
   });
@@ -108,7 +108,7 @@ describe('catalog migration boundaries', () => {
       "INSERT INTO customers (id,store_id,name,email_normalized) VALUES ('cust_b','store_nexus','Ada Two','ada@example.test')",
     ).run()).rejects.toThrow(/UNIQUE/);
     await expect(env.DB.prepare(
-      "INSERT INTO orders (id,store_id,reference,customer_id,customer_name,customer_email_normalized,status,currency,total_minor) VALUES ('bad_status','store_nexus','NX-BAD','cust_a','Ada','ada@example.test','paid','USD',100)",
+      "INSERT INTO orders (id,store_id,reference,customer_id,customer_name,customer_email_normalized,status,currency,total_minor) VALUES ('bad_status','store_nexus','NX-BAD','cust_a','Ada','ada@example.test','refunded','USD',100)",
     ).run()).rejects.toThrow(/CHECK/);
     await expect(env.DB.prepare(
       "INSERT INTO orders (id,store_id,reference,customer_id,customer_name,customer_email_normalized,currency,total_minor) VALUES ('ord_missing','store_nexus','NX-MISSING','cust_a','Ada','ada@example.test','USD',100)",
@@ -119,6 +119,30 @@ describe('catalog migration boundaries', () => {
       ),
       env.DB.prepare(
         "INSERT INTO orders (id,store_id,reference,customer_id,customer_name,customer_email_normalized,currency,total_minor) VALUES ('ord_a','store_nexus','NX-ORDER-A','cust_a','Ada','ada@example.test','USD',100)",
+      ),
+    ]);
+    await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO order_lines (id,store_id,order_id,product_id,product_name,selected_options_json,quantity,unit_price_minor,line_total_minor,currency,access_title,access_instructions) VALUES ('line_paid','store_nexus','ord_paid','prod_snapshot','Snapshot','[]',1,100,100,'USD','','')",
+      ),
+      env.DB.prepare(
+        "INSERT INTO orders (id,store_id,reference,customer_id,customer_name,customer_email_normalized,status,currency,total_minor) VALUES ('ord_paid','store_nexus','NX-ORDER-PAID','cust_a','Ada','ada@example.test','paid','USD',100)",
+      ),
+    ]);
+    await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO order_lines (id,store_id,order_id,product_id,product_name,selected_options_json,quantity,unit_price_minor,line_total_minor,currency,access_title,access_instructions) VALUES ('line_fulfilled','store_nexus','ord_fulfilled','prod_snapshot','Snapshot','[]',1,100,100,'USD','','')",
+      ),
+      env.DB.prepare(
+        "INSERT INTO orders (id,store_id,reference,customer_id,customer_name,customer_email_normalized,status,currency,total_minor) VALUES ('ord_fulfilled','store_nexus','NX-ORDER-FULFILLED','cust_a','Ada','ada@example.test','fulfilled','USD',100)",
+      ),
+    ]);
+    await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO order_lines (id,store_id,order_id,product_id,product_name,selected_options_json,quantity,unit_price_minor,line_total_minor,currency,access_title,access_instructions) VALUES ('line_cancelled','store_nexus','ord_cancelled','prod_snapshot','Snapshot','[]',1,100,100,'USD','','')",
+      ),
+      env.DB.prepare(
+        "INSERT INTO orders (id,store_id,reference,customer_id,customer_name,customer_email_normalized,status,currency,total_minor) VALUES ('ord_cancelled','store_nexus','NX-ORDER-CANCELLED','cust_a','Ada','ada@example.test','cancelled','USD',100)",
       ),
     ]);
     await expect(env.DB.prepare(
@@ -162,12 +186,13 @@ describe('catalog migration boundaries', () => {
 
 
     const indexes = await env.DB.prepare(
-      "SELECT name FROM sqlite_master WHERE type='index' AND name IN ('orders_store_created_idx','order_access_store_capability_idx','order_idempotency_store_key_idx') ORDER BY name",
+      "SELECT name FROM sqlite_master WHERE type='index' AND name IN ('orders_store_created_idx','orders_store_status_created_idx','order_access_store_capability_idx','order_idempotency_store_key_idx') ORDER BY name",
     ).all<{ name: string }>();
     expect(indexes.results.map((row) => row.name)).toEqual([
       'order_access_store_capability_idx',
       'order_idempotency_store_key_idx',
       'orders_store_created_idx',
+      'orders_store_status_created_idx',
     ]);
   });
 });

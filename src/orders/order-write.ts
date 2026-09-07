@@ -165,11 +165,11 @@ export async function createOrder(input: {
        VALUES (?, ?, ?, ?, ?)`,
     ).bind(idempotencyId, BOOTSTRAP_STORE_ID, request.idempotencyKey, orderId, capabilityDigest),
     input.database.prepare(
-      `INSERT INTO order_history (id, store_id, order_id, status)
+      `INSERT INTO order_history (id, store_id, order_id, sequence, action, previous_status, status, source)
        SELECT CASE WHEN (
          SELECT count(*) FROM products WHERE store_id = ? AND id = ? AND revision = ?
        ) = 1 THEN ? ELSE NULL END,
-       ?, ?, 'pending_payment'`,
+       ?, ?, 0, 'order_created', NULL, 'pending_payment', 'storefront'`,
     ).bind(
       BOOTSTRAP_STORE_ID,
       snapshot.productId,

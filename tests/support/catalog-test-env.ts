@@ -3,6 +3,7 @@ import migrationOne from '../../migrations/0001-store-products.sql?raw';
 import migrationTwo from '../../migrations/0002-product-variants.sql?raw';
 import migrationThree from '../../migrations/0003-imports.sql?raw';
 import migrationFour from '../../migrations/0004-orders.sql?raw';
+import migrationFive from '../../migrations/0005-order-operations.sql?raw';
 import worker from '../../src/worker';
 
 function splitMigrationSql(sql: string): string[] {
@@ -68,12 +69,21 @@ function splitMigrationSql(sql: string): string[] {
   return queries;
 }
 
-const catalogMigrations: D1Migration[] = [
+const s2Migrations: D1Migration[] = [
   { name: '0001-store-products.sql', queries: splitMigrationSql(migrationOne) },
   { name: '0002-product-variants.sql', queries: splitMigrationSql(migrationTwo) },
   { name: '0003-imports.sql', queries: splitMigrationSql(migrationThree) },
   { name: '0004-orders.sql', queries: splitMigrationSql(migrationFour) },
 ];
+
+const catalogMigrations: D1Migration[] = [
+  ...s2Migrations,
+  { name: '0005-order-operations.sql', queries: splitMigrationSql(migrationFive) },
+];
+
+export function applyS2Migrations(): Promise<void> {
+  return applyD1Migrations(env.DB, s2Migrations);
+}
 
 export function applyCatalogMigrations(): Promise<void> {
   return applyD1Migrations(env.DB, catalogMigrations);
@@ -81,9 +91,18 @@ export function applyCatalogMigrations(): Promise<void> {
 
 export async function resetCatalog(): Promise<void> {
   const tables = [
+    'order_commands',
+    'order_idempotency',
+    '_s2_history_cardinality_guard',
+    'orders_s3',
+    'order_lines_s3',
+    'order_access_s3',
+    'order_idempotency_s3',
+    'order_history_s3',
     'order_idempotency',
     'order_access',
     'order_history',
+    'refund_requests',
     'order_lines',
     'orders',
     'customers',

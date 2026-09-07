@@ -84,6 +84,16 @@ describe('Order aggregate persistence', () => {
       currency: 'USD',
     });
     expect(await orderTableCounts()).toEqual([1, 1, 1, 1, 1, 1]);
+    expect(await env.DB.prepare(
+      'SELECT sequence, action, previous_status, status, source, refund_request_id FROM order_history',
+    ).first()).toEqual({
+      sequence: 0,
+      action: 'order_created',
+      previous_status: null,
+      status: 'pending_payment',
+      source: 'storefront',
+      refund_request_id: null,
+    });
     const access = await env.DB.prepare(
       'SELECT capability_digest FROM order_access',
     ).first<{ capability_digest: string }>();
