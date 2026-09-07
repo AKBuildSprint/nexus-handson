@@ -13,19 +13,31 @@ import {
   applyProductSchema,
   createProduct,
   downloadCsvTemplate,
+  executeOrderAction,
+  fetchOrderDetail,
+  fetchOrders,
   fetchProductBySlug,
   fetchProducts,
   previewProductSchema,
   removeDeliveryFile,
   replaceDeliveryFile,
   updateProduct,
-  fetchOrders,
 } from './api-client';
 import { ConsoleShell } from './layout/console-shell';
-import { ProductEditorScreen } from './products/product-editor-screen';
+import { OrderDetailScreen } from './orders/order-detail-screen';
 import { OrdersScreen } from './orders/orders-screen';
-import type { ConsoleOrderView, ConsoleOrdersState } from './orders/order-ui-types';
+import {
+  EMPTY_ORDER_CRITERIA,
+  orderCriteriaEqual,
+  type ConsoleOrderDetailState,
+  type ConsoleOrderDetailView,
+  type ConsoleOrderListCriteria,
+  type ConsoleOrderView,
+  type ConsoleOrdersState,
+} from './orders/order-ui-types';
+import { ProductEditorScreen } from './products/product-editor-screen';
 import { ProductListScreen } from './products/product-list-screen';
+import type { ConsoleOrderAction } from '../orders/order-types';
 import type {
   ProductEditorFixture,
   ProductEditorScenario,
@@ -34,8 +46,19 @@ import type {
   VariantFixture,
 } from './products/product-ui-types';
 
-type ConsoleRoute = { kind: 'list' } | { kind: 'new' } | { kind: 'edit'; slug: string } | { kind: 'import' } | { kind: 'orders' };
+type ConsoleRoute =
+  | { kind: 'list' }
+  | { kind: 'new' }
+  | { kind: 'edit'; slug: string }
+  | { kind: 'import' }
+  | { kind: 'orders-list'; criteria: ConsoleOrderListCriteria }
+  | { kind: 'order-detail'; reference: string };
 type PendingFile = File | 'remove' | null;
+type OrdersCursorStack = Array<string | null>;
+interface OrdersListSnapshot {
+  criteria: ConsoleOrderListCriteria;
+  cursorStack: OrdersCursorStack;
+}
 
 const EMPTY_PRODUCT: ProductEditorFixture = {
   name: '',
@@ -48,8 +71,84 @@ const EMPTY_PRODUCT: ProductEditorFixture = {
   variants: [],
 };
 
-function parseRoute(pathname: string): ConsoleRoute {
-  if (pathname === '/console/orders') return { kind: 'orders' };
+function historyRecord(): Record<string, unknown> {
+  const state = window.history.state;
+  if (!state || typeof state !== 'object') return {};
+  return { ...state };
+}
+
+function isStatusFilter(value: string | null): value is ConsoleOrderListCriteria['status'] {
+  return value === 'all'
+    || value === 'pending_payment'
+    || value === 'paid'
+    || value === 'fulfilled'
+    || value === 'cancelled';
+}
+
+function parseOrdersCriteria(search: string): ConsoleOrderListCriteria {
+  const params = new URLSearchParams(search);
+  const statusParam = params.get('status');
+  return {
+    q: params.get('q') ?? '',
+    status: isStatusFilter(statusParam) ? statusParam : 'all',
+    refund: params.get('refund') === 'pending' ? 'pending' : 'all',
+    cursor: params.get('cursor') || null,
+  };
+}
+
+function serializeOrdersPath(criteria: ConsoleOrderListCriteria): string {
+  const params = new URLSearchParams();
+  if (criteria.q) params.set('q', criteria.q);
+  if (criteria.status !== 'all') params.set('status', criteria.status);
+  if (criteria.refund !== 'all') params.set('refund', criteria.refund);
+  if (criteria.cursor) params.set('cursor', criteria.cursor);
+  const suffix = params.size > 0 ? `?${params}` : '';
+  return `/console/orders${suffix}`;
+}
+
+function isCursorStack(value: unknown): value is OrdersCursorStack {
+  return Array.isArray(value)
+    && value.length > 0
+    && value.every((item) => item === null || typeof item === 'string');
+}
+
+function readOrdersSnapshot(state: unknown): OrdersListSnapshot | null {
+  if (!state || typeof state !== 'object' || !('ordersList' in state)) return null;
+  const snapshot = state.ordersList;
+  if (!snapshot || typeof snapshot !== 'object' || !('criteria' in snapshot) || !('cursorStack' in snapshot)) return null;
+  const { criteria, cursorStack } = snapshot;
+  if (!criteria || typeof criteria !== 'object' || !isCursorStack(cursorStack)) return null;
+  if (!('q' in criteria) || !('status' in criteria) || !('refund' in criteria) || !('cursor' in criteria)) return null;
+  if (typeof criteria.q !== 'string' || !isStatusFilter(typeof criteria.status === 'string' ? criteria.status : null)) return null;
+  if (criteria.refund !== 'all' && criteria.refund !== 'pending') return null;
+  if (criteria.cursor !== null && typeof criteria.cursor !== 'string') return null;
+  return {
+    criteria: {
+      q: criteria.q,
+      status: criteria.status,
+      refund: criteria.refund,
+      cursor: criteria.cursor,
+    },
+    cursorStack,
+  };
+}
+
+function snapshotMatches(snapshot: OrdersListSnapshot | null, criteria: ConsoleOrderListCriteria): boolean {
+  return snapshot !== null
+    && orderCriteriaEqual(snapshot.criteria, criteria)
+    && snapshot.cursorStack[snapshot.cursorStack.length - 1] === criteria.cursor;
+}
+
+function parseRoute(pathname: string, search = window.location.search): ConsoleRoute {
+  const detail = /^\/console\/orders\/([^/]+)$/.exec(pathname);
+  if (detail) {
+    try {
+      return { kind: 'order-detail', reference: decodeURIComponent(detail[1]) };
+    } catch {
+      return { kind: 'orders-list', criteria: { ...EMPTY_ORDER_CRITERIA } };
+    }
+  }
+  if (pathname === '/console/orders') return { kind: 'orders-list', criteria: parseOrdersCriteria(search) };
   if (pathname === '/console/products/new') return { kind: 'new' };
   if (pathname === '/console/products/import') return { kind: 'import' };
   const match = /^\/console\/products\/([^/]+)$/.exec(pathname);
@@ -64,7 +163,8 @@ function parseRoute(pathname: string): ConsoleRoute {
 }
 
 function routePath(route: ConsoleRoute): string {
-  if (route.kind === 'orders') return '/console/orders';
+  if (route.kind === 'orders-list') return serializeOrdersPath(route.criteria);
+  if (route.kind === 'order-detail') return `/console/orders/${encodeURIComponent(route.reference)}`;
   if (route.kind === 'new') return '/console/products/new';
   if (route.kind === 'import') return '/console/products/import';
   if (route.kind === 'edit') return `/console/products/${encodeURIComponent(route.slug)}`;
@@ -207,7 +307,7 @@ function listSummary(item: ProductListItem): ProductSummary {
 }
 
 export function ProductionConsoleApp() {
-  const [route, setRoute] = useState<ConsoleRoute>(() => parseRoute(window.location.pathname));
+  const [route, setRoute] = useState<ConsoleRoute>(() => parseRoute(window.location.pathname, window.location.search));
   const [dirty, setDirty] = useState(false);
   const dirtyRef = useRef(false);
   const routeRef = useRef(route);
@@ -215,26 +315,57 @@ export function ProductionConsoleApp() {
   const [listState, setListState] = useState<ProductListState>('loading');
   const [criteria, setCriteria] = useState<{ query: string; status: 'all' | ProductStatus }>({ query: '', status: 'all' });
   const [orders, setOrders] = useState<ConsoleOrderView[]>([]);
+  const [ordersNextCursor, setOrdersNextCursor] = useState<string | null>(null);
+  const [ordersHasAny, setOrdersHasAny] = useState(false);
   const [ordersState, setOrdersState] = useState<ConsoleOrdersState>('loading');
-  const [ordersRequest, setOrdersRequest] = useState(0);
+  const [ordersListEpoch, setOrdersListEpoch] = useState(0);
+  const [orderCursorStack, setOrderCursorStack] = useState<OrdersCursorStack>(() => {
+    const initial = parseRoute(window.location.pathname, window.location.search);
+    const snapshot = readOrdersSnapshot(window.history.state);
+    if (initial.kind === 'orders-list' && snapshotMatches(snapshot, initial.criteria)) return snapshot.cursorStack;
+    if (initial.kind === 'orders-list') return [initial.criteria.cursor];
+    return [null];
+  });
+  const [orderDetail, setOrderDetail] = useState<ConsoleOrderDetailView | null>(null);
+  const [orderDetailState, setOrderDetailState] = useState<ConsoleOrderDetailState>('loading');
+  const [orderDetailEpoch, setOrderDetailEpoch] = useState(0);
+  const [orderPendingAction, setOrderPendingAction] = useState<ConsoleOrderAction | null>(null);
+  const [orderAttempt, setOrderAttempt] = useState<{
+    action: ConsoleOrderAction;
+    acknowledgedRefundRequestId: string | null;
+    idempotencyKey: string;
+  } | null>(null);
+  const [orderActionError, setOrderActionError] = useState<unknown>(null);
   const [detail, setDetail] = useState<ProductDetailResponse | null>(null);
   const [detailLifecycle, setDetailLifecycle] = useState<ProductEditorScenario['lifecycle']>('loading');
   const [revision, setRevision] = useState<number | null>(null);
   const previewHashRef = useRef<string | null>(null);
   const pendingProductFileRef = useRef<PendingFile>(null);
   const pendingVariantFilesRef = useRef(new Map<string, PendingFile>());
-
   const skipNextDetailLoadRef = useRef(false);
   const detailRequestRef = useRef(0);
   const createdDetailRef = useRef<ProductDetailResponse | null>(null);
+  const listGenerationRef = useRef(0);
+  const orderDetailGenerationRef = useRef(0);
+  const orderCursorStackRef = useRef(orderCursorStack);
+
   useEffect(() => {
     dirtyRef.current = dirty;
   }, [dirty]);
   useEffect(() => {
     routeRef.current = route;
   }, [route]);
+  useEffect(() => {
+    orderCursorStackRef.current = orderCursorStack;
+  }, [orderCursorStack]);
 
   const confirmDiscard = useCallback(() => !dirtyRef.current || window.confirm('Discard unsaved Product changes?'), []);
+
+  const writeLocation = useCallback((url: string, replace: boolean, patch?: Record<string, unknown>) => {
+    const next = patch ? { ...historyRecord(), ...patch } : historyRecord();
+    window.history[replace ? 'replaceState' : 'pushState'](next, '', url);
+  }, []);
+
   const navigate = useCallback((target: ConsoleRoute, replace = false) => {
     if (!confirmDiscard()) return false;
     setDirty(false);
@@ -243,17 +374,23 @@ export function ProductionConsoleApp() {
     pendingVariantFilesRef.current.clear();
     createdDetailRef.current = null;
     detailRequestRef.current += 1;
-    const path = routePath(target);
-    window.history[replace ? 'replaceState' : 'pushState']({}, '', path);
+    writeLocation(routePath(target), replace);
     setRoute(target);
     return true;
-  }, [confirmDiscard]);
+  }, [confirmDiscard, writeLocation]);
+
+  const commitOrdersList = useCallback((nextCriteria: ConsoleOrderListCriteria, stack: OrdersCursorStack, historyMode: 'push' | 'replace') => {
+    const snapshot = { ordersList: { criteria: nextCriteria, cursorStack: stack } };
+    writeLocation(serializeOrdersPath(nextCriteria), historyMode === 'replace', snapshot);
+    setOrderCursorStack(stack);
+    setRoute({ kind: 'orders-list', criteria: nextCriteria });
+  }, [writeLocation]);
 
   useEffect(() => {
-    const onPopState = () => {
-      const next = parseRoute(window.location.pathname);
+    const onPopState = (event: PopStateEvent) => {
+      const next = parseRoute(window.location.pathname, window.location.search);
       if (!confirmDiscard()) {
-        window.history.pushState({}, '', routePath(routeRef.current));
+        writeLocation(routePath(routeRef.current), false);
         return;
       }
       setDirty(false);
@@ -262,11 +399,29 @@ export function ProductionConsoleApp() {
       pendingVariantFilesRef.current.clear();
       createdDetailRef.current = null;
       detailRequestRef.current += 1;
+      if (next.kind === 'orders-list') {
+        const snapshot = readOrdersSnapshot(event.state);
+        if (snapshotMatches(snapshot, next.criteria)) setOrderCursorStack(snapshot.cursorStack);
+        else setOrderCursorStack([next.criteria.cursor]);
+      }
+      if (next.kind === 'order-detail') setOrderDetailEpoch((current) => current + 1);
       setRoute(next);
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, [confirmDiscard]);
+  }, [confirmDiscard, writeLocation]);
+
+  useEffect(() => {
+    if (route.kind !== 'orders-list') return;
+    const snapshot = readOrdersSnapshot(window.history.state);
+    if (snapshotMatches(snapshot, route.criteria)) {
+      if (snapshot.cursorStack !== orderCursorStackRef.current) setOrderCursorStack(snapshot.cursorStack);
+      return;
+    }
+    const stack: OrdersCursorStack = [route.criteria.cursor];
+    setOrderCursorStack(stack);
+    writeLocation(serializeOrdersPath(route.criteria), true, { ordersList: { criteria: route.criteria, cursorStack: stack } });
+  }, [route, writeLocation]);
 
   useEffect(() => {
     if (route.kind !== 'list') return;
@@ -283,17 +438,53 @@ export function ProductionConsoleApp() {
   }, [criteria, route.kind]);
 
   useEffect(() => {
-    if (route.kind !== 'orders') return;
+    if (route.kind !== 'orders-list') return;
+    const generation = listGenerationRef.current + 1;
+    listGenerationRef.current = generation;
     const controller = new AbortController();
     setOrdersState('loading');
-    void fetchOrders(controller.signal).then((response) => {
+    void fetchOrders(route.criteria, controller.signal).then((response) => {
+      if (listGenerationRef.current !== generation) return;
       setOrders(response.orders);
-      setOrdersState(response.orders.length === 0 ? 'empty' : 'ready');
+      setOrdersNextCursor(response.nextCursor);
+      setOrdersHasAny(response.hasAnyOrders);
+      if (response.orders.length > 0) setOrdersState('ready');
+      else setOrdersState(response.hasAnyOrders ? 'no-match' : 'empty');
     }).catch((error) => {
-      if (!(error instanceof DOMException && error.name === 'AbortError')) setOrdersState('error');
+      if (listGenerationRef.current !== generation) return;
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setOrdersState('error');
     });
     return () => controller.abort();
-  }, [ordersRequest, route.kind]);
+  }, [ordersListEpoch, route]);
+
+  const orderReference = route.kind === 'order-detail' ? route.reference : null;
+  useEffect(() => {
+    setOrderDetail(null);
+    setOrderPendingAction(null);
+    setOrderAttempt(null);
+    setOrderActionError(null);
+    setOrderDetailState('loading');
+  }, [orderReference]);
+
+  useEffect(() => {
+    if (route.kind !== 'order-detail') return;
+    const generation = orderDetailGenerationRef.current + 1;
+    orderDetailGenerationRef.current = generation;
+    const controller = new AbortController();
+    setOrderDetailState((current) => current === 'ready' ? 'ready' : 'loading');
+    void fetchOrderDetail(route.reference, controller.signal).then((response) => {
+      if (orderDetailGenerationRef.current !== generation || routeRef.current.kind !== 'order-detail' || routeRef.current.reference !== route.reference) return;
+      setOrderDetail(response);
+      setOrderDetailState('ready');
+      setOrderActionError(null);
+    }).catch((error) => {
+      if (orderDetailGenerationRef.current !== generation || routeRef.current.kind !== 'order-detail' || routeRef.current.reference !== route.reference) return;
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setOrderDetailState((current) => current === 'ready' ? 'ready' : 'error');
+    });
+    return () => controller.abort();
+  }, [orderDetailEpoch, route]);
 
   const loadDetail = useCallback((slug: string) => {
     const requestSequence = detailRequestRef.current + 1;
@@ -498,9 +689,128 @@ export function ProductionConsoleApp() {
     }
   }, [detail, revision]);
 
+  const runOrderAction = useCallback(async (attempt: {
+    action: ConsoleOrderAction;
+    acknowledgedRefundRequestId: string | null;
+    idempotencyKey: string;
+  }) => {
+    if (routeRef.current.kind !== 'order-detail') return;
+    const reference = routeRef.current.reference;
+    const stillOn = (generation: number) => (
+      orderDetailGenerationRef.current === generation
+      && routeRef.current.kind === 'order-detail'
+      && routeRef.current.reference === reference
+    );
+    const generation = orderDetailGenerationRef.current + 1;
+    orderDetailGenerationRef.current = generation;
+    setOrderPendingAction(attempt.action);
+    setOrderActionError(null);
+    try {
+      const result = await executeOrderAction(
+        reference,
+        attempt.action,
+        attempt.acknowledgedRefundRequestId,
+        attempt.idempotencyKey,
+      );
+      if (!stillOn(generation)) return;
+      setOrderDetail(result.order);
+      setOrderDetailState('ready');
+      setOrderPendingAction(null);
+      setOrderAttempt(null);
+      setOrderActionError(null);
+      const refetchGeneration = orderDetailGenerationRef.current + 1;
+      orderDetailGenerationRef.current = refetchGeneration;
+      try {
+        const fresh = await fetchOrderDetail(reference);
+        if (!stillOn(refetchGeneration)) return;
+        setOrderDetail(fresh);
+      } catch (error) {
+        if (!stillOn(refetchGeneration)) return;
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+      }
+    } catch (error) {
+      if (!stillOn(generation)) return;
+      setOrderPendingAction(null);
+      const conflict = error && typeof error === 'object' && 'status' in error && error.status === 409;
+      if (conflict) {
+        setOrderAttempt(null);
+        setOrderActionError(error);
+        setOrderDetail((current) => current ? { ...current, allowedActions: [] } : current);
+        const refetchGeneration = orderDetailGenerationRef.current + 1;
+        orderDetailGenerationRef.current = refetchGeneration;
+        try {
+          const fresh = await fetchOrderDetail(reference);
+          if (!stillOn(refetchGeneration)) return;
+          setOrderDetail(fresh);
+          setOrderDetailState('ready');
+        } catch (refetchError) {
+          if (!stillOn(refetchGeneration)) return;
+          if (refetchError instanceof DOMException && refetchError.name === 'AbortError') return;
+        }
+        return;
+      }
+      setOrderActionError(error);
+    }
+  }, []);
+
+  const changeOrderCriteria = (next: ConsoleOrderListCriteria) => {
+    if (route.kind !== 'orders-list') return;
+    const reset = { ...next, cursor: null };
+    const stack: OrdersCursorStack = [null];
+    const filterChanged = route.criteria.status !== reset.status || route.criteria.refund !== reset.refund;
+    commitOrdersList(reset, stack, filterChanged ? 'push' : 'replace');
+  };
+
   let content;
-  if (route.kind === 'orders') {
-    content = <OrdersScreen state={ordersState} orders={orders} onRetry={() => setOrdersRequest((current) => current + 1)} />;
+  if (route.kind === 'orders-list') {
+    content = <OrdersScreen
+      state={ordersState}
+      orders={orders}
+      criteria={route.criteria}
+      nextCursor={ordersNextCursor}
+      canGoPrevious={orderCursorStack.length > 1}
+      showFirstPage={route.criteria.cursor !== null && orderCursorStack.length <= 1}
+      onRetry={() => setOrdersListEpoch((current) => current + 1)}
+      onCriteriaChange={changeOrderCriteria}
+      onClearFilters={() => commitOrdersList({ ...EMPTY_ORDER_CRITERIA }, [null], 'push')}
+      onNext={() => {
+        if (!ordersNextCursor) return;
+        commitOrdersList({ ...route.criteria, cursor: ordersNextCursor }, [...orderCursorStack, ordersNextCursor], 'push');
+      }}
+      onPrevious={() => {
+        if (orderCursorStack.length < 2) return;
+        const stack = orderCursorStack.slice(0, -1);
+        commitOrdersList({ ...route.criteria, cursor: stack[stack.length - 1] ?? null }, stack, 'push');
+      }}
+      onFirstPage={() => commitOrdersList({ ...route.criteria, cursor: null }, [null], 'push')}
+      onOpenOrder={(reference) => {
+        writeLocation(serializeOrdersPath(route.criteria), true, {
+          ordersList: { criteria: route.criteria, cursorStack: orderCursorStack },
+        });
+        writeLocation(`/console/orders/${encodeURIComponent(reference)}`, false);
+        setRoute({ kind: 'order-detail', reference });
+      }}
+    />;
+  } else if (route.kind === 'order-detail') {
+    content = <OrderDetailScreen
+      state={orderDetailState}
+      order={orderDetail}
+      pendingAction={orderPendingAction}
+      retryAction={orderAttempt?.action ?? null}
+      actionError={orderActionError}
+      onBack={() => {
+        const snapshot = readOrdersSnapshot(window.history.state);
+        if (snapshot) commitOrdersList(snapshot.criteria, snapshot.cursorStack, 'push');
+        else commitOrdersList({ ...EMPTY_ORDER_CRITERIA }, [null], 'push');
+      }}
+      onRetry={() => setOrderDetailEpoch((current) => current + 1)}
+      onRetryAction={() => { if (orderAttempt) void runOrderAction(orderAttempt); }}
+      onAction={(action, acknowledgedRefundRequestId) => {
+        const attempt = { action, acknowledgedRefundRequestId, idempotencyKey: crypto.randomUUID() };
+        setOrderAttempt(attempt);
+        void runOrderAction(attempt);
+      }}
+    />;
   } else if (route.kind === 'list') {
     content = <ProductListScreen
       state={listState}
@@ -534,9 +844,9 @@ export function ProductionConsoleApp() {
   }
 
   return <ConsoleShell
-    activeDestination={route.kind === 'orders' ? 'Orders' : 'Products'}
-    railNote={route.kind === 'orders' ? 'Review safe Customer Order projections.' : 'Manage Product pricing, Variants, and private delivery files.'}
+    activeDestination={route.kind === 'orders-list' || route.kind === 'order-detail' ? 'Orders' : 'Products'}
+    railNote={route.kind === 'orders-list' || route.kind === 'order-detail' ? 'Review safe Customer Order projections.' : 'Manage Product pricing, Variants, and private delivery files.'}
     onOpenProducts={() => navigate({ kind: 'list' })}
-    onOpenOrders={() => navigate({ kind: 'orders' })}
+    onOpenOrders={() => navigate({ kind: 'orders-list', criteria: { ...EMPTY_ORDER_CRITERIA } })}
   >{content}</ConsoleShell>;
 }

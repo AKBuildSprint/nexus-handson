@@ -16,7 +16,13 @@ import {
   isImportResultResponse,
   type ImportResultResponse,
 } from '../shared/csv-contract';
-import type { ConsoleOrderListResponse } from './orders/order-ui-types';
+import type {
+  ConsoleOrderAction,
+  ConsoleOrderActionResponse,
+  ConsoleOrderDetailView,
+  ConsoleOrderListCriteria,
+  ConsoleOrderListResponse,
+} from './orders/order-ui-types';
 
 interface ErrorEnvelope {
   error: {
@@ -78,8 +84,41 @@ export async function fetchProducts(
   return decode(await fetch(`/api/console/products${suffix}`, { headers: { Accept: 'application/json' }, signal }));
 }
 
-export async function fetchOrders(signal?: AbortSignal): Promise<ConsoleOrderListResponse> {
-  return decode(await fetch('/api/console/orders', { headers: { Accept: 'application/json' }, signal }));
+export async function fetchOrders(
+  criteria: ConsoleOrderListCriteria,
+  signal?: AbortSignal,
+): Promise<ConsoleOrderListResponse> {
+  const params = new URLSearchParams();
+  if (criteria.q) params.set('q', criteria.q);
+  if (criteria.status !== 'all') params.set('status', criteria.status);
+  if (criteria.refund !== 'all') params.set('refund', criteria.refund);
+  if (criteria.cursor) params.set('cursor', criteria.cursor);
+  const suffix = params.size > 0 ? `?${params}` : '';
+  return decode(await fetch(`/api/console/orders${suffix}`, { headers: { Accept: 'application/json' }, signal }));
+}
+
+export async function fetchOrderDetail(reference: string, signal?: AbortSignal): Promise<ConsoleOrderDetailView> {
+  return decode(await fetch(`/api/console/orders/${encodeURIComponent(reference)}`, {
+    headers: { Accept: 'application/json' },
+    signal,
+  }));
+}
+
+export async function executeOrderAction(
+  reference: string,
+  action: ConsoleOrderAction,
+  acknowledgedRefundRequestId: string | null,
+  idempotencyKey: string,
+): Promise<ConsoleOrderActionResponse> {
+  return decode(await fetch(`/api/console/orders/${encodeURIComponent(reference)}/actions`, {
+    method: 'POST',
+    headers: {
+      ...jsonHeaders(),
+      Accept: 'application/json',
+      'Idempotency-Key': idempotencyKey,
+    },
+    body: JSON.stringify({ action, acknowledgedRefundRequestId }),
+  }));
 }
 
 export async function fetchProductBySlug(slug: string): Promise<{ product: ProductDetailResponse; revision: number }> {

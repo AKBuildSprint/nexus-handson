@@ -682,6 +682,58 @@ legend {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
+.status-paid {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
+}
+
+.order-detail-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.order-detail-list div {
+  display: grid;
+  grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.order-detail-list dt {
+  color: var(--color-ink-muted);
+  font-size: var(--type-meta-size);
+  font-weight: var(--weight-semibold);
+}
+
+.order-detail-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.order-history {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.order-history li {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.order-fulfill-dialog {
+  max-width: calc(100vw - var(--space-8));
+  max-height: calc(100dvh - var(--space-8));
+  overflow: auto;
+}
+
+.order-fulfill-dialog [data-refund-reason] {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 .product-list-mobile,
 .variant-list-mobile {
   display: none;
@@ -1226,7 +1278,8 @@ legend {
   .option-group-header,
   .combination-meter,
   .regeneration-row,
-  .result-row {
+  .result-row,
+  .order-detail-list div {
     grid-template-columns: 1fr;
   }
 
