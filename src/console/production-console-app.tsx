@@ -119,7 +119,7 @@ function readOrdersSnapshot(state: unknown): OrdersListSnapshot | null {
   const { criteria, cursorStack } = snapshot;
   if (!criteria || typeof criteria !== 'object' || !isCursorStack(cursorStack)) return null;
   if (!('q' in criteria) || !('status' in criteria) || !('refund' in criteria) || !('cursor' in criteria)) return null;
-  if (typeof criteria.q !== 'string' || !isStatusFilter(typeof criteria.status === 'string' ? criteria.status : null)) return null;
+  if (typeof criteria.q !== 'string' || typeof criteria.status !== 'string' || !isStatusFilter(criteria.status)) return null;
   if (criteria.refund !== 'all' && criteria.refund !== 'pending') return null;
   if (criteria.cursor !== null && typeof criteria.cursor !== 'string') return null;
   return {
@@ -133,7 +133,7 @@ function readOrdersSnapshot(state: unknown): OrdersListSnapshot | null {
   };
 }
 
-function snapshotMatches(snapshot: OrdersListSnapshot | null, criteria: ConsoleOrderListCriteria): boolean {
+function snapshotMatches(snapshot: OrdersListSnapshot | null, criteria: ConsoleOrderListCriteria): snapshot is OrdersListSnapshot {
   return snapshot !== null
     && orderCriteriaEqual(snapshot.criteria, criteria)
     && snapshot.cursorStack[snapshot.cursorStack.length - 1] === criteria.cursor;
@@ -316,14 +316,12 @@ export function ProductionConsoleApp() {
   const [criteria, setCriteria] = useState<{ query: string; status: 'all' | ProductStatus }>({ query: '', status: 'all' });
   const [orders, setOrders] = useState<ConsoleOrderView[]>([]);
   const [ordersNextCursor, setOrdersNextCursor] = useState<string | null>(null);
-  const [ordersHasAny, setOrdersHasAny] = useState(false);
   const [ordersState, setOrdersState] = useState<ConsoleOrdersState>('loading');
   const [ordersListEpoch, setOrdersListEpoch] = useState(0);
   const [orderCursorStack, setOrderCursorStack] = useState<OrdersCursorStack>(() => {
-    const initial = parseRoute(window.location.pathname, window.location.search);
     const snapshot = readOrdersSnapshot(window.history.state);
-    if (initial.kind === 'orders-list' && snapshotMatches(snapshot, initial.criteria)) return snapshot.cursorStack;
-    if (initial.kind === 'orders-list') return [initial.criteria.cursor];
+    if (route.kind === 'orders-list' && snapshotMatches(snapshot, route.criteria)) return snapshot.cursorStack;
+    if (route.kind === 'orders-list') return [route.criteria.cursor];
     return [null];
   });
   const [orderDetail, setOrderDetail] = useState<ConsoleOrderDetailView | null>(null);
@@ -447,7 +445,6 @@ export function ProductionConsoleApp() {
       if (listGenerationRef.current !== generation) return;
       setOrders(response.orders);
       setOrdersNextCursor(response.nextCursor);
-      setOrdersHasAny(response.hasAnyOrders);
       if (response.orders.length > 0) setOrdersState('ready');
       else setOrdersState(response.hasAnyOrders ? 'no-match' : 'empty');
     }).catch((error) => {
@@ -842,10 +839,11 @@ export function ProductionConsoleApp() {
       onPendingVariantFileChange={(variantId, change) => { pendingVariantFilesRef.current.set(variantId, change); }}
     />;
   }
+  const isOrdersRoute = route.kind === 'orders-list' || route.kind === 'order-detail';
 
   return <ConsoleShell
-    activeDestination={route.kind === 'orders-list' || route.kind === 'order-detail' ? 'Orders' : 'Products'}
-    railNote={route.kind === 'orders-list' || route.kind === 'order-detail' ? 'Review safe Customer Order projections.' : 'Manage Product pricing, Variants, and private delivery files.'}
+    activeDestination={isOrdersRoute ? 'Orders' : 'Products'}
+    railNote={isOrdersRoute ? 'Review safe Customer Order projections.' : 'Manage Product pricing, Variants, and private delivery files.'}
     onOpenProducts={() => navigate({ kind: 'list' })}
     onOpenOrders={() => navigate({ kind: 'orders-list', criteria: { ...EMPTY_ORDER_CRITERIA } })}
   >{content}</ConsoleShell>;

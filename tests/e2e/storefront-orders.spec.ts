@@ -1,11 +1,19 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 
 const CONSOLE_ORIGIN = process.env.PLAYWRIGHT_API_CONSOLE_BASE_URL ?? 'http://127.0.0.1:5173';
 const STOREFRONT_ORIGIN = process.env.PLAYWRIGHT_STOREFRONT_BASE_URL ?? 'http://127.0.0.1:5174';
+const PRIVATE_PROJECTION_KEYS: Record<string, true> = {
+  capability: true,
+  privateurl: true,
+  privatefilekey: true,
+  deliveryfilekey: true,
+  deliveryaccessinstructions: true,
+  accessinstructions: true,
+};
 
 interface CustomerOrderResponse {
   reference: string;
-  status: 'pending_payment';
+  status: 'pending_payment' | 'paid' | 'fulfilled' | 'cancelled';
   product: {
     name: string;
     variant: null | {
@@ -18,11 +26,62 @@ interface CustomerOrderResponse {
   totalMinor: number;
   currency: string;
   createdAt: string;
-  paymentNextStep: string;
+  paymentNextStep: string | null;
+  refundRequest?: { id: string; reason: string; status: 'pending'; createdAt: string } | null;
+}
+
+interface ConsoleOrderDetail {
+  reference: string;
+  status: CustomerOrderResponse['status'];
+  quantity: number;
+  unitPriceMinor: number;
+  totalMinor: number;
+  currency: string;
+  createdAt: string;
+  history: Array<{ sequence: number; action: string; refundRequestId: string | null }>;
+  refundRequest: { id: string; reason: string; status: 'pending'; createdAt: string } | null;
 }
 
 function uniqueToken(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+async function searchAndOpenOrder(page: Page, reference: string) {
+  await page.goto(`${CONSOLE_ORIGIN}/console/orders`);
+  await expect(page.getByRole('heading', { name: 'Orders' })).toBeVisible();
+  const list = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === 'GET'
+      && url.origin === CONSOLE_ORIGIN
+      && url.pathname === '/api/console/orders'
+      && url.searchParams.get('q') === reference;
+  });
+  await page.getByLabel('Search Orders').fill(reference);
+  expect((await list).ok()).toBe(true);
+  await page.getByRole('link', { name: reference }).click();
+  await expect(page.getByRole('heading', { name: reference })).toBeVisible();
+}
+
+async function readConsoleDetail(request: APIRequestContext, reference: string): Promise<ConsoleOrderDetail> {
+  const response = await request.get(`${CONSOLE_ORIGIN}/api/console/orders/${encodeURIComponent(reference)}`, {
+    headers: { Accept: 'application/json' },
+  });
+  expect(response.ok()).toBe(true);
+  return await response.json() as ConsoleOrderDetail;
+}
+
+async function readPrivateOrder(request: APIRequestContext, reference: string, capability: string): Promise<CustomerOrderResponse> {
+  const response = await request.get(`${CONSOLE_ORIGIN}/api/storefront/orders/${encodeURIComponent(reference)}`, {
+    headers: {
+      Accept: 'application/json',
+      'X-Nexus-Order-Capability': capability,
+    },
+  });
+  expect(response.ok()).toBe(true);
+  const body = await response.json() as CustomerOrderResponse;
+  expect(JSON.stringify(body).includes(capability)).toBe(false);
+  expect(containsPrivateProjectionKey(body)).toBe(false);
+  return body;
 }
 
 function visibleSave(page: Page) {
@@ -76,15 +135,9 @@ async function createVariantProduct(page: Page, name: string, token: string): Pr
 function containsPrivateProjectionKey(value: unknown): boolean {
   if (Array.isArray(value)) return value.some(containsPrivateProjectionKey);
   if (value === null || typeof value !== 'object') return false;
-  const forbidden = new Set([
-    'capability',
-    'privateurl',
-    'privatefilekey',
-    'deliveryfilekey',
-    'deliveryaccessinstructions',
-    'accessinstructions',
-  ]);
-  return Object.entries(value).some(([key, child]) => forbidden.has(key.toLowerCase()) || containsPrivateProjectionKey(child));
+  return Object.entries(value).some(
+    ([key, child]) => Object.hasOwn(PRIVATE_PROJECTION_KEYS, key.toLowerCase()) || containsPrivateProjectionKey(child),
+  );
 }
 
 async function expectNoHorizontalOverflow(page: Page, width: number) {
@@ -101,7 +154,7 @@ async function expectNoHorizontalOverflow(page: Page, width: number) {
 async function placeOrder(
   page: Page,
   input: { productName: string; quantity: string; variantLabel?: string },
-): Promise<{ body: CustomerOrderResponse; capability: string; observedUrls: string[] }> {
+): Promise<{ body: CustomerOrderResponse; capability: string }> {
   const observedUrls: string[] = [];
   page.on('request', (request) => observedUrls.push(request.url()));
 
@@ -148,7 +201,7 @@ async function placeOrder(
   await expect(page.getByText(`Order ${body.reference}`)).toBeVisible();
   expect(observedUrls.some((url) => url.includes(capability) || url.includes(encodeURIComponent(capability)))).toBe(false);
 
-  return { body, capability, observedUrls };
+  return { body, capability };
 }
 
 test('creates a Simple Order with server authority, fragment-only private reload, and catalog visibility refetch', async ({ page, context }) => {
@@ -204,4 +257,97 @@ test('creates an enabled Variant Order and keeps the 375px catalog and private O
   expect(order.body.totalMinor).toBe(7900);
   expect(order.body.currency).toBe('USD');
   await expectNoHorizontalOverflow(page, 375);
+});
+
+test('ST02 Cancel remains privately readable and exposes no Refund form', async ({ page, request }) => {
+  const token = uniqueToken();
+  const productName = `Verify S3 ST02 ${token}`;
+  await createSimpleProduct(page, productName);
+  await page.goto(STOREFRONT_ORIGIN);
+  const placed = await placeOrder(page, { productName, quantity: '1' });
+  const before = await readConsoleDetail(request, placed.body.reference);
+  expect(before.status).toBe('pending_payment');
+  expect(before.history.map((entry) => entry.action)).toEqual(['order_created']);
+
+  const consolePage = await page.context().newPage();
+  await searchAndOpenOrder(consolePage, placed.body.reference);
+  await consolePage.getByRole('button', { name: 'Cancel' }).click();
+  await expect(consolePage.locator('.status-tag')).toHaveText('Cancelled');
+  const cancelled = await readConsoleDetail(request, placed.body.reference);
+  expect(cancelled.status).toBe('cancelled');
+  expect(cancelled.history.map((entry) => entry.action)).toEqual(['order_created', 'cancel']);
+  expect(cancelled.history.filter((entry) => entry.action === 'cancel')).toHaveLength(1);
+  expect(cancelled.refundRequest).toBeNull();
+  expect(cancelled.quantity).toBe(before.quantity);
+  expect(cancelled.unitPriceMinor).toBe(before.unitPriceMinor);
+  expect(cancelled.totalMinor).toBe(before.totalMinor);
+  await consolePage.close();
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByText(`Order ${placed.body.reference}`)).toBeVisible();
+  await expect(page.locator('.order-status')).toHaveText('Cancelled');
+  await expect(page.getByRole('heading', { name: 'Refund Request' })).toHaveCount(0);
+  await expect(page.getByLabel('Reason')).toHaveCount(0);
+  const privateRead = await readPrivateOrder(request, placed.body.reference, placed.capability);
+  expect(privateRead.status).toBe('cancelled');
+  expect(privateRead.refundRequest ?? null).toBeNull();
+  expect(privateRead.paymentNextStep).toBeNull();
+});
+
+test('ST03 US02 Customer refund is durable across Console refresh and a new browser context', async ({ page, browser, request }) => {
+  const token = uniqueToken();
+  const productName = `Verify S3 ST03 ${token}`;
+  const reason = `<script>alert(1)</script> please reverse ${token}`;
+  await createSimpleProduct(page, productName);
+  await page.goto(STOREFRONT_ORIGIN);
+  const placed = await placeOrder(page, { productName, quantity: '1' });
+  const privateUrl = page.url();
+
+  const consolePage = await page.context().newPage();
+  await searchAndOpenOrder(consolePage, placed.body.reference);
+  await consolePage.getByRole('button', { name: 'Mark paid' }).click();
+  await expect(consolePage.locator('.status-tag')).toHaveText('Paid');
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.locator('.order-status')).toHaveText('Paid');
+  await page.getByLabel('Reason').fill(reason);
+  await page.getByRole('button', { name: 'Request refund' }).click();
+  await expect(page.getByText('Received — awaiting response')).toBeVisible();
+  const reasonNode = page.locator('[data-refund-reason]');
+  await expect(reasonNode).toHaveText(reason);
+  expect(await reasonNode.locator('script').count()).toBe(0);
+
+  const privateAfter = await readPrivateOrder(request, placed.body.reference, placed.capability);
+  expect(privateAfter.status).toBe('paid');
+  expect(privateAfter.refundRequest?.reason).toBe(reason);
+  expect(privateAfter.refundRequest?.status).toBe('pending');
+  const refundId = privateAfter.refundRequest?.id ?? '';
+  expect(refundId).toMatch(/^refund_[a-f0-9]{32}$/);
+
+  await consolePage.reload({ waitUntil: 'domcontentloaded' });
+  await expect(consolePage.getByText('Received — awaiting response')).toBeVisible();
+  const consoleReason = consolePage.locator('.notice-warning [data-refund-reason]');
+  await expect(consoleReason).toHaveText(reason);
+  expect(await consoleReason.locator('script').count()).toBe(0);
+  const consoleAfter = await readConsoleDetail(request, placed.body.reference);
+  expect(consoleAfter.status).toBe('paid');
+  expect(consoleAfter.refundRequest?.id).toBe(refundId);
+  expect(consoleAfter.refundRequest?.reason).toBe(reason);
+  expect(consoleAfter.refundRequest?.createdAt).toBe(privateAfter.refundRequest?.createdAt);
+  expect(consoleAfter.history.filter((entry) => entry.action === 'refund_requested')).toHaveLength(1);
+  expect(consoleAfter.history.find((entry) => entry.action === 'refund_requested')?.refundRequestId).toBe(refundId);
+  await consolePage.close();
+
+  const freshContext = await browser.newContext();
+  const freshPage = await freshContext.newPage();
+  await freshPage.goto(privateUrl);
+  await expect(freshPage.getByText(`Order ${placed.body.reference}`)).toBeVisible();
+  await expect(freshPage.getByText('Received — awaiting response')).toBeVisible();
+  await expect(freshPage.locator('[data-refund-reason]')).toHaveText(reason);
+  await expect(freshPage.getByLabel('Reason')).toHaveCount(0);
+  const freshRead = await readPrivateOrder(request, placed.body.reference, placed.capability);
+  expect(freshRead.refundRequest?.id).toBe(refundId);
+  expect(freshRead.refundRequest?.reason).toBe(reason);
+  expect(freshRead.refundRequest?.createdAt).toBe(privateAfter.refundRequest?.createdAt);
+  await freshContext.close();
 });

@@ -52,7 +52,7 @@ The two production builds are independent. `npm run build` remains the API/Conso
 
 `npm test` runs the workerd and browser Vitest suites. The Console build type-checks, builds the Worker/client bundle, and rejects a production import graph that reaches prototype scenario data.
 
-Playwright starts both local Vite applications itself at distinct origins. Its Product, Variant, Order, and CSV suites use unique verification names against the current local API state; they do not provide a general Product delete endpoint.
+Playwright starts both local Vite applications itself at distinct origins. Its Product, Variant, Order, and CSV suites use unique verification names against the current local API state; they do not provide a general Product delete endpoint. Console and Storefront Order specs also cover S3 two-origin lifecycle, refund, conflict, and pagination journeys when run with `CI=1`.
 
 ## Locked evidence tooling
 
@@ -158,8 +158,8 @@ Cleanup must never use a broad name or R2 prefix sweep. Preserve non-fixture row
 
 ## Accepted public risk
 
-Console read/write/import/upload routes and its read-only Orders view remain intentionally anonymous through this teaching slice. Anonymous visitors can mutate catalog state, create Storefront Orders, view the Console's reduced Customer/Order projection, and consume Worker, D1, and R2 quota; input bounds mitigate but do not remove abuse risk.
+Console catalog, import, upload, and Order-operation routes remain intentionally anonymous through this teaching slice. Anonymous visitors can mutate catalog state, create Storefront Orders, open Console Order detail (including Customer snapshot and Refund Request reason), and perform manual `Mark paid`, `Mark fulfilled`, and `Cancel` mutations in the bootstrap Store. Input bounds mitigate but do not remove abuse risk.
 
-The Storefront's private Order capability remains only in the URL fragment and explicit API header. It is still a bearer secret: never log, publish, paste, or share a private Order URL or raw capability. Neither surface may expose delivery configuration, private object identity, or the raw capability in public output.
+A Customer Refund Request is request-only: it records a pending reason and time, does not move money, does not change Order status, and stays pending after fulfillment. The Storefront's private Order capability remains only in the URL fragment and explicit API header. It is still a bearer secret: never log, publish, paste, or share a private Order URL or raw capability. Neither surface may expose delivery configuration, private object identity, or the raw capability in public output.
 
-These public `workers.dev` surfaces are anonymous demos, not a custom-domain, business-critical production, payment, or security claim. Real identity and permissions remain later-scope work.
+These public `workers.dev` surfaces are anonymous demos, not a custom-domain, authenticated Owner, provider-confirmed payment, delivery grant, or business-critical production claim. Real identity and permissions remain later-scope work. S3 acceptance is local: Workerd integration, browser contracts, two-origin Playwright with `CI=1`, root typecheck (including `storefront/src`), and both production builds. Local D1 proof is not remote D1 proof.
