@@ -1,7 +1,9 @@
 import { BOOTSTRAP_STORE_ID } from '../catalog/catalog-read';
+import { normalizeComparisonKey } from '../catalog/slug';
 import type {
   ConsoleOrderAction,
   ConsoleOrderDetailProjection,
+  ConsoleOrderListQuery,
   ConsoleOrderProjection,
   CustomerOrderProjection,
   OrderHistoryEntry,
@@ -11,6 +13,7 @@ import type {
   OrderSelectedOption,
   OrderStatus,
 } from './order-types';
+import { decodeConsoleOrderCursor } from './order-validation';
 
 interface OrderProjectionRow {
   id: string;
@@ -58,9 +61,11 @@ const CUSTOMER_SELECT = `${PURCHASE_SELECT},
   LEFT JOIN refund_requests
     ON refund_requests.order_id = orders.id AND refund_requests.store_id = orders.store_id`;
 
-const LIST_SELECT = `${PURCHASE_SELECT}
-  FROM orders
-  JOIN order_lines ON order_lines.order_id = orders.id AND order_lines.store_id = orders.store_id`;
+const LIST_SELECT = CUSTOMER_SELECT;
+
+const PAGE_SIZE = 25;
+const MATCH_BUFFER = PAGE_SIZE + 1;
+const SCAN_CHUNK = 100;
 
 function productProjection(row: OrderProjectionRow): OrderProductProjection {
   const parsed = JSON.parse(row.selected_options_json) as unknown;
@@ -128,17 +133,80 @@ export async function readCustomerOrderById(
   return row ? { ...purchaseProjection(row), refundRequest: refundProjection(row) } : null;
 }
 
-export async function listConsoleOrders(database: D1Database): Promise<ConsoleOrderProjection[]> {
-  const rows = await database.prepare(
-    `${LIST_SELECT} WHERE orders.store_id = ? ORDER BY orders.created_at DESC, orders.id DESC`,
-  ).bind(BOOTSTRAP_STORE_ID).all<OrderProjectionRow>();
-  return rows.results.map((row) => ({
+function encodeConsoleOrderCursor(createdAt: string, id: string): string {
+  return btoa(JSON.stringify([createdAt, id])).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/g, '');
+}
+
+function consoleListProjection(row: OrderProjectionRow): ConsoleOrderProjection {
+  return {
     ...purchaseProjection(row),
     customer: {
       name: row.customer_name,
       email: row.customer_email_normalized,
     },
-  }));
+    hasPendingRefund: row.refund_id !== null,
+  };
+}
+
+function matchesListQuery(row: OrderProjectionRow, needle: string): boolean {
+  if (needle === '') return true;
+  return [row.reference, row.customer_name, row.customer_email_normalized]
+    .some((value) => normalizeComparisonKey(value).includes(needle));
+}
+
+export async function listConsoleOrders(
+  database: D1Database,
+  criteria: ConsoleOrderListQuery,
+): Promise<{ orders: ConsoleOrderProjection[]; nextCursor: string | null; hasAnyOrders: boolean }> {
+  const needle = normalizeComparisonKey(criteria.q);
+  const existing = await database.prepare(
+    'SELECT 1 AS ok FROM orders WHERE store_id = ? LIMIT 1',
+  ).bind(BOOTSTRAP_STORE_ID).first();
+  const hasAnyOrders = existing !== null;
+
+  const matches: OrderProjectionRow[] = [];
+  let sqlCursor: [string, string] | null = criteria.cursor === null ? null : decodeConsoleOrderCursor(criteria.cursor);
+  while (matches.length < MATCH_BUFFER) {
+    const statement = database.prepare(
+      `${LIST_SELECT}
+        WHERE orders.store_id = ?
+          AND (? = 0 OR orders.status = ?)
+          AND (? = 0 OR refund_requests.id IS NOT NULL)
+          AND (? = 0 OR orders.created_at < ? OR (orders.created_at = ? AND orders.id < ?))
+        ORDER BY orders.created_at DESC, orders.id DESC
+        LIMIT ${SCAN_CHUNK}`,
+    ).bind(
+      BOOTSTRAP_STORE_ID,
+      criteria.status === 'all' ? 0 : 1,
+      criteria.status === 'all' ? 'pending_payment' : criteria.status,
+      criteria.refund === 'pending' ? 1 : 0,
+      sqlCursor === null ? 0 : 1,
+      sqlCursor?.[0] ?? '',
+      sqlCursor?.[0] ?? '',
+      sqlCursor?.[1] ?? '',
+    );
+    const rows = (await statement.all<OrderProjectionRow>()).results;
+    if (rows.length === 0) break;
+    for (const row of rows) {
+      if (matchesListQuery(row, needle)) {
+        matches.push(row);
+        if (matches.length === MATCH_BUFFER) break;
+      }
+    }
+    if (matches.length === MATCH_BUFFER || rows.length < SCAN_CHUNK) break;
+    const last = rows[rows.length - 1];
+    sqlCursor = [last.created_at, last.id];
+  }
+
+  const page = matches.slice(0, PAGE_SIZE);
+  const lastReturned = page[PAGE_SIZE - 1];
+  return {
+    orders: page.map(consoleListProjection),
+    nextCursor: matches.length === MATCH_BUFFER && lastReturned !== undefined
+      ? encodeConsoleOrderCursor(lastReturned.created_at, lastReturned.id)
+      : null,
+    hasAnyOrders,
+  };
 }
 
 export async function readConsoleOrderDetail(

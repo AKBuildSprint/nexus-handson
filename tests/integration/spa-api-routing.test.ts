@@ -38,6 +38,7 @@ describe('local SPA/API dispatch', () => {
     '/console/products/focus-pack',
     '/console/products/import',
     '/console/orders',
+    '/console/orders/NX-ABCDEF0123456789',
   ])(
     'defers the Console deep link %s to the SPA assets binding',
     async (pathname) => {

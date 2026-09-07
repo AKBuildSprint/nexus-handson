@@ -32,6 +32,7 @@ function isAllowedOrigin(request: Request, storefrontOrigin: string | undefined)
 function requestedMethodForPath(pathname: string): 'GET' | 'POST' | null {
   if (pathname === '/api/storefront/products') return 'GET';
   if (pathname === '/api/storefront/orders') return 'POST';
+  if (/^\/api\/storefront\/orders\/[^/]+\/refund-requests$/.test(pathname)) return 'POST';
   if (/^\/api\/storefront\/orders\/[^/]+$/.test(pathname)) return 'GET';
   return null;
 }

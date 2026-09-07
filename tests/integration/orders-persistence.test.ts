@@ -103,12 +103,13 @@ describe('Order aggregate persistence', () => {
 
     expect(await readPrivateOrder({ database: env.DB, reference: order.reference, capability: CAPABILITY_A })).toEqual(order);
     expect(await readPrivateOrder({ database: env.DB, reference: order.reference, capability: CAPABILITY_B })).toBeNull();
-    const consoleOrders = await listConsoleOrders(env.DB);
-    expect(consoleOrders).toHaveLength(1);
+    const consoleOrders = await listConsoleOrders(env.DB, { q: '', status: 'all', refund: 'all', cursor: null });
+    expect(consoleOrders.orders).toHaveLength(1);
     expect(JSON.stringify({ order, consoleOrders })).not.toMatch(/capability|accessTitle|accessInstructions|privateFileKey/);
-    expect(consoleOrders[0]).not.toHaveProperty('refundRequest');
-    expect(consoleOrders[0]).not.toHaveProperty('history');
-    expect(JSON.stringify(consoleOrders)).not.toContain('refundRequest');
+    expect(consoleOrders.orders[0]).not.toHaveProperty('refundRequest');
+    expect(consoleOrders.orders[0]).not.toHaveProperty('history');
+    expect(JSON.stringify(consoleOrders.orders)).not.toContain('refundRequest');
+    expect(consoleOrders.orders[0]).toMatchObject({ hasPendingRefund: false });
   });
 
   it('uses enabled Variant selection and rejects missing, disabled, or mismatched selection without writes', async () => {

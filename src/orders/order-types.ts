@@ -93,9 +93,14 @@ export interface ConsoleOrderProjection extends OrderPurchaseProjection {
     name: string;
     email: string;
   };
+  hasPendingRefund: boolean;
 }
 
-export interface ConsoleOrderDetailProjection extends ConsoleOrderProjection {
+export interface ConsoleOrderDetailProjection extends OrderPurchaseProjection {
+  customer: {
+    name: string;
+    email: string;
+  };
   history: OrderHistoryEntry[];
   refundRequest: OrderRefundRequest | null;
   allowedActions: ConsoleOrderAction[];

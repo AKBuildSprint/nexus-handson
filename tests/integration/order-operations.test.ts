@@ -878,13 +878,14 @@ describe('Order operations domain', () => {
     const refund = await requestOrderRefund({
       database: env.DB, orderId: placed.orderId, body: { reason: 'visible privately' }, idempotencyKey: commandKey('list-refund'),
     });
-    const listed = await listConsoleOrders(env.DB);
-    expect(listed).toHaveLength(1);
-    expect(listed[0]).not.toHaveProperty('refundRequest');
-    expect(listed[0]).not.toHaveProperty('history');
-    expect(listed[0]).not.toHaveProperty('allowedActions');
-    expect(JSON.stringify(listed)).not.toContain('visible privately');
-    expect(JSON.stringify(listed)).not.toContain('refundRequest');
+    const listed = await listConsoleOrders(env.DB, { q: '', status: 'all', refund: 'all', cursor: null });
+    expect(listed.orders).toHaveLength(1);
+    expect(listed.orders[0]).not.toHaveProperty('refundRequest');
+    expect(listed.orders[0]).not.toHaveProperty('history');
+    expect(listed.orders[0]).not.toHaveProperty('allowedActions');
+    expect(JSON.stringify(listed.orders)).not.toContain('visible privately');
+    expect(JSON.stringify(listed.orders)).not.toContain('refundRequest');
+    expect(listed.orders[0]).toMatchObject({ hasPendingRefund: true });
     const detail = await readConsoleOrderDetail(env.DB, placed.order.reference);
     expect(detail?.refundRequest).toMatchObject({ reason: 'visible privately', status: 'pending' });
     expect(detail?.allowedActions).toEqual(['mark_fulfilled']);

@@ -232,7 +232,7 @@ function invalidListQuery(path: string, code: string, message: string): never {
   throw new OrderValidationError('validation_failed', 'The request is invalid.', [{ path, code, message }]);
 }
 
-function decodeListCursor(value: string): void {
+export function decodeConsoleOrderCursor(value: string): [string, string] {
   if (!/^[A-Za-z0-9_-]+$/.test(value) || value.length % 4 === 1) {
     invalidListQuery('/cursor', 'cursor_invalid', 'A valid list cursor is required.');
   }
@@ -247,6 +247,7 @@ function decodeListCursor(value: string): void {
     ) {
       invalidListQuery('/cursor', 'cursor_invalid', 'A valid list cursor is required.');
     }
+    return [parsed[0], parsed[1]];
   } catch (error) {
     if (error instanceof OrderValidationError) throw error;
     invalidListQuery('/cursor', 'cursor_invalid', 'A valid list cursor is required.');
@@ -278,6 +279,6 @@ export function parseConsoleOrderListQuery(query: unknown): ConsoleOrderListQuer
   if (typeof record.cursor !== 'string') {
     invalidListQuery('/cursor', 'cursor_invalid', 'A valid list cursor is required.');
   }
-  decodeListCursor(record.cursor);
+  decodeConsoleOrderCursor(record.cursor);
   return { q, status, refund, cursor: record.cursor };
 }
