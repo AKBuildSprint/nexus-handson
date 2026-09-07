@@ -163,8 +163,9 @@ async function placeOrder(
   await product.locator('button.catalog-choice').click();
   if (input.variantLabel) await page.getByLabel('Format').selectOption({ label: input.variantLabel });
   await page.getByLabel('Quantity').fill(input.quantity);
-  await page.getByLabel('Name').fill('Demo Customer');
-  await page.getByLabel('Email').fill('demo.customer@example.test');
+  const customerToken = uniqueToken();
+  await page.getByLabel('Name').fill(`Demo Customer ${customerToken}`);
+  await page.getByLabel('Email').fill(`customer.${customerToken}@example.test`);
 
   const createResponsePromise = page.waitForResponse((response) => {
     const url = new URL(response.url());
@@ -311,11 +312,32 @@ test('ST03 US02 Customer refund is durable across Console refresh and a new brow
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.locator('.order-status')).toHaveText('Paid');
   await page.getByLabel('Reason').fill(reason);
-  await page.getByRole('button', { name: 'Request refund' }).click();
+  const refundUrl = `${CONSOLE_ORIGIN}/api/storefront/orders/${placed.body.reference}/refund-requests`;
+  let refundPosts = 0;
+  let releaseRefund: () => void = () => undefined;
+  const heldRefund = new Promise<void>((resolve) => { releaseRefund = resolve; });
+  await page.route(refundUrl, async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    refundPosts += 1;
+    const response = await route.fetch();
+    await heldRefund;
+    await route.fulfill({ response });
+  });
+  try {
+    await page.getByRole('button', { name: 'Request refund', exact: true }).dblclick();
+    await expect.poll(() => refundPosts).toBe(1);
+    await expect(page.getByRole('button', { name: 'Sending request', exact: true })).toBeDisabled();
+  } finally {
+    releaseRefund();
+  }
   await expect(page.getByText('Received — awaiting response')).toBeVisible();
   const reasonNode = page.locator('[data-refund-reason]');
   await expect(reasonNode).toHaveText(reason);
   expect(await reasonNode.locator('script').count()).toBe(0);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByText('Received — awaiting response')).toBeVisible();
+  await expect(page.getByLabel('Reason')).toHaveCount(0);
+  expect(refundPosts).toBe(1);
 
   const privateAfter = await readPrivateOrder(request, placed.body.reference, placed.capability);
   expect(privateAfter.status).toBe('paid');

@@ -211,8 +211,9 @@ async function placeOrder(page: Page, productName: string, variantLabel?: string
   await row.locator('button.catalog-choice').click();
   if (variantLabel) await page.getByLabel('Format').selectOption({ label: variantLabel });
   await page.getByLabel('Quantity').fill('1');
-  await page.getByLabel('Name').fill('Console Journey Customer');
-  await page.getByLabel('Email').fill('console.journey@example.test');
+  const customerToken = uniqueToken();
+  await page.getByLabel('Name').fill(`Console Journey ${customerToken}`);
+  await page.getByLabel('Email').fill(`console.${customerToken}@example.test`);
 
   const responsePromise = page.waitForResponse((response) => {
     const url = new URL(response.url());
@@ -652,3 +653,50 @@ test('R5 page 3 detail actual reload Back Previous restores page 2 under the sam
   await expect(page.getByRole('link', { name: page2References[0] })).toBeVisible();
   await expect(page.getByRole('link', { name: page3Reference })).toHaveCount(0);
 });
+
+for (const scenario of [
+  { label: 'Mark paid', action: 'mark_paid', status: 'Paid', history: ['order_created', 'mark_paid'] },
+  { label: 'Mark fulfilled', action: 'mark_fulfilled', status: 'Fulfilled', history: ['order_created', 'mark_paid', 'mark_fulfilled'] },
+  { label: 'Cancel', action: 'cancel', status: 'Cancelled', history: ['order_created', 'cancel'] },
+] as const) {
+  test(`double action ${scenario.label} commits once and survives Console refresh`, async ({ page, request }) => {
+    const token = uniqueToken();
+    const productName = `Verify S3 Double ${scenario.action} ${token}`;
+    await createSimpleProduct(page, productName);
+    await page.goto(STOREFRONT_ORIGIN);
+    const placed = await placeOrder(page, productName);
+    await searchAndOpenOrder(page, placed.body.reference);
+    if (scenario.action === 'mark_fulfilled') {
+      await page.getByRole('button', { name: 'Mark paid', exact: true }).click();
+      await expect(page.locator('.status-tag')).toHaveText('Paid');
+    }
+    const before = await readConsoleDetail(request, placed.body.reference);
+    const actionUrl = `${CONSOLE_ORIGIN}/api/console/orders/${placed.body.reference}/actions`;
+    let posts = 0;
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    await page.route(actionUrl, async (route) => {
+      if (route.request().method() !== 'POST') return route.continue();
+      posts += 1;
+      const response = await route.fetch();
+      await held;
+      await route.fulfill({ response });
+    });
+    try {
+      await page.getByRole('button', { name: scenario.label, exact: true }).dblclick();
+      await expect(page.getByRole('button', { name: `Saving ${scenario.label}`, exact: true })).toBeDisabled();
+      await expect.poll(() => posts).toBe(1);
+    } finally {
+      release();
+    }
+    await expect(page.locator('.status-tag')).toHaveText(scenario.status);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.status-tag')).toHaveText(scenario.status);
+    await expect(page.getByRole('button', { name: scenario.label, exact: true })).toHaveCount(0);
+    const after = await readConsoleDetail(request, placed.body.reference);
+    expect(historyActions(after)).toEqual(scenario.history);
+    expect(after.history.map((entry) => entry.sequence)).toEqual(scenario.history.map((_, index) => index));
+    expect(purchaseFields(after)).toEqual(purchaseFields(before));
+    expect(posts).toBe(1);
+  });
+}
