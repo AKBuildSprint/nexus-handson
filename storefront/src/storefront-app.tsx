@@ -5,8 +5,10 @@ import {
   fetchCatalog,
   fetchStorefrontOrder,
   StorefrontApiError,
+  submitRefundRequest,
 } from './api-client';
 import type {
+  CustomerOrderStatus,
   CustomerOrderView,
   OrderAttemptIdentity,
   StorefrontCatalog,
@@ -28,6 +30,203 @@ function parseRoute(): OrderRoute {
 
 function money(minor: number, currency: string): string {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(minor / 100);
+}
+
+interface RefundAttempt {
+  reference: string;
+  routeGeneration: number;
+  trimmedReason: string;
+  key: string;
+}
+
+function orderStatusLabel(status: CustomerOrderStatus): string {
+  if (status === 'pending_payment') return 'Pending payment';
+  if (status === 'paid') return 'Paid';
+  if (status === 'fulfilled') return 'Fulfilled';
+  return 'Cancelled';
+}
+
+function hasUnpairedSurrogate(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code >= 0xD800 && code <= 0xDBFF) {
+      const next = value.charCodeAt(index + 1);
+      if (!Number.isInteger(next) || next < 0xDC00 || next > 0xDFFF) return true;
+      index += 1;
+      continue;
+    }
+    if (code >= 0xDC00 && code <= 0xDFFF) return true;
+  }
+  return false;
+}
+
+const REFUND_REASON_ERROR = 'Enter a Refund Request reason using 1 to 1000 characters.';
+
+function getValidRefundReason(reason: string): string | null {
+  if (hasUnpairedSurrogate(reason)) return null;
+  const trimmed = reason.trim();
+  if (!trimmed || trimmed.includes('\u0000')) return null;
+
+  let count = 0;
+  for (const _codePoint of trimmed) {
+    count += 1;
+    if (count > 1000) return null;
+  }
+  return trimmed;
+}
+
+function PrivateOrderPage({ route, onBack }: { route: Extract<OrderRoute, { kind: 'order' }>; onBack: () => void }) {
+  const routeGenerationRef = useRef(1);
+  const getRequestRef = useRef(0);
+  const refundAttemptRef = useRef<RefundAttempt | null>(null);
+  const [order, setOrder] = useState<CustomerOrderView | null>(null);
+  const [state, setState] = useState<'loading' | 'ready' | 'error' | 'missing-capability'>(route.capability ? 'loading' : 'missing-capability');
+  const [reason, setReason] = useState('');
+  const [reasonError, setReasonError] = useState<string | null>(null);
+  const [refundSubmit, setRefundSubmit] = useState<'idle' | 'submitting' | 'retry'>('idle');
+  const [refundMessage, setRefundMessage] = useState<string | null>(null);
+
+  const load = useCallback((signal?: AbortSignal) => {
+    if (!route.capability) {
+      setOrder(null);
+      setState('missing-capability');
+      return;
+    }
+    const capturedGeneration = routeGenerationRef.current;
+    const requestId = getRequestRef.current + 1;
+    getRequestRef.current = requestId;
+    setState('loading');
+    void fetchStorefrontOrder(route.reference, route.capability, signal)
+      .then((result) => {
+        if (routeGenerationRef.current !== capturedGeneration || getRequestRef.current !== requestId) return;
+        setOrder(result);
+        setState('ready');
+      })
+      .catch((error) => {
+        if (routeGenerationRef.current !== capturedGeneration || getRequestRef.current !== requestId) return;
+        if (!(error instanceof DOMException && error.name === 'AbortError')) setState('error');
+      });
+  }, [route.capability, route.reference]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    load(controller.signal);
+    return () => controller.abort();
+  }, [load]);
+
+  const onReasonInput = (value: string) => {
+    setReason(value);
+    const attempt = refundAttemptRef.current;
+    if (!attempt) return;
+    if (getValidRefundReason(value) !== attempt.trimmedReason) {
+      refundAttemptRef.current = null;
+      setRefundSubmit('idle');
+      setRefundMessage(null);
+    }
+  };
+
+  const submitRefund = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!route.capability) return;
+    const trimmed = getValidRefundReason(reason);
+    if (trimmed === null) {
+      setReasonError(REFUND_REASON_ERROR);
+      refundAttemptRef.current = null;
+      setRefundSubmit('idle');
+      return;
+    }
+    setReasonError(null);
+    const capturedGeneration = routeGenerationRef.current;
+    const existing = refundAttemptRef.current;
+    const attempt = existing
+      && existing.reference === route.reference
+      && existing.routeGeneration === capturedGeneration
+      && existing.trimmedReason === trimmed
+      ? existing
+      : {
+        reference: route.reference,
+        routeGeneration: capturedGeneration,
+        trimmedReason: trimmed,
+        key: crypto.randomUUID(),
+      };
+    refundAttemptRef.current = attempt;
+    setRefundSubmit('submitting');
+    setRefundMessage(null);
+    try {
+      const result = await submitRefundRequest(route.reference, route.capability, trimmed, attempt.key);
+      if (routeGenerationRef.current !== capturedGeneration) return;
+      setOrder(result.order);
+      setState('ready');
+      if (refundAttemptRef.current === attempt) {
+        refundAttemptRef.current = null;
+        setRefundSubmit('idle');
+        setRefundMessage(null);
+        setReason('');
+      }
+    } catch (caught) {
+      if (routeGenerationRef.current !== capturedGeneration) return;
+      if (refundAttemptRef.current !== attempt) return;
+      const retryable = !(caught instanceof StorefrontApiError) || caught.retryable;
+      if (!retryable) refundAttemptRef.current = null;
+      setRefundSubmit(retryable ? 'retry' : 'idle');
+      setRefundMessage(retryable
+        ? 'Refund Request did not complete. Retry to safely continue this same attempt.'
+        : 'Refund Request could not be completed. Review the reason and try again.');
+    }
+  };
+
+  const canRequestRefund = order !== null
+    && (order.status === 'paid' || order.status === 'fulfilled')
+    && order.refundRequest === null;
+
+  return (
+    <main id="storefront-content" className="order-page" tabIndex={-1}>
+      <button className="text-action" type="button" onClick={onBack}>Back to catalog</button>
+      {state === 'loading' ? <div className="order-ledger loading-ledger" aria-label="Loading Order" aria-busy="true"><span /><span /><span /></div> : null}
+      {state === 'missing-capability' ? <div className="storefront-notice storefront-error" role="alert"><h1>Private Order link required</h1><p>Open the complete link provided after checkout to view this Order.</p></div> : null}
+      {state === 'error' ? <div className="storefront-notice storefront-error" role="alert"><h1>Order could not be loaded</h1><p>The private Order is unavailable. Retry without changing the link.</p><button className="secondary-action" type="button" onClick={() => load()}>Retry Order</button></div> : null}
+      {state === 'ready' && order ? (
+        <article className="order-ledger" aria-labelledby="order-title">
+          <header><div><p className="ledger-label">Order {order.reference}</p><h1 id="order-title">{order.product.name}</h1></div><span className="order-status">{orderStatusLabel(order.status)}</span></header>
+          {order.product.variant ? <section><h2>Selection</h2><p className="variant-sku">SKU {order.product.variant.sku}</p><dl>{order.product.variant.selectedOptions.map((option) => <div key={option.groupId}><dt>{option.groupName}</dt><dd>{option.valueLabel}</dd></div>)}</dl></section> : <section><h2>Selection</h2><p>Simple Product</p></section>}
+          <section className="amount-ledger"><dl><div><dt>Quantity</dt><dd className="numeric">{order.quantity}</dd></div><div><dt>Unit price</dt><dd className="numeric">{money(order.unitPriceMinor, order.currency)}</dd></div><div className="total-line"><dt>Total</dt><dd className="numeric">{money(order.totalMinor, order.currency)}</dd></div></dl></section>
+          {order.paymentNextStep !== null ? <section><h2>Payment next step</h2><p>{order.paymentNextStep}</p></section> : null}
+          {order.refundRequest ? (
+            <section className="refund-received">
+              <h2>Refund Request</h2>
+              <p>This request is recorded and awaits a response.</p>
+              <strong>Received — awaiting response</strong>
+              <p data-refund-reason>{order.refundRequest.reason}</p>
+              <span className="order-ledger-meta">{new Date(order.refundRequest.createdAt).toLocaleString()}</span>
+            </section>
+          ) : canRequestRefund ? (
+            <section>
+              <h2>Refund Request</h2>
+              <p>Send one request. It is recorded and awaits a response.</p>
+              <form className="refund-form" onSubmit={submitRefund} noValidate>
+                <div className="field">
+                  <label htmlFor="refund-reason">Reason</label>
+                  <textarea
+                    id="refund-reason"
+                    value={reason}
+                    aria-invalid={Boolean(reasonError)}
+                    aria-describedby={reasonError ? 'refund-reason-error' : undefined}
+                    onChange={(event) => onReasonInput(event.target.value)}
+                  />
+                  {reasonError ? <span id="refund-reason-error" className="field-error">{reasonError}</span> : null}
+                </div>
+                {refundMessage ? <p className="submit-message" role="alert">{refundMessage}</p> : null}
+                <button className="primary-action" type="submit" disabled={refundSubmit === 'submitting'}>
+                  {refundSubmit === 'submitting' ? 'Sending request' : refundSubmit === 'retry' ? 'Retry refund' : 'Request refund'}
+                </button>
+              </form>
+            </section>
+          ) : null}
+          <footer>Created {new Date(order.createdAt).toLocaleString()}</footer>
+        </article>
+      ) : null}
+    </main>
+  );
 }
 
 
@@ -55,42 +254,6 @@ function CatalogProduct({
   );
 }
 
-function PrivateOrderPage({ route, onBack }: { route: Extract<OrderRoute, { kind: 'order' }>; onBack: () => void }) {
-  const [order, setOrder] = useState<CustomerOrderView | null>(null);
-  const [state, setState] = useState<'loading' | 'ready' | 'error' | 'missing-capability'>('loading');
-
-  const load = useCallback((signal?: AbortSignal) => {
-    if (!route.capability) { setState('missing-capability'); return; }
-    setState('loading');
-    void fetchStorefrontOrder(route.reference, route.capability, signal)
-      .then((result) => { setOrder(result); setState('ready'); })
-      .catch((error) => { if (!(error instanceof DOMException && error.name === 'AbortError')) setState('error'); });
-  }, [route.capability, route.reference]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    load(controller.signal);
-    return () => controller.abort();
-  }, [load]);
-
-  return (
-    <main id="storefront-content" className="order-page" tabIndex={-1}>
-      <button className="text-action" type="button" onClick={onBack}>Back to catalog</button>
-      {state === 'loading' ? <div className="order-ledger loading-ledger" aria-label="Loading Order" aria-busy="true"><span /><span /><span /></div> : null}
-      {state === 'missing-capability' ? <div className="storefront-notice storefront-error" role="alert"><h1>Private Order link required</h1><p>Open the complete link provided after checkout to view this Order.</p></div> : null}
-      {state === 'error' ? <div className="storefront-notice storefront-error" role="alert"><h1>Order could not be loaded</h1><p>The private Order is unavailable. Retry without changing the link.</p><button className="secondary-action" type="button" onClick={() => load()}>Retry Order</button></div> : null}
-      {state === 'ready' && order ? (
-        <article className="order-ledger" aria-labelledby="order-title">
-          <header><div><p className="ledger-label">Order {order.reference}</p><h1 id="order-title">{order.product.name}</h1></div><span className="order-status">Pending payment</span></header>
-          {order.product.variant ? <section><h2>Selection</h2><p className="variant-sku">SKU {order.product.variant.sku}</p><dl>{order.product.variant.selectedOptions.map((option) => <div key={option.groupId}><dt>{option.groupName}</dt><dd>{option.valueLabel}</dd></div>)}</dl></section> : <section><h2>Selection</h2><p>Simple Product</p></section>}
-          <section className="amount-ledger"><dl><div><dt>Quantity</dt><dd className="numeric">{order.quantity}</dd></div><div><dt>Unit price</dt><dd className="numeric">{money(order.unitPriceMinor, order.currency)}</dd></div><div className="total-line"><dt>Total</dt><dd className="numeric">{money(order.totalMinor, order.currency)}</dd></div></dl></section>
-          <section><h2>Payment next step</h2><p>{order.paymentNextStep}</p></section>
-          <footer>Created {new Date(order.createdAt).toLocaleString()}</footer>
-        </article>
-      ) : null}
-    </main>
-  );
-}
 
 export function StorefrontApp() {
   const [route, setRoute] = useState<OrderRoute>(parseRoute);
@@ -189,7 +352,7 @@ export function StorefrontApp() {
     setRoute({ kind: 'catalog' });
   };
 
-  if (route.kind === 'order') return <StorefrontFrame><PrivateOrderPage route={route} onBack={navigateCatalog} /></StorefrontFrame>;
+  if (route.kind === 'order') return <StorefrontFrame><PrivateOrderPage key={`${route.reference}:${route.capability ?? ''}`} route={route} onBack={navigateCatalog} /></StorefrontFrame>;
 
   return (
     <StorefrontFrame>

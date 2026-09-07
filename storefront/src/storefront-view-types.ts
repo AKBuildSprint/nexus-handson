@@ -27,9 +27,18 @@ export interface StorefrontProduct {
   }>;
 }
 
+export type CustomerOrderStatus = 'pending_payment' | 'paid' | 'fulfilled' | 'cancelled';
+
+export interface OrderRefundRequest {
+  id: string;
+  reason: string;
+  status: 'pending';
+  createdAt: string;
+}
+
 export interface CustomerOrderView {
   reference: string;
-  status: 'pending_payment';
+  status: CustomerOrderStatus;
   product: {
     id: string;
     name: string;
@@ -49,7 +58,19 @@ export interface CustomerOrderView {
   totalMinor: number;
   currency: string;
   createdAt: string;
-  paymentNextStep: string;
+  paymentNextStep: string | null;
+  refundRequest: OrderRefundRequest | null;
+}
+
+export interface StorefrontOrderCommand {
+  outcome: 'applied' | 'already_applied';
+  replayed: boolean;
+  resultStatus: CustomerOrderStatus;
+}
+
+export interface StorefrontRefundResponse {
+  order: CustomerOrderView;
+  command: StorefrontOrderCommand;
 }
 
 export interface CreateStorefrontOrderInput {

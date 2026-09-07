@@ -25,6 +25,7 @@
   },
   "include": [
     "src",
+    "storefront/src",
     "scripts",
     "tests",
     "worker-configuration.d.ts",

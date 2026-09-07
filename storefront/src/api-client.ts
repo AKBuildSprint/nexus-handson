@@ -3,6 +3,7 @@ import type {
   CustomerOrderView,
   OrderAttemptIdentity,
   StorefrontCatalog,
+  StorefrontRefundResponse,
 } from './storefront-view-types';
 const API_BASE_VARIABLE = 'VITE_STOREFRONT_API_BASE_URL';
 
@@ -34,10 +35,23 @@ export function storefrontApiUrl(pathname: string): URL {
   return new URL(pathname, storefrontApiBaseUrl);
 }
 
+interface ErrorEnvelope {
+  error: {
+    code: string;
+    message: string;
+    fields: Array<{ path: string; code: string; message: string }>;
+    incidentId: string | null;
+  };
+}
+
 export class StorefrontApiError extends Error {
   constructor(
     readonly status: number,
     readonly retryable: boolean,
+    readonly code: string | null = null,
+    readonly fields: ErrorEnvelope['error']['fields'] = [],
+    readonly incidentId: string | null = null,
+    readonly apiMessage: string | null = null,
   ) {
     super(retryable
       ? 'The request did not complete. Check your connection and retry.'
@@ -62,10 +76,23 @@ export function createOrderAttemptIdentity(): OrderAttemptIdentity {
 }
 
 async function decode<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    throw new StorefrontApiError(response.status, response.status >= 500 || response.status === 408 || response.status === 429);
+  if (response.ok) return await response.json() as T;
+  const retryable = response.status >= 500 || response.status === 408 || response.status === 429;
+  let error: Partial<ErrorEnvelope['error']> | undefined;
+  try {
+    const body = await response.json() as { error?: Partial<ErrorEnvelope['error']> };
+    if (body.error && typeof body.error === 'object') error = body.error;
+  } catch {
+    // HTTP status already locked retryability; envelope fields stay empty when JSON is missing.
   }
-  return await response.json() as T;
+  throw new StorefrontApiError(
+    response.status,
+    retryable,
+    typeof error?.code === 'string' ? error.code : null,
+    Array.isArray(error?.fields) ? error.fields : [],
+    error?.incidentId === null || typeof error?.incidentId === 'string' ? error.incidentId : null,
+    typeof error?.message === 'string' ? error.message : null,
+  );
 }
 
 export async function fetchCatalog(signal?: AbortSignal): Promise<StorefrontCatalog> {
@@ -106,4 +133,23 @@ export async function fetchStorefrontOrder(
     signal,
   });
   return await decode<CustomerOrderView>(response);
+}
+
+export async function submitRefundRequest(
+  reference: string,
+  capability: string,
+  reason: string,
+  idempotencyKey: string,
+): Promise<StorefrontRefundResponse> {
+  const response = await fetch(storefrontApiUrl(`/api/storefront/orders/${encodeURIComponent(reference)}/refund-requests`), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'Idempotency-Key': idempotencyKey,
+      'X-Nexus-Order-Capability': capability,
+    },
+    body: JSON.stringify({ reason }),
+  });
+  return await decode<StorefrontRefundResponse>(response);
 }
