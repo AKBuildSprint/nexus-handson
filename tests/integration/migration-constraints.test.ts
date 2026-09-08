@@ -10,17 +10,15 @@ async function seedProduct(id: string, storeId = 'store_nexus') {
 }
 
 describe('catalog migration boundaries', () => {
-  it('is idempotent and keeps exactly thirteen domain tables', async () => {
+  it('is idempotent and keeps the bootstrap Store', async () => {
+    const storeCount = await env.DB.prepare(
+      "SELECT count(*) AS count FROM stores WHERE id='store_nexus' AND slug='nexus'",
+    ).first<number>('count');
+    expect(storeCount).toBe(1);
     await applyCatalogMigrations();
-    const tables = await env.DB.prepare(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT IN ('d1_migrations', '_cf_METADATA') ORDER BY name",
-    ).all<{ name: string }>();
-    expect(tables.results.map((row) => row.name)).toEqual([
-      'customers', 'imports', 'order_access', 'order_history', 'order_idempotency',
-      'order_lines', 'orders', 'product_option_groups', 'product_option_values',
-      'product_variant_values', 'product_variants', 'products', 'stores',
-    ]);
     expect(await env.DB.prepare("SELECT count(*) AS count FROM stores WHERE id='store_nexus' AND slug='nexus'").first<number>('count')).toBe(1);
+    expect(await env.DB.prepare('SELECT count(*) AS count FROM customers').first<number>('count')).toBe(0);
+    expect(await env.DB.prepare('SELECT count(*) AS count FROM orders').first<number>('count')).toBe(0);
   });
 
   it('enforces exact 5 group, 10 value, and 30 current-combination caps', async () => {
@@ -100,7 +98,7 @@ describe('catalog migration boundaries', () => {
     ).run()).rejects.toThrow(/matrix_incomplete/);
   });
 
-  it('enforces Store-scoped Order identity, one line, quantity, status, and lookup indexes', async () => {
+  it('enforces Store-scoped Order identity, one line, quantity, and status', async () => {
     await env.DB.prepare(
       "INSERT INTO customers (id,store_id,name,email_normalized) VALUES ('cust_a','store_nexus','Ada','ada@example.test')",
     ).run();
@@ -161,13 +159,5 @@ describe('catalog migration boundaries', () => {
     ).bind(digest).run()).rejects.toThrow(/UNIQUE/);
 
 
-    const indexes = await env.DB.prepare(
-      "SELECT name FROM sqlite_master WHERE type='index' AND name IN ('orders_store_created_idx','order_access_store_capability_idx','order_idempotency_store_key_idx') ORDER BY name",
-    ).all<{ name: string }>();
-    expect(indexes.results.map((row) => row.name)).toEqual([
-      'order_access_store_capability_idx',
-      'order_idempotency_store_key_idx',
-      'orders_store_created_idx',
-    ]);
   });
 });

@@ -3,6 +3,7 @@ import migrationOne from '../../migrations/0001-store-products.sql?raw';
 import migrationTwo from '../../migrations/0002-product-variants.sql?raw';
 import migrationThree from '../../migrations/0003-imports.sql?raw';
 import migrationFour from '../../migrations/0004-orders.sql?raw';
+import migrationFive from '../../migrations/0005-order-operations.sql?raw';
 import worker from '../../src/worker';
 
 function splitMigrationSql(sql: string): string[] {
@@ -68,19 +69,22 @@ function splitMigrationSql(sql: string): string[] {
   return queries;
 }
 
-const catalogMigrations: D1Migration[] = [
+export const catalogMigrations: D1Migration[] = [
   { name: '0001-store-products.sql', queries: splitMigrationSql(migrationOne) },
   { name: '0002-product-variants.sql', queries: splitMigrationSql(migrationTwo) },
   { name: '0003-imports.sql', queries: splitMigrationSql(migrationThree) },
   { name: '0004-orders.sql', queries: splitMigrationSql(migrationFour) },
+  { name: '0005-order-operations.sql', queries: splitMigrationSql(migrationFive) },
 ];
 
-export function applyCatalogMigrations(): Promise<void> {
-  return applyD1Migrations(env.DB, catalogMigrations);
+export function applyCatalogMigrations(through: 4 | 5 = 5): Promise<void> {
+  return applyD1Migrations(env.DB, catalogMigrations.slice(0, through));
 }
 
-export async function resetCatalog(): Promise<void> {
+export async function resetCatalogThrough(through: 4 | 5): Promise<void> {
   const tables = [
+    'order_commands',
+    'order_refund_requests',
     'order_idempotency',
     'order_access',
     'order_history',
@@ -97,7 +101,11 @@ export async function resetCatalog(): Promise<void> {
     'd1_migrations',
   ];
   await env.DB.batch(tables.map((table) => env.DB.prepare(`DROP TABLE IF EXISTS ${table}`)));
-  await applyCatalogMigrations();
+  await applyCatalogMigrations(through);
+}
+
+export async function resetCatalog(): Promise<void> {
+  return resetCatalogThrough(5);
 }
 
 export const TEST_STOREFRONT_ORIGIN = 'https://storefront.test';
