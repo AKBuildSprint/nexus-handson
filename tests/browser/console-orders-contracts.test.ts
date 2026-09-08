@@ -15,6 +15,7 @@ const safeOrder: ConsoleOrderView = {
   product: { id: 'prod_simple1234', name: 'Field Notes', variant: null },
   customer: { name: 'Ada Rivera', email: 'ada@example.com' },
   quantity: 2, unitPriceMinor: 2400, totalMinor: 4701, currency: 'USD', createdAt: '2026-08-27T12:00:00.000Z',
+  refundRequestStatus: null,
 };
 
 function response(body: unknown): Response {

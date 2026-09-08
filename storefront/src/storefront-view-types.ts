@@ -49,7 +49,13 @@ export interface CustomerOrderView {
   totalMinor: number;
   currency: string;
   createdAt: string;
-  paymentNextStep: string;
+  paymentNextStep: string | null;
+  refundRequest: {
+    id: string;
+    status: 'pending';
+    reason: string;
+    createdAt: string;
+  } | null;
 }
 
 export interface CreateStorefrontOrderInput {

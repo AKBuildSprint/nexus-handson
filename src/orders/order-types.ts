@@ -76,7 +76,7 @@ export interface OrderProductProjection {
   };
 }
 
-export interface CustomerOrderProjection {
+export interface OrderProjection {
   reference: string;
   status: OrderStatus;
   product: OrderProductProjection;
@@ -87,9 +87,42 @@ export interface CustomerOrderProjection {
   createdAt: string;
 }
 
-export interface ConsoleOrderProjection extends CustomerOrderProjection {
+export interface CustomerOrderProjection extends OrderProjection {
+  refundRequest: RefundRequestProjection | null;
+}
+
+export interface ConsoleOrderProjection extends OrderProjection {
   customer: {
     name: string;
     email: string;
   };
+  refundRequestStatus: 'pending' | null;
+}
+
+export interface ConsoleOrderHistoryEntry {
+  action: OrderHistoryAction;
+  source: OrderAuditSource;
+  fromStatus: OrderStatus | null;
+  toStatus: OrderStatus;
+  createdAt: string;
+}
+
+export interface ConsoleOrderDetailProjection extends ConsoleOrderProjection {
+  refundRequest: RefundRequestProjection | null;
+  allowedActions: Array<'complete' | 'cancel'>;
+  history: ConsoleOrderHistoryEntry[];
+}
+
+export interface ConsoleOrderListQuery {
+  q: string;
+  status: OrderStatus | null;
+  refund: 'pending' | null;
+  limit: number;
+  cursor: string | null;
+}
+
+export interface ConsoleOrderListResponse {
+  orders: ConsoleOrderProjection[];
+  nextCursor: string | null;
+  hasOrders: boolean;
 }

@@ -90,6 +90,7 @@ describe('Storefront Order routes', () => {
       totalMinor: 7200,
       currency: 'USD',
       paymentNextStep: 'Payment instructions will be provided separately.',
+      refundRequest: null,
     });
     expect(order.reference).toMatch(/^NX-[A-F0-9]{16}$/);
     expect(order.createdAt).toEqual(expect.any(String));

@@ -99,8 +99,14 @@ describe('Order aggregate persistence', () => {
 
     expect(await readPrivateOrder({ database: env.DB, reference: order.reference, capability: CAPABILITY_A })).toEqual(order);
     expect(await readPrivateOrder({ database: env.DB, reference: order.reference, capability: CAPABILITY_B })).toBeNull();
-    const consoleOrders = await listConsoleOrders(env.DB);
-    expect(consoleOrders).toHaveLength(1);
+    const consoleOrders = await listConsoleOrders(env.DB, {
+      q: '',
+      status: null,
+      refund: null,
+      limit: 25,
+      cursor: null,
+    });
+    expect(consoleOrders.orders).toHaveLength(1);
     expect(JSON.stringify({ order, consoleOrders })).not.toMatch(/capability|accessTitle|accessInstructions|privateFileKey/);
   });
 

@@ -46,11 +46,18 @@ describe('Console Orders route', () => {
     const response = await workerRequest('/api/console/orders', {
       headers: { Origin: TEST_STOREFRONT_ORIGIN },
     });
-    const body = await response.json() as { orders: Array<Record<string, unknown>> };
+    const body = await response.json() as {
+      orders: Array<Record<string, unknown>>;
+      nextCursor: string | null;
+      hasOrders: boolean;
+    };
 
     expect(response.status).toBe(200);
     expect(response.headers.get('Access-Control-Allow-Origin')).toBeNull();
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
     expect(body.orders).toHaveLength(1);
+    expect(body.nextCursor).toBeNull();
+    expect(body.hasOrders).toBe(true);
     expect(body.orders[0]).toMatchObject({
       reference: created.reference,
       status: 'pending_payment',
@@ -61,8 +68,10 @@ describe('Console Orders route', () => {
       totalMinor: 4800,
       currency: 'USD',
       createdAt: created.createdAt,
+      refundRequestStatus: null,
     });
     expect(body.orders[0]).not.toHaveProperty('paymentNextStep');
+    expect(body.orders[0]).not.toHaveProperty('refundRequest');
     expect(allKeys(body).filter((key) =>
       /(access|capability|delivery|digest|file|idempotency|private)/i.test(key)
     )).toEqual([]);
@@ -72,6 +81,6 @@ describe('Console Orders route', () => {
   it('returns an empty safe envelope when no Orders exist', async () => {
     const response = await workerRequest('/api/console/orders');
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ orders: [] });
+    expect(await response.json()).toEqual({ orders: [], nextCursor: null, hasOrders: false });
   });
 });

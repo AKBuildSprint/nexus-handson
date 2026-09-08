@@ -21,10 +21,13 @@ export interface ConsoleOrderView {
   totalMinor: number;
   currency: string;
   createdAt: string;
+  refundRequestStatus: 'pending' | null;
 }
 
 export interface ConsoleOrderListResponse {
   orders: ConsoleOrderView[];
+  nextCursor: string | null;
+  hasOrders: boolean;
 }
 
 export type ConsoleOrdersState = 'loading' | 'ready' | 'empty' | 'error';
