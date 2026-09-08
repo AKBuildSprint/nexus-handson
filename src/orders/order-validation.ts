@@ -185,6 +185,28 @@ function reasonHasDisallowedControls(reason: string): boolean {
   return false;
 }
 
+function normalizePaymentText(
+  value: unknown,
+  path: string,
+  code: string,
+  message: string,
+  maxCodePoints: number,
+): string {
+  if (typeof value !== 'string') {
+    throw new OrderValidationError('validation_failed', 'The request is invalid.', [
+      { path, code, message },
+    ]);
+  }
+  const normalized = value.trim();
+  const length = Array.from(normalized).length;
+  if (length < 1 || length > maxCodePoints || /[\p{Cc}\p{Cf}]/u.test(normalized)) {
+    throw new OrderValidationError('validation_failed', 'The request is invalid.', [
+      { path, code, message },
+    ]);
+  }
+  return normalized;
+}
+
 function normalizeRefundReason(value: unknown): string {
   if (typeof value !== 'string') {
     throw new OrderValidationError('validation_failed', 'The request is invalid.', [
@@ -209,21 +231,37 @@ function normalizeRefundReason(value: unknown): string {
   return normalized;
 }
 
-export function parseCompleteOrderInput(
+export function parseManualPaymentInput(
+  body: unknown,
+  idempotencyKey: unknown,
+): { idempotencyKey: string; method: string; reference: string } {
+  const request = objectAt(body, '');
+  rejectUnknown(request, ['method', 'reference'], '');
+  return {
+    idempotencyKey: parseCommandKey(idempotencyKey),
+    method: normalizePaymentText(
+      request.method,
+      '/method',
+      'method_invalid',
+      'Enter a payment method using 1 to 80 characters.',
+      80,
+    ),
+    reference: normalizePaymentText(
+      request.reference,
+      '/reference',
+      'reference_invalid',
+      'Enter a payment reference using 1 to 160 characters.',
+      160,
+    ),
+  };
+}
+
+export function parseFulfillOrderInput(
   body: unknown,
   idempotencyKey: unknown,
 ): { idempotencyKey: string } {
   const request = objectAt(body, '');
-  rejectUnknown(request, ['paymentConfirmed'], '');
-  if (request.paymentConfirmed !== true) {
-    throw new OrderValidationError('validation_failed', 'The request is invalid.', [
-      {
-        path: '/paymentConfirmed',
-        code: 'payment_confirmed_invalid',
-        message: 'Payment confirmation is required.',
-      },
-    ]);
-  }
+  rejectUnknown(request, [], '');
   return { idempotencyKey: parseCommandKey(idempotencyKey) };
 }
 

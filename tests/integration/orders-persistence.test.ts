@@ -4,6 +4,7 @@ import type { ProductDetailResponse } from '../../src/catalog/catalog-types';
 import { BOOTSTRAP_STORE_ID } from '../../src/catalog/catalog-read';
 import { resolveOrderItemCatalogSnapshots } from '../../src/catalog/private-order-snapshot';
 import { listConsoleOrders } from '../../src/orders/order-read';
+import { createRefundRequest, markPaid } from '../../src/orders/order-commands';
 import { createOrder } from '../../src/orders/order-write';
 import { digestOrderCapability, readPrivateOrder } from '../../src/orders/private-access';
 import {
@@ -537,21 +538,38 @@ describe('Order aggregate persistence', () => {
 
   it('replays the current aggregate after payment and refund, and keeps snapshots after catalog edits', async () => {
     const product = await createSimple();
+    const variantProduct = await createActiveVariant();
+    const variant = variantProduct.variants.find((row) => row.status === 'enabled');
+    expect(variant).toBeTruthy();
     const created = await createOrder({
       database: env.DB,
       context: STOREFRONT_CONTEXT,
-      body: orderBody([{ productId: product.id, variantId: null, quantity: 1 }]),
+      body: orderBody([
+        { productId: product.id, variantId: null, quantity: 1 },
+        { productId: variantProduct.id, variantId: variant!.id, quantity: 1 },
+      ]),
       idempotencyKey: 'request-replay-0001',
       capability: CAPABILITY_A,
     });
-    await env.DB.prepare("UPDATE orders SET status='paid' WHERE id=(SELECT id FROM orders WHERE reference=?)")
-      .bind(created.reference).run();
+    expect(created.items).toHaveLength(2);
     const orderId = await env.DB.prepare('SELECT id FROM orders WHERE reference=?')
-      .bind(created.reference).first<string>('id');
-    await env.DB.prepare(
-      `INSERT INTO order_refund_requests (id, store_id, order_id, status, reason, actor_source, actor_id)
-       VALUES ('rrq_replay', ?, ?, 'pending', 'Need a refund', 'storefront', NULL)`,
-    ).bind(BOOTSTRAP_STORE_ID, orderId).run();
+      .bind(created.reference).first<string>('id') as string;
+    await markPaid({
+      database: env.DB,
+      context: { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'bootstrap_owner', id: null } },
+      orderId,
+      body: { method: 'Bank transfer', reference: 'REPLAY-PAY-1' },
+      idempotencyKey: 'pay-replay-00000001',
+    });
+    const customerId = await env.DB.prepare('SELECT customer_id FROM orders WHERE id=?')
+      .bind(orderId).first<string>('customer_id');
+    await createRefundRequest({
+      database: env.DB,
+      context: { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'storefront', id: customerId } },
+      orderId,
+      body: { reason: 'Need a refund' },
+      idempotencyKey: 'refund-replay-00001',
+    });
     await env.DB.prepare("UPDATE products SET name='Live rename', base_price_minor=1, revision=revision+1 WHERE id=?")
       .bind(product.id).run();
 
@@ -564,6 +582,7 @@ describe('Order aggregate persistence', () => {
     });
     expect(replay.reference).toBe(created.reference);
     expect(replay.status).toBe('paid');
+    expect(replay.items).toHaveLength(2);
     expect(replay.items[0].product.name).toBe('Field Notes');
     expect(replay.items[0].unitPriceMinor).toBe(2400);
     expect(replay.refundRequest).toMatchObject({ status: 'pending', reason: 'Need a refund' });

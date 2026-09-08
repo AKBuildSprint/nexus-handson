@@ -63,9 +63,9 @@ export interface RefundRequestProjection {
 export interface OrderCommandResult {
   reference: string;
   action: OrderCommandAction;
-  status: OrderStatus | 'completed' | 'cancelled';
+  status: OrderStatus;
   occurredAt: string;
-  paymentId?: string | null;
+  paymentId: string | null;
   refundRequest: RefundRequestProjection | null;
 }
 

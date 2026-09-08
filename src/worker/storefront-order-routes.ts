@@ -17,8 +17,8 @@ type CustomerOrderResponse = CustomerOrderProjection & {
   paymentNextStep: string | null;
 };
 
-function storefrontContext(): OrderContext {
-  return { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'storefront', id: null } };
+function storefrontContext(customerId: string | null = null): OrderContext {
+  return { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'storefront', id: customerId } };
 }
 
 function customerResponse(order: CustomerOrderProjection): CustomerOrderResponse {
@@ -119,12 +119,20 @@ export async function routeStorefrontOrderRequest(
       return withStorefrontCors(request, storefrontOrigin, privateNotFound());
     }
     try {
-      response = jsonResponse(await createRefundRequest({
-        database,
-        orderId,
-        body: await parseJson(request),
-        idempotencyKey: request.headers.get('Idempotency-Key'),
-      }));
+      const customerId = await database.prepare(
+        'SELECT customer_id FROM orders WHERE store_id = ? AND id = ?',
+      ).bind(BOOTSTRAP_STORE_ID, orderId).first<string>('customer_id');
+      if (customerId === null) {
+        response = privateNotFound();
+      } else {
+        response = jsonResponse(await createRefundRequest({
+          database,
+          context: storefrontContext(customerId),
+          orderId,
+          body: await parseJson(request),
+          idempotencyKey: request.headers.get('Idempotency-Key'),
+        }));
+      }
     } catch (error) {
       response = error instanceof OrderValidationError
         ? jsonError(error.status, error.code, error.message, error.fields)

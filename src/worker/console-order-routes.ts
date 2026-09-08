@@ -1,4 +1,5 @@
-import { cancelOrder, completeOrder } from '../orders/order-commands';
+import { BOOTSTRAP_STORE_ID } from '../catalog/catalog-read';
+import { cancelOrder } from '../orders/order-commands';
 import { listConsoleOrders, readConsoleOrderByReference } from '../orders/order-read';
 import {
   OrderPersistenceError,
@@ -25,7 +26,7 @@ const QUERY_KEYS: Record<string, true> = {
 
 function unexpectedConsoleError(
   error: unknown,
-  operation: 'list' | 'read' | 'complete' | 'cancel',
+  operation: 'list' | 'read' | 'cancel',
 ): Response {
   if (error instanceof OrderValidationError) {
     return jsonError(error.status, error.code, error.message, error.fields);
@@ -137,20 +138,8 @@ export async function routeConsoleOrderRequest(
     }
   }
 
-  const complete = /^\/api\/console\/orders\/([^/]+)\/complete$/.exec(pathname);
-  if (complete !== null && request.method === 'POST') {
-    const reference = decodeReference(complete[1]);
-    if (reference === null) return jsonError(404, 'not_found', 'Order not found.');
-    try {
-      return jsonResponse(await completeOrder({
-        database,
-        reference,
-        body: await parseJson(request),
-        idempotencyKey: request.headers.get('Idempotency-Key'),
-      }));
-    } catch (error) {
-      return unexpectedConsoleError(error, 'complete');
-    }
+  if (/^\/api\/console\/orders\/([^/]+)\/complete$/.test(pathname) && request.method === 'POST') {
+    return jsonError(404, 'not_found', 'Order not found.');
   }
 
   const cancel = /^\/api\/console\/orders\/([^/]+)\/cancel$/.exec(pathname);
@@ -158,9 +147,14 @@ export async function routeConsoleOrderRequest(
     const reference = decodeReference(cancel[1]);
     if (reference === null) return jsonError(404, 'not_found', 'Order not found.');
     try {
+      const order = await database.prepare(
+        'SELECT id FROM orders WHERE store_id = ? AND reference = ?',
+      ).bind(BOOTSTRAP_STORE_ID, reference).first<{ id: string }>();
+      if (order === null) return jsonError(404, 'not_found', 'Order not found.');
       return jsonResponse(await cancelOrder({
         database,
-        reference,
+        context: { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'bootstrap_owner', id: null } },
+        orderId: order.id,
         body: await parseJson(request),
         idempotencyKey: request.headers.get('Idempotency-Key'),
       }));

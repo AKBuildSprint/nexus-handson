@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProductDetailResponse } from '../../src/catalog/catalog-types';
 import { BOOTSTRAP_STORE_ID } from '../../src/catalog/catalog-read';
 import { routeStorefrontOrderRequest } from '../../src/worker/storefront-order-routes';
+import { createOrder as persistStorefrontOrder } from '../../src/orders/order-write';
 import {
   resetCatalog,
   SIMPLE_CORE,
@@ -635,6 +636,61 @@ describe('Order operations HTTP', () => {
     expect(response?.status).toBe(500);
     const body = await response?.json() as { error: { code: string; incidentId: string } };
     expect(body.error.code).toBe('order_operation_failed');
+    expect(JSON.stringify(errors)).not.toContain(created.reference);
+    expect(JSON.stringify(errors)).not.toContain(CAPABILITY_A);
+    expect(JSON.stringify(errors)).not.toContain('Should not persist.');
+    expect(JSON.stringify(errors)).toContain(body.error.incidentId);
+  });
+
+  it('returns sanitized 500 with CORS when storefront refund customer lookup fails', async () => {
+    const product = await createSimpleProduct();
+    const created = await persistStorefrontOrder({
+      database: env.DB,
+      context: { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'storefront', id: null } },
+      body: {
+        customer: { name: 'Ada Lovelace', email: 'ada@example.test' },
+        items: [{ productId: product.id, variantId: null, quantity: 1 }],
+      },
+      idempotencyKey: keyFor('customer-lookup-fail'),
+      capability: CAPABILITY_A,
+    });
+    const errors: unknown[] = [];
+    vi.spyOn(console, 'error').mockImplementation((...args) => {
+      errors.push(args);
+    });
+    const database = new Proxy(env.DB, {
+      get(target, property, receiver) {
+        if (property === 'prepare') {
+          return (sql: string) => {
+            if (sql.includes('SELECT customer_id FROM orders')) {
+              throw new Error('simulated customer lookup failure');
+            }
+            return target.prepare(sql);
+          };
+        }
+        return Reflect.get(target, property, receiver);
+      },
+    }) as D1Database;
+    const response = await routeStorefrontOrderRequest(
+      new Request(`https://local.invalid/api/storefront/orders/${created.reference}/refund-requests`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': keyFor('customer-lookup-fail-refund'),
+          'X-Nexus-Order-Capability': CAPABILITY_A,
+          Origin: TEST_STOREFRONT_ORIGIN,
+        },
+        body: JSON.stringify({ reason: 'Should not persist.' }),
+      }),
+      database,
+      TEST_STOREFRONT_ORIGIN,
+    );
+    expect(response?.status).toBe(500);
+    expect(response?.headers.get('Access-Control-Allow-Origin')).toBe(TEST_STOREFRONT_ORIGIN);
+    expect(response?.headers.get('Cache-Control')).toBe('no-store');
+    const body = await response?.json() as { error: { code: string; incidentId: string } };
+    expect(body.error.code).toBe('order_operation_failed');
+    expect(body.error.incidentId).toBeTruthy();
     expect(JSON.stringify(errors)).not.toContain(created.reference);
     expect(JSON.stringify(errors)).not.toContain(CAPABILITY_A);
     expect(JSON.stringify(errors)).not.toContain('Should not persist.');
