@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
@@ -189,7 +189,10 @@ test('keeps Console search, filters, pager, and confirmation reachable by keyboa
   const evidenceDir = path.join('plans', 'reports', 'evidence-session-3');
   mkdirSync(evidenceDir, { recursive: true });
   await redactVisibleEmails(page);
-  await page.locator('.page-stack').screenshot({ path: path.join(evidenceDir, 'ui-01-console-list-1280.png') });
+  const desktopEvidence = path.join(evidenceDir, 'ui-01-console-list-1280.png');
+  if (!existsSync(desktopEvidence)) {
+    await page.locator('.page-stack').screenshot({ path: desktopEvidence });
+  }
 
   await page.getByRole('link', { name: order.body.reference }).click();
   await expect(page.getByRole('heading', { name: order.body.reference })).toBeVisible();
@@ -205,7 +208,10 @@ test('keeps Console search, filters, pager, and confirmation reachable by keyboa
   await expect(page.getByRole('heading', { name: 'Orders' })).toBeVisible();
   await expectNoHorizontalOverflow(page, 375);
   await redactVisibleEmails(page);
-  await page.locator('.page-stack').screenshot({ path: path.join(evidenceDir, 'ui-01-console-list-375.png') });
+  const compactEvidence = path.join(evidenceDir, 'ui-01-console-list-375.png');
+  if (!existsSync(compactEvidence)) {
+    await page.locator('.page-stack').screenshot({ path: compactEvidence });
+  }
 });
 
 test('ignores late Order A GET and Complete after opening Order B', async ({ page }) => {

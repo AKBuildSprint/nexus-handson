@@ -4,6 +4,23 @@ Nexus has two independently built and deployed surfaces: the React/Vite Console 
 
 This repository is configured for public `workers.dev` teaching deployments. It has no custom domain and no public R2 route.
 
+## Current Order scope
+
+Live Order statuses are `pending`, `paid`, `fulfilled`, and `canceled`. Storefront Create records one Order with 1–10 item lines. Console records a **manual Payment** (method plus Owner-supplied external reference, amount and currency from the Order snapshot) and may then **Fulfill**. A **pending** Order may be **Canceled**. There is no live Complete action and no `/complete` route.
+
+Two references stay distinct:
+
+- Internal `paymentReference` (`NP-…`): stable expected-payment identity created with the Order. Searchable and Customer-safe. Not bank-transaction evidence.
+- Console-only `payments.external_reference`: Owner-supplied evidence of money received outside Nexus. Never fabricated for legacy rows.
+
+Refunds are **pending requests only**. The Customer private page and Console-on-behalf path share one open request. Copy never says the money was returned. Approve, Reject, and Execute remain S4. S5 must not auto-return money for `legacy_unrecorded` paid Orders that lack original payment evidence.
+
+Legacy `completed` rows map to **paid** without invented payments or fulfill events. Console shows `paymentRecordState: legacy_unrecorded` when no payments row exists.
+
+Every live Order GET/POST requires `X-Nexus-Order-Contract: 2`. Missing or other values return `409 client_contract_outdated` with no mutation, except private Order routes that fail the capability guard first as indistinguishable `404`. Old `/complete` and approval/execution routes stay `404`.
+
+Console Order actions remain an **anonymous bootstrap demo**: a server-assigned bootstrap actor, not authenticated Owner access. S4 owns membership and the evaluator seam. Do not describe this slice as real authorization. Authoritative S3 decisions and the S4–S6 handoff live in [`plans/260908-1845-s3-brief-reconciliation/contracts.md`](./plans/260908-1845-s3-brief-reconciliation/contracts.md) (C8) and [`acceptance.md`](./plans/260908-1845-s3-brief-reconciliation/acceptance.md). S4 owns refund Approve/Reject; S5 owns verified payment ingress and money return, including no auto-return for `legacy_unrecorded`.
+
 ## Requirements
 
 - Node.js 22 or newer
@@ -56,7 +73,7 @@ Playwright starts both local Vite applications itself at distinct origins. Its P
 
 ## Locked evidence tooling
 
-`design/reconciled-acceptance-manifest.md` version `nexus-s1-reconciled-1` is the sole Phase 6 acceptance authority. Initialize its one-row-per-ID ledger without claiming any pass:
+`design/reconciled-acceptance-manifest.md` version `nexus-s1-reconciled-1` is the sole **S1 catalog** Phase 6 acceptance authority. It does not prove S3 Order criteria. Initialize its one-row-per-ID ledger without claiming any pass:
 
 ```sh
 npm run verification:ledger:init
@@ -92,7 +109,7 @@ Do not create replacement resources when an identity is absent or ambiguous. Res
 Use confirmed values for `$D1_DATABASE_NAME`, `$STOREFRONT_WORKER_NAME`, and the two exact deployed HTTPS origins below; do not construct or guess a Worker origin. Deployment order is dependency-bearing:
 
 ```sh
-# 1. Apply pending migrations, including the append-only Orders migration, before the API deploy.
+# 1. After proven prior-writer quiescence, apply pending D1 migrations (0006 Order graph, 0007 payments) to the existing database. Never rewrite applied 0001–0005. A rehearsal export taken while traffic is live is not the rollback checkpoint.
 npx wrangler d1 migrations apply "$D1_DATABASE_NAME" --remote
 
 # 2. Build/deploy Storefront against the exact existing API origin; capture its returned origin.
@@ -102,7 +119,9 @@ VITE_STOREFRONT_API_BASE_URL="$EXACT_API_ORIGIN" npm run deploy:storefront -- "$
 npm run deploy:console -- "STOREFRONT_ORIGIN:$EXACT_STOREFRONT_ORIGIN"
 ```
 
-[`migrations/0004-orders.sql`](./migrations/0004-orders.sql) is appended after the S1 migrations; never rewrite an applied migration. The Storefront build-time `VITE_STOREFRONT_API_BASE_URL` and API Worker runtime `STOREFRONT_ORIGIN` are opposite sides of the two-origin contract. Each value must be an origin only, with no credentials, path, query, or fragment. The deploy arguments above are values appended to the scripts' existing `--name` and `--var` options in [`package.json`](./package.json).
+[`migrations/0004-orders.sql`](./migrations/0004-orders.sql) introduced Orders after S1 catalog migrations. [`migrations/0006-order-brief-contract.sql`](./migrations/0006-order-brief-contract.sql) and [`migrations/0007-manual-payments.sql`](./migrations/0007-manual-payments.sql) are the S3 append-only follow-ons. Never rewrite an applied migration. The Storefront build-time `VITE_STOREFRONT_API_BASE_URL` and API Worker runtime `STOREFRONT_ORIGIN` are opposite sides of the two-origin contract. Each value must be an origin only, with no credentials, path, query, or fragment. The deploy arguments above are values appended to the scripts' existing `--name` and `--var` options in [`package.json`](./package.json).
+
+Remote Order cutover is a breaking API/body/state change. Do not infer a `workers.dev` hostname from the Worker name. Do not apply 0006/0007 remotely without an observable drain or rehearsed write barrier, an abort deadline, and an authorized checkpoint. If that condition cannot be proven, restore ordinary serving and stop before schema mutation.
 
 There is intentionally no generic deploy wrapper. The two Wrangler configs keep `workers_dev: true` and `preview_urls: false`; only the API Worker binds D1/R2 and routes `/api` Worker-first.
 
@@ -158,8 +177,8 @@ Cleanup must never use a broad name or R2 prefix sweep. Preserve non-fixture row
 
 ## Accepted public risk
 
-Console read/write/import/upload routes and its read-only Orders view remain intentionally anonymous through this teaching slice. Anonymous visitors can mutate catalog state, create Storefront Orders, view the Console's reduced Customer/Order projection, and consume Worker, D1, and R2 quota; input bounds mitigate but do not remove abuse risk.
+Console catalog and Order routes remain intentionally anonymous through this teaching slice. Anonymous visitors can mutate catalog state, create Storefront Orders, record manual payments, fulfill, cancel, submit refund requests, view Customer/Order projections, and consume Worker, D1, and R2 quota; input bounds mitigate but do not remove abuse risk. This is not authenticated Owner access.
 
-The Storefront's private Order capability remains only in the URL fragment and explicit API header. It is still a bearer secret: never log, publish, paste, or share a private Order URL or raw capability. Neither surface may expose delivery configuration, private object identity, or the raw capability in public output.
+The Storefront's private Order capability remains only in the URL fragment and explicit API header. It is still a bearer secret: never log, publish, paste, or share a private Order URL or raw capability. Neither surface may expose delivery configuration, private object identity, the raw capability, or Console-only external payment evidence in public Customer output.
 
-These public `workers.dev` surfaces are anonymous demos, not a custom-domain, business-critical production, payment, or security claim. Real identity and permissions remain later-scope work.
+These public `workers.dev` surfaces are anonymous demos, not a custom-domain, business-critical production, payment, or security claim. Real identity and permissions are S4. Automated payment verification and money return are S5. Receipts and MCP are S6.

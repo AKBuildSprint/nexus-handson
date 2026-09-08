@@ -496,7 +496,15 @@ describe('order domain commands', () => {
 
   it('keeps Cancel lookup failures inside the sanitized JSON boundary', async () => {
     const response = await routeConsoleOrderRequest(
-      new Request('https://local.invalid/api/console/orders/NX-0123456789ABCDEF/cancel', { method: 'POST' }),
+      new Request('https://local.invalid/api/console/orders/NX-0123456789ABCDEF/cancel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': 'cancel-lookup-fail001',
+          'X-Nexus-Order-Contract': '2',
+        },
+        body: '{}',
+      }),
       interceptDatabase(env.DB, {
         prepare: () => {
           throw new Error('d1 unavailable');

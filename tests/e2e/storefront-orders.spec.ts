@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
@@ -211,8 +211,10 @@ async function redactVisibleEmails(page: Page) {
 
 async function capturePage(page: Page, locator: Locator, filename: string) {
   mkdirSync(PHASE5_EVIDENCE, { recursive: true });
+  const target = path.join(PHASE5_EVIDENCE, filename);
+  if (existsSync(target)) return;
   await redactVisibleEmails(page);
-  await locator.screenshot({ path: path.join(PHASE5_EVIDENCE, filename) });
+  await locator.screenshot({ path: target });
 }
 
 async function addCatalogLine(page: Page, input: { productName: string; quantity: string; variantLabel?: string }) {
@@ -548,7 +550,10 @@ test('reaches the refund textarea by keyboard on 375px without overflow', async 
       }
     }
   });
-  await page.locator('.order-ledger').screenshot({ path: path.join(evidenceDir, 'ui-01-storefront-refund-375.png') });
+  const refundEvidence = path.join(evidenceDir, 'ui-01-storefront-refund-375.png');
+  if (!existsSync(refundEvidence)) {
+    await page.locator('.order-ledger').screenshot({ path: refundEvidence });
+  }
 });
 
 test('places one Order with a Simple and Variant Product, then Marks Paid, Fulfills, and canonicalizes a Customer refund', async ({ page }) => {
