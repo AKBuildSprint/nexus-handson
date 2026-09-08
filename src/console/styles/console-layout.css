@@ -513,7 +513,7 @@ textarea:disabled {
 
 .inspection-layout .orders-table th,
 .inspection-layout .orders-table td {
-  min-width: 0;
+  min-width: var(--layout-control-short);
 }
 
 .inspection-layout .orders-table {
@@ -562,17 +562,21 @@ textarea:disabled {
 .inspection-facts div {
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
   gap: var(--space-4);
 }
 
 .inspection-facts dt {
+  flex: none;
   color: var(--color-ink-muted);
 }
 
 .inspection-facts dd {
+  min-width: 0;
+  flex: 1 1 8rem;
   margin: 0;
+  overflow-wrap: break-word;
   text-align: end;
-  overflow-wrap: anywhere;
 }
 
 .orders-table tbody tr {
@@ -655,13 +659,17 @@ button.button-primary {
 }
 
 .text-button {
+  display: inline-flex;
+  width: fit-content;
   min-height: var(--target-min);
+  align-items: center;
   padding: var(--space-2);
   border: 0;
   background: transparent;
   color: var(--color-info-ink);
   cursor: pointer;
   font-weight: var(--weight-semibold);
+  text-align: start;
   text-decoration: underline;
   text-underline-offset: var(--space-1);
 }
@@ -895,7 +903,7 @@ legend {
   min-width: 0;
   padding: var(--space-3) var(--space-2);
   border-block-end: var(--border-hairline) solid var(--color-border);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   text-align: start;
   vertical-align: middle;
 }
@@ -1476,11 +1484,13 @@ legend {
     padding-inline: var(--space-6);
   }
 
-  .csv-workspace {
+  .csv-workspace,
+  .inspection-layout {
     grid-template-columns: 1fr;
   }
 
-  .csv-source {
+  .csv-source,
+  .inspection-panel {
     position: static;
   }
 }
