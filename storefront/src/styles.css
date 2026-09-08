@@ -49,7 +49,7 @@
 * { box-sizing: border-box; }
 html { min-width: 20rem; background: var(--color-canvas); }
 body { margin: 0; min-width: 20rem; min-height: 100dvh; }
-button, input, select { font: inherit; }
+button, input, select, textarea { font: inherit; }
 button, a, input, select { -webkit-tap-highlight-color: transparent; }
 button, a { touch-action: manipulation; }
 h1, h2, h3, p { margin: 0; }
@@ -129,7 +129,7 @@ p { line-height: 1.6; text-wrap: pretty; }
 .checkout-fields .field:first-child { grid-column: 1 / -1; max-width: 8rem; }
 .field { display: grid; min-width: 0; gap: var(--space-1); }
 .field label { font-size: var(--type-compact); font-weight: 700; }
-.field input, .field select {
+.field input, .field select, .field textarea {
   width: 100%;
   min-height: var(--target);
   padding: var(--space-2) var(--space-3);
@@ -140,8 +140,14 @@ p { line-height: 1.6; text-wrap: pretty; }
   font-size: var(--type-body);
   transition: border-color var(--motion-state) var(--ease-out);
 }
-.field input:hover, .field select:hover { border-color: var(--color-accent-active); }
-.field input[aria-invalid='true'], .field select[aria-invalid='true'] { border-color: var(--color-error-ink); }
+.field textarea {
+  min-height: 8rem;
+  resize: vertical;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.field input:hover, .field select:hover, .field textarea:hover { border-color: var(--color-accent-active); }
+.field input[aria-invalid='true'], .field select[aria-invalid='true'], .field textarea[aria-invalid='true'] { border-color: var(--color-error-ink); }
 .field-error { color: var(--color-error-ink); font-size: var(--type-compact); line-height: 1.4; }
 .error-summary, .storefront-notice { display: grid; gap: var(--space-3); padding: var(--space-4); background: var(--color-error-surface); color: var(--color-error-ink); }
 .error-summary ul { display: grid; gap: var(--space-2); margin: 0; padding-inline-start: var(--space-6); }
@@ -171,6 +177,7 @@ p { line-height: 1.6; text-wrap: pretty; }
 .catalog-loading span, .loading-ledger span { height: var(--space-12); background: var(--color-band); border-radius: var(--radius); }
 .order-page { max-width: 52rem; }
 .order-ledger header { grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+.order-ledger .ledger-label, .order-ledger h1, .refund-reason { overflow-wrap: anywhere; }
 .order-status { padding: var(--space-1) var(--space-2); border-radius: 999rem; background: var(--color-accent-soft); color: var(--color-ink); font-size: var(--type-meta); font-weight: 700; }
 .order-ledger section { display: grid; gap: var(--space-3); }
 .order-ledger h2 { font-size: var(--type-section); }
@@ -180,6 +187,10 @@ p { line-height: 1.6; text-wrap: pretty; }
 .order-ledger dd { margin: 0; text-align: end; overflow-wrap: anywhere; }
 .amount-ledger .total-line { padding-block-start: var(--space-3); border-block-start: var(--border) solid var(--color-border); color: var(--color-ink); font-size: var(--type-section); font-weight: 700; }
 .variant-sku, .order-ledger footer { color: var(--color-ink-muted); font-size: var(--type-compact); }
+.refund-form { display: grid; min-width: 0; gap: var(--space-4); }
+.refund-form .primary-action { width: 100%; margin: 0; }
+.refund-reason { white-space: pre-wrap; }
+.character-count { color: var(--color-ink-muted); font-size: var(--type-compact); }
 
 @media (max-width: 56rem) {
   .storefront-workspace { grid-template-columns: 1fr; }

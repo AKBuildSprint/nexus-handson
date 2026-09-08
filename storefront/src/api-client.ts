@@ -2,9 +2,18 @@ import type {
   CreateStorefrontOrderInput,
   CustomerOrderView,
   OrderAttemptIdentity,
+  OrderCommandResultView,
   StorefrontCatalog,
 } from './storefront-view-types';
+
 const API_BASE_VARIABLE = 'VITE_STOREFRONT_API_BASE_URL';
+const STOREFRONT_MUTATION_DEADLINE_MS = 15_000;
+
+export interface StorefrontErrorField {
+  path: string;
+  code: string;
+  message: string;
+}
 
 function normalizeApiBaseUrl(value: string | undefined): string | null {
   const configuredValue = value?.trim();
@@ -38,10 +47,14 @@ export class StorefrontApiError extends Error {
   constructor(
     readonly status: number,
     readonly retryable: boolean,
+    readonly code?: string,
+    readonly fields?: StorefrontErrorField[],
+    readonly incidentId?: string | null,
+    message?: string,
   ) {
-    super(retryable
+    super(message ?? (retryable
       ? 'The request did not complete. Check your connection and retry.'
-      : 'The request could not be completed. Review your details and try again.');
+      : 'The request could not be completed. Review your details and try again.'));
     this.name = 'StorefrontApiError';
   }
 }
@@ -61,11 +74,70 @@ export function createOrderAttemptIdentity(): OrderAttemptIdentity {
   };
 }
 
-async function decode<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    throw new StorefrontApiError(response.status, response.status >= 500 || response.status === 408 || response.status === 429);
+function readErrorFields(value: unknown): StorefrontErrorField[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const fields: StorefrontErrorField[] = [];
+  for (const entry of value) {
+    if (entry === null || typeof entry !== 'object') continue;
+    if (!('path' in entry) || !('code' in entry) || !('message' in entry)) continue;
+    if (typeof entry.path !== 'string' || typeof entry.code !== 'string' || typeof entry.message !== 'string') continue;
+    fields.push({ path: entry.path, code: entry.code, message: entry.message });
   }
-  return await response.json() as T;
+  return fields;
+}
+
+function readErrorEnvelope(body: unknown): {
+  code?: string;
+  message?: string;
+  fields?: StorefrontErrorField[];
+  incidentId?: string | null;
+} {
+  if (body === null || typeof body !== 'object' || !('error' in body)) return {};
+  const error = body.error;
+  if (error === null || typeof error !== 'object') return {};
+  const code = 'code' in error && typeof error.code === 'string' ? error.code : undefined;
+  const message = 'message' in error && typeof error.message === 'string' ? error.message : undefined;
+  const fields = 'fields' in error ? readErrorFields(error.fields) : undefined;
+  const incidentId = 'incidentId' in error && (error.incidentId === null || typeof error.incidentId === 'string')
+    ? error.incidentId
+    : undefined;
+  return { code, message, fields, incidentId };
+}
+
+async function decode<T>(response: Response): Promise<T> {
+  let parsed: unknown;
+  try {
+    parsed = await response.json();
+  } catch {
+    if (response.ok) throw new TypeError('The response could not be read.');
+  }
+  if (!response.ok) {
+    const envelope = readErrorEnvelope(parsed);
+    throw new StorefrontApiError(
+      response.status,
+      response.status >= 500 || response.status === 408 || response.status === 429,
+      envelope.code,
+      envelope.fields,
+      envelope.incidentId,
+      envelope.message,
+    );
+  }
+  return parsed as T;
+}
+
+async function decodeUntil(response: Response, signal: AbortSignal): Promise<OrderCommandResultView> {
+  if (signal.aborted) throw new DOMException('The operation was aborted.', 'AbortError');
+  const decoded = decode<OrderCommandResultView>(response);
+  let onAbort: (() => void) | undefined;
+  const aborted = new Promise<never>((_, reject) => {
+    onAbort = () => reject(new DOMException('The operation was aborted.', 'AbortError'));
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+  try {
+    return await Promise.race([decoded, aborted]);
+  } finally {
+    if (onAbort) signal.removeEventListener('abort', onAbort);
+  }
 }
 
 export async function fetchCatalog(signal?: AbortSignal): Promise<StorefrontCatalog> {
@@ -106,4 +178,27 @@ export async function fetchStorefrontOrder(
     signal,
   });
   return await decode<CustomerOrderView>(response);
+}
+
+export async function createStorefrontRefundRequest(
+  reference: string,
+  capability: string,
+  reason: string,
+  idempotencyKey: string,
+  signal?: AbortSignal,
+): Promise<OrderCommandResultView> {
+  const timeout = AbortSignal.timeout(STOREFRONT_MUTATION_DEADLINE_MS);
+  const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
+  const response = await fetch(storefrontApiUrl(`/api/storefront/orders/${encodeURIComponent(reference)}/refund-requests`), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'Idempotency-Key': idempotencyKey,
+      'X-Nexus-Order-Capability': capability,
+    },
+    body: JSON.stringify({ reason }),
+    signal: combined,
+  });
+  return await decodeUntil(response, combined);
 }

@@ -5,7 +5,7 @@ const STOREFRONT_ORIGIN = process.env.PLAYWRIGHT_STOREFRONT_BASE_URL ?? 'http://
 
 interface CustomerOrderResponse {
   reference: string;
-  status: 'pending_payment';
+  status: 'pending_payment' | 'completed' | 'cancelled';
   product: {
     name: string;
     variant: null | {
@@ -18,7 +18,7 @@ interface CustomerOrderResponse {
   totalMinor: number;
   currency: string;
   createdAt: string;
-  paymentNextStep: string;
+  paymentNextStep: string | null;
 }
 
 function uniqueToken(): string {
@@ -48,6 +48,30 @@ async function createSimpleProduct(page: Page, name: string): Promise<string> {
   return new URL(page.url()).pathname;
 }
 
+
+async function completeOrder(page: Page, reference: string) {
+  const response = await page.request.post(`${CONSOLE_ORIGIN}/api/console/orders/${encodeURIComponent(reference)}/complete`, {
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'Idempotency-Key': crypto.randomUUID(),
+    },
+    data: { paymentConfirmed: true },
+  });
+  expect(response.status()).toBe(200);
+}
+
+async function cancelOrder(page: Page, reference: string) {
+  const response = await page.request.post(`${CONSOLE_ORIGIN}/api/console/orders/${encodeURIComponent(reference)}/cancel`, {
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'Idempotency-Key': crypto.randomUUID(),
+    },
+    data: {},
+  });
+  expect(response.status()).toBe(200);
+}
 async function addVariantGroup(page: Page) {
   await page.getByRole('button', { name: 'Add option group' }).click();
   const group = page.locator('section.option-group').last();
@@ -203,5 +227,63 @@ test('creates an enabled Variant Order and keeps the 375px catalog and private O
   expect(order.body.unitPriceMinor).toBe(3950);
   expect(order.body.totalMinor).toBe(7900);
   expect(order.body.currency).toBe('USD');
+  await expectNoHorizontalOverflow(page, 375);
+});
+
+test('does not show a refund form on pending or cancelled private Orders', async ({ page }) => {
+  const productName = `Verify E2E Pending ${uniqueToken()}`;
+  await createSimpleProduct(page, productName);
+  await page.goto(STOREFRONT_ORIGIN);
+  const pending = await placeOrder(page, { productName, quantity: '1' });
+  await expect(page.getByLabel('Reason for refund request')).toHaveCount(0);
+
+  await cancelOrder(page, pending.body.reference);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByText('This Order has been cancelled.')).toBeVisible();
+  await expect(page.getByLabel('Reason for refund request')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Payment next step' })).toHaveCount(0);
+});
+
+test('requests a refund on completed zero and paid Orders without overflowing 375px', async ({ page }) => {
+  const paidName = `Verify E2E Refund Paid ${uniqueToken()}`;
+  await createSimpleProduct(page, paidName);
+  await page.goto(STOREFRONT_ORIGIN);
+  const paid = await placeOrder(page, { productName: paidName, quantity: '1' });
+  await completeOrder(page, paid.body.reference);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByText('This Order has been completed. No delivery or refund is performed by this page.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Payment next step' })).toHaveCount(0);
+
+  await page.getByLabel('Reason for refund request').fill('Please reverse this purchase.');
+  const refundResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === 'POST' && url.pathname === `/api/storefront/orders/${paid.body.reference}/refund-requests`;
+  });
+  await page.getByRole('button', { name: 'Send refund request' }).click();
+  const refundResponse = await refundResponsePromise;
+  expect(refundResponse.status()).toBe(200);
+  const refundBody = await refundResponse.json() as { refundRequest: { reason: string } };
+  expect(refundBody.refundRequest.reason).toBe('Please reverse this purchase.');
+  await expect(page.getByRole('heading', { name: 'Refund request pending' })).toBeVisible();
+  await expect(page.getByText('Please reverse this purchase.')).toBeVisible();
+  await expect(page.getByText('Your request is pending. No refund has been issued.')).toBeVisible();
+  await expect(page.getByLabel('Reason for refund request')).toHaveCount(0);
+
+  const zeroName = `Verify E2E Refund Zero ${uniqueToken()}`;
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${CONSOLE_ORIGIN}/console/products/new`);
+  await fillRequiredProduct(page, zeroName, '0.00');
+  await visibleSave(page).click();
+  await expect(page.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
+  await page.goto(STOREFRONT_ORIGIN);
+  const zero = await placeOrder(page, { productName: zeroName, quantity: '1' });
+  expect(zero.body.totalMinor).toBe(0);
+  await completeOrder(page, zero.body.reference);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByLabel('Reason for refund request')).toBeVisible();
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.getByLabel('Reason for refund request').fill('Zero total still needs a refund path.');
+  await page.getByRole('button', { name: 'Send refund request' }).click();
+  await expect(page.getByRole('heading', { name: 'Refund request pending' })).toBeVisible();
   await expectNoHorizontalOverflow(page, 375);
 });

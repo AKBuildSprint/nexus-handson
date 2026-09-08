@@ -58,6 +58,14 @@ export interface CustomerOrderView {
   } | null;
 }
 
+export interface OrderCommandResultView {
+  reference: string;
+  action: 'complete' | 'cancel' | 'request_refund';
+  status: 'completed' | 'cancelled';
+  occurredAt: string;
+  refundRequest: CustomerOrderView['refundRequest'];
+}
+
 export interface CreateStorefrontOrderInput {
   customer: { name: string; email: string };
   productId: string;
