@@ -226,11 +226,23 @@ test('ignores late Order A GET and Complete after opening Order B', async ({ pag
       return;
     }
     await getGate;
-    await route.continue();
+    try {
+      await route.continue();
+    } catch {
+      // Navigation may abort the in-flight GET.
+    }
   });
   const getA = page.waitForRequest((request) => {
     const url = new URL(request.url());
     return request.method() === 'GET' && url.pathname === `/api/console/orders/${orderA.body.reference}`;
+  });
+  const getAFailed = page.waitForEvent('requestfailed', (request) => {
+    try {
+      const url = new URL(request.url());
+      return request.method() === 'GET' && url.pathname === `/api/console/orders/${orderA.body.reference}`;
+    } catch {
+      return false;
+    }
   });
   await page.getByRole('link', { name: orderA.body.reference }).click();
   await getA;
@@ -240,7 +252,15 @@ test('ignores late Order A GET and Complete after opening Order B', async ({ pag
   await expect(page.getByRole('link', { name: orderB.body.reference })).toBeVisible();
   await page.getByRole('link', { name: orderB.body.reference }).click();
   await expect(page.getByRole('heading', { name: orderB.body.reference })).toBeVisible();
+  const getAResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === 'GET' && url.pathname === `/api/console/orders/${orderA.body.reference}`;
+  });
   releaseGet?.();
+  await Promise.race([getAResponse, getAFailed]);
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
   await expect(page.getByRole('heading', { name: orderB.body.reference })).toBeVisible();
   await expect(page.getByRole('heading', { name: orderA.body.reference })).toHaveCount(0);
   await page.unroute(`**/api/console/orders/${orderA.body.reference}`);
