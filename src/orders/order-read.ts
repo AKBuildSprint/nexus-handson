@@ -6,19 +6,30 @@ import type {
   ConsoleOrderListResponse,
   ConsoleOrderProjection,
   CustomerOrderProjection,
-  OrderProductProjection,
+  OrderItemProjection,
   OrderSelectedOption,
   OrderStatus,
   RefundRequestProjection,
 } from './order-types';
 import { OrderValidationError } from './order-types';
 
-interface OrderProjectionRow {
+interface OrderHeaderRow {
   id: string;
   reference: string;
+  payment_reference: string;
   status: OrderStatus;
   customer_name: string;
   customer_email_normalized: string;
+  total_minor: number;
+  currency: string;
+  created_at: string;
+  refund_id?: string | null;
+  refund_status?: 'pending' | null;
+}
+
+interface OrderLineRow {
+  id: string;
+  position: number;
   product_id: string;
   product_name: string;
   variant_id: string | null;
@@ -26,12 +37,11 @@ interface OrderProjectionRow {
   selected_options_json: string;
   quantity: number;
   unit_price_minor: number;
-  total_minor: number;
+  line_total_minor: number;
   currency: string;
-  created_at: string;
-  refund_id?: string | null;
-  refund_status?: 'pending' | null;
 }
+
+interface OrderProjectionRow extends OrderHeaderRow, OrderLineRow {}
 
 interface RefundRow {
   id: string;
@@ -49,24 +59,28 @@ interface HistoryRow {
 }
 
 const ORDER_STATUS: Record<OrderStatus, true> = {
-  pending_payment: true,
-  completed: true,
-  cancelled: true,
+  pending: true,
+  paid: true,
+  fulfilled: true,
+  canceled: true,
 };
 
-const PROJECTION_SELECT = `SELECT orders.id, orders.reference, orders.status,
+const HEADER_SELECT = `SELECT orders.id, orders.reference, orders.payment_reference, orders.status,
        orders.customer_name, orders.customer_email_normalized,
-       order_lines.product_id, order_lines.product_name, order_lines.variant_id, order_lines.variant_sku,
-       order_lines.selected_options_json, order_lines.quantity, order_lines.unit_price_minor,
        orders.total_minor, orders.currency, orders.created_at
-  FROM orders
-  JOIN order_lines ON order_lines.order_id = orders.id AND order_lines.store_id = orders.store_id`;
+  FROM orders`;
 
-const LIST_SELECT = `SELECT orders.id, orders.reference, orders.status,
+const LINE_SELECT = `SELECT order_lines.id, order_lines.position, order_lines.product_id, order_lines.product_name,
+       order_lines.variant_id, order_lines.variant_sku, order_lines.selected_options_json,
+       order_lines.quantity, order_lines.unit_price_minor, order_lines.line_total_minor, order_lines.currency
+  FROM order_lines`;
+
+const LIST_SELECT = `SELECT orders.id, orders.reference, orders.payment_reference, orders.status,
        orders.customer_name, orders.customer_email_normalized,
-       order_lines.product_id, order_lines.product_name, order_lines.variant_id, order_lines.variant_sku,
+       order_lines.id AS line_id, order_lines.position, order_lines.product_id, order_lines.product_name,
+       order_lines.variant_id, order_lines.variant_sku,
        order_lines.selected_options_json, order_lines.quantity, order_lines.unit_price_minor,
-       orders.total_minor, orders.currency, orders.created_at,
+       order_lines.line_total_minor, orders.total_minor, orders.currency, orders.created_at,
        order_refund_requests.id AS refund_id,
        order_refund_requests.status AS refund_status
   FROM orders
@@ -98,29 +112,36 @@ function selectedOptions(parsed: unknown): OrderSelectedOption[] {
   });
 }
 
-function productProjection(row: OrderProjectionRow): OrderProductProjection {
+function itemProjection(row: OrderLineRow): OrderItemProjection {
   const options = selectedOptions(JSON.parse(row.selected_options_json) as unknown);
   return {
-    id: row.product_id,
-    name: row.product_name,
-    variant: row.variant_id === null ? null : {
-      id: row.variant_id,
-      sku: row.variant_sku as string,
-      selectedOptions: options,
+    id: row.id,
+    position: row.position,
+    product: {
+      id: row.product_id,
+      name: row.product_name,
+      variant: row.variant_id === null ? null : {
+        id: row.variant_id,
+        sku: row.variant_sku as string,
+        selectedOptions: options,
+      },
     },
+    quantity: row.quantity,
+    unitPriceMinor: row.unit_price_minor,
+    lineTotalMinor: row.line_total_minor,
+    currency: row.currency,
   };
 }
 
-function orderFields(row: OrderProjectionRow) {
+function orderFields(header: OrderHeaderRow, items: OrderItemProjection[]) {
   return {
-    reference: row.reference,
-    status: row.status,
-    product: productProjection(row),
-    quantity: row.quantity,
-    unitPriceMinor: row.unit_price_minor,
-    totalMinor: row.total_minor,
-    currency: row.currency,
-    createdAt: row.created_at,
+    reference: header.reference,
+    paymentReference: header.payment_reference,
+    status: header.status,
+    items,
+    totalMinor: header.total_minor,
+    currency: header.currency,
+    createdAt: header.created_at,
   };
 }
 
@@ -183,7 +204,19 @@ function decodeCursor(
 
 function consoleListProjection(row: OrderProjectionRow): ConsoleOrderProjection {
   return {
-    ...orderFields(row),
+    ...orderFields(row, [itemProjection({
+      id: (row as OrderProjectionRow & { line_id?: string }).line_id ?? row.id,
+      position: row.position,
+      product_id: row.product_id,
+      product_name: row.product_name,
+      variant_id: row.variant_id,
+      variant_sku: row.variant_sku,
+      selected_options_json: row.selected_options_json,
+      quantity: row.quantity,
+      unit_price_minor: row.unit_price_minor,
+      line_total_minor: row.line_total_minor,
+      currency: row.currency,
+    })]),
     customer: {
       name: row.customer_name,
       email: row.customer_email_normalized,
@@ -192,21 +225,27 @@ function consoleListProjection(row: OrderProjectionRow): ConsoleOrderProjection 
   };
 }
 
-export async function readCustomerOrderById(
-  database: D1Database,
-  orderId: string,
-): Promise<CustomerOrderProjection | null> {
-  const [orderResult, refundResult] = await database.batch([
-    database.prepare(`${PROJECTION_SELECT} WHERE orders.store_id = ? AND orders.id = ?`)
-      .bind(BOOTSTRAP_STORE_ID, orderId),
-    database.prepare(
+export async function readCustomerOrderById(input: {
+  database: D1Database;
+  storeId: string;
+  orderId: string;
+}): Promise<CustomerOrderProjection | null> {
+  const [orderResult, lineResult, refundResult] = await input.database.batch([
+    input.database.prepare(`${HEADER_SELECT} WHERE orders.store_id = ? AND orders.id = ?`)
+      .bind(input.storeId, input.orderId),
+    input.database.prepare(
+      `${LINE_SELECT} WHERE order_lines.store_id = ? AND order_lines.order_id = ?
+        ORDER BY order_lines.position ASC, order_lines.id ASC`,
+    ).bind(input.storeId, input.orderId),
+    input.database.prepare(
       `SELECT id, status, reason, created_at FROM order_refund_requests WHERE store_id = ? AND order_id = ?`,
-    ).bind(BOOTSTRAP_STORE_ID, orderId),
+    ).bind(input.storeId, input.orderId),
   ]);
-  const row = orderResult.results[0] as OrderProjectionRow | undefined;
-  if (!row) return null;
+  const header = orderResult.results[0] as OrderHeaderRow | undefined;
+  const lines = lineResult.results as OrderLineRow[];
+  if (!header || lines.length === 0) return null;
   return {
-    ...orderFields(row),
+    ...orderFields(header, lines.map(itemProjection)),
     refundRequest: refundFromRow(refundResult.results[0] as RefundRow | undefined),
   };
 }
@@ -215,9 +254,15 @@ export async function readConsoleOrderByReference(
   database: D1Database,
   reference: string,
 ): Promise<ConsoleOrderDetailProjection | null> {
-  const [orderResult, refundResult, historyResult] = await database.batch([
-    database.prepare(`${PROJECTION_SELECT} WHERE orders.store_id = ? AND orders.reference = ?`)
+  const [orderResult, lineResult, refundResult, historyResult] = await database.batch([
+    database.prepare(`${HEADER_SELECT} WHERE orders.store_id = ? AND orders.reference = ?`)
       .bind(BOOTSTRAP_STORE_ID, reference),
+    database.prepare(
+      `${LINE_SELECT}
+         JOIN orders ON orders.id = order_lines.order_id AND orders.store_id = order_lines.store_id
+        WHERE orders.store_id = ? AND orders.reference = ?
+        ORDER BY order_lines.position ASC, order_lines.id ASC`,
+    ).bind(BOOTSTRAP_STORE_ID, reference),
     database.prepare(
       `SELECT order_refund_requests.id, order_refund_requests.status, order_refund_requests.reason,
               order_refund_requests.created_at
@@ -237,25 +282,29 @@ export async function readConsoleOrderByReference(
                  CASE order_history.action
                    WHEN 'order_created' THEN 0
                    WHEN 'order_completed' THEN 1
+                   WHEN 'order_paid' THEN 1
                    WHEN 'order_cancelled' THEN 1
-                   WHEN 'refund_requested' THEN 2
-                   ELSE 3
+                   WHEN 'order_canceled' THEN 1
+                   WHEN 'order_fulfilled' THEN 2
+                   WHEN 'refund_requested' THEN 3
+                   ELSE 4
                  END ASC,
                  order_history.id ASC`,
     ).bind(BOOTSTRAP_STORE_ID, reference),
   ]);
-  const row = orderResult.results[0] as OrderProjectionRow | undefined;
-  if (!row) return null;
+  const header = orderResult.results[0] as OrderHeaderRow | undefined;
+  const lines = lineResult.results as OrderLineRow[];
+  if (!header || lines.length === 0) return null;
   const refund = refundFromRow(refundResult.results[0] as RefundRow | undefined);
   return {
-    ...orderFields(row),
+    ...orderFields(header, lines.map(itemProjection)),
     customer: {
-      name: row.customer_name,
-      email: row.customer_email_normalized,
+      name: header.customer_name,
+      email: header.customer_email_normalized,
     },
     refundRequestStatus: refund ? 'pending' : null,
     refundRequest: refund,
-    allowedActions: row.status === 'pending_payment' ? ['complete', 'cancel'] : [],
+    allowedActions: header.status === 'pending' ? ['complete', 'cancel'] : [],
     history: (historyResult.results as HistoryRow[]).map((event) => ({
       action: event.action,
       source: event.source,

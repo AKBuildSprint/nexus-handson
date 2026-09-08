@@ -356,6 +356,7 @@ describe('order operations migration', () => {
 
       expect(await findOrderIdByCapability({
         database: env.DB,
+        storeId: STORE,
         reference: order.reference,
         capability: order.capability,
       })).toBe(order.id);
@@ -508,6 +509,7 @@ describe('order operations migration', () => {
 
       expect(await findOrderIdByCapability({
         database: env.DB,
+        storeId: STORE,
         reference: order.reference,
         capability: order.capability,
       })).toBe(order.id);

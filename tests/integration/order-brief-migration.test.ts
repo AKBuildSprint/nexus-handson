@@ -329,6 +329,7 @@ describe('order brief contract migration', () => {
     });
     expect(await findOrderIdByCapability({
       database: env.DB,
+      storeId: STORE,
       reference: 'NX-BRIEF-PAID',
       capability: seeded.capability,
     })).toBe(seeded.completedId);

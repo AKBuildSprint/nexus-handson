@@ -1,3 +1,4 @@
+import { BOOTSTRAP_STORE_ID } from '../catalog/catalog-read';
 import { createRefundRequest } from '../orders/order-commands';
 import { createOrder } from '../orders/order-write';
 import { findOrderIdByCapability, readPrivateOrder } from '../orders/private-access';
@@ -5,6 +6,7 @@ import {
   OrderPersistenceError,
   OrderValidationError,
   type CustomerOrderProjection,
+  type OrderContext,
 } from '../orders/order-types';
 import { jsonError, jsonResponse } from './http-response';
 import { withStorefrontCors } from './storefront-cors';
@@ -15,10 +17,14 @@ type CustomerOrderResponse = CustomerOrderProjection & {
   paymentNextStep: string | null;
 };
 
+function storefrontContext(): OrderContext {
+  return { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'storefront', id: null } };
+}
+
 function customerResponse(order: CustomerOrderProjection): CustomerOrderResponse {
   return {
     ...order,
-    paymentNextStep: order.status === 'pending_payment' ? PAYMENT_NEXT_STEP : null,
+    paymentNextStep: order.status === 'pending' ? PAYMENT_NEXT_STEP : null,
   };
 }
 
@@ -71,6 +77,7 @@ export async function routeStorefrontOrderRequest(
     try {
       const order = await createOrder({
         database,
+        context: storefrontContext(),
         body: await parseJson(request),
         idempotencyKey: request.headers.get('Idempotency-Key'),
         capability: request.headers.get('X-Nexus-Order-Capability'),
@@ -95,6 +102,7 @@ export async function routeStorefrontOrderRequest(
     try {
       orderId = await findOrderIdByCapability({
         database,
+        storeId: BOOTSTRAP_STORE_ID,
         reference,
         capability: request.headers.get('X-Nexus-Order-Capability'),
       });
@@ -134,6 +142,7 @@ export async function routeStorefrontOrderRequest(
     try {
       const order = await readPrivateOrder({
         database,
+        storeId: BOOTSTRAP_STORE_ID,
         reference,
         capability: request.headers.get('X-Nexus-Order-Capability'),
       });

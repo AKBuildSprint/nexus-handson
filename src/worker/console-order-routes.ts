@@ -9,9 +9,10 @@ import {
 import { jsonError, jsonResponse } from './http-response';
 
 const ORDER_STATUS: Record<OrderStatus, true> = {
-  pending_payment: true,
-  completed: true,
-  cancelled: true,
+  pending: true,
+  paid: true,
+  fulfilled: true,
+  canceled: true,
 };
 
 const QUERY_KEYS: Record<string, true> = {

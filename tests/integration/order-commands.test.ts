@@ -8,6 +8,7 @@ import {
 } from '../../src/orders/order-commands';
 import { createOrder } from '../../src/orders/order-write';
 import { findOrderIdByCapability } from '../../src/orders/private-access';
+import { BOOTSTRAP_STORE_ID } from '../../src/catalog/catalog-read';
 import { OrderPersistenceError, OrderValidationError } from '../../src/orders/order-types';
 import {
   parseCancelOrderInput,
@@ -25,6 +26,8 @@ const CAPABILITY_B = 'B'.repeat(43);
 const KEY_COMPLETE = 'command-complete-01';
 const KEY_CANCEL = 'command-cancel-0001';
 const KEY_REFUND = 'command-refund-0001';
+const STOREFRONT_CONTEXT = { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'storefront' as const, id: null } };
+
 
 beforeEach(resetCatalog);
 
@@ -56,6 +59,7 @@ async function placeOrder(
   const catalog = product ?? await createSimple();
   return createOrder({
     database: env.DB,
+    context: STOREFRONT_CONTEXT,
     body: orderBody(catalog.id),
     idempotencyKey: key,
     capability,
@@ -69,6 +73,7 @@ async function placeZeroTotalOrder(key: string) {
   ).bind(product.id).run();
   return createOrder({
     database: env.DB,
+    context: STOREFRONT_CONTEXT,
     body: orderBody(product.id),
     idempotencyKey: key,
     capability: CAPABILITY_A,
@@ -326,6 +331,7 @@ describe('order domain commands', () => {
     });
     const orderId = await findOrderIdByCapability({
       database: env.DB,
+      storeId: BOOTSTRAP_STORE_ID,
       reference: order.reference,
       capability: CAPABILITY_A,
     });
@@ -370,6 +376,7 @@ describe('order domain commands', () => {
     const order = await placeOrder('create-cc04-0000001');
     const orderId = await findOrderIdByCapability({
       database: env.DB,
+      storeId: BOOTSTRAP_STORE_ID,
       reference: order.reference,
       capability: CAPABILITY_A,
     });
@@ -492,6 +499,7 @@ describe('order domain commands', () => {
     });
     const refundId = await findOrderIdByCapability({
       database: env.DB,
+      storeId: BOOTSTRAP_STORE_ID,
       reference: refundTarget.reference,
       capability: 'C'.repeat(43),
     }) as string;
@@ -587,6 +595,7 @@ describe('order domain commands', () => {
 
     const pendingId = await findOrderIdByCapability({
       database: env.DB,
+      storeId: BOOTSTRAP_STORE_ID,
       reference: cancelled.reference,
       capability: CAPABILITY_B,
     });
@@ -625,6 +634,7 @@ describe('order domain commands', () => {
 
     const orderId = await findOrderIdByCapability({
       database: env.DB,
+      storeId: BOOTSTRAP_STORE_ID,
       reference: zero.reference,
       capability: CAPABILITY_A,
     }) as string;
