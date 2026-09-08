@@ -159,6 +159,7 @@ export async function createStorefrontOrder(
       'Content-Type': 'application/json',
       'Idempotency-Key': identity.idempotencyKey,
       'X-Nexus-Order-Capability': identity.capability,
+      'X-Nexus-Order-Contract': '2',
     },
     body: JSON.stringify(input),
   });
@@ -174,6 +175,7 @@ export async function fetchStorefrontOrder(
     headers: {
       Accept: 'application/json',
       'X-Nexus-Order-Capability': capability,
+      'X-Nexus-Order-Contract': '2',
     },
     signal,
   });
@@ -196,6 +198,7 @@ export async function createStorefrontRefundRequest(
       'Content-Type': 'application/json',
       'Idempotency-Key': idempotencyKey,
       'X-Nexus-Order-Capability': capability,
+      'X-Nexus-Order-Contract': '2',
     },
     body: JSON.stringify({ reason }),
     signal: combined,

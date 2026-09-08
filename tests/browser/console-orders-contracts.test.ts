@@ -3,20 +3,48 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProductionConsoleApp } from '../../src/console/production-console-app';
 import { OrdersScreen, type OrdersScreenProps } from '../../src/console/orders/orders-screen';
-import type { ConsoleOrderDetailView, ConsoleOrderView } from '../../src/console/orders/order-ui-types';
+import type { ConsoleOrderDetailView, ConsoleOrderSummary, ConsoleOrderView } from '../../src/console/orders/order-ui-types';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 let container: HTMLDivElement;
 let root: Root;
 
-const safeOrder: ConsoleOrderView = {
-  reference: 'NX-260827-ABCD1234',
-  status: 'pending_payment',
+const emptySummary: ConsoleOrderSummary = {
+  totalOrders: 0,
+  byStatus: { pending: 0, paid: 0, fulfilled: 0, canceled: 0 },
+  openRefundRequests: 0,
+};
+
+function listResponse(orders: ConsoleOrderView[], extra: Partial<{ summary: ConsoleOrderSummary; nextCursor: string | null; hasOrders: boolean }> = {}) {
+  return {
+    orders,
+    summary: extra.summary ?? {
+      ...emptySummary,
+      totalOrders: orders.length,
+      byStatus: { ...emptySummary.byStatus, pending: orders.filter((order) => order.status === 'pending').length },
+    },
+    nextCursor: extra.nextCursor ?? null,
+    hasOrders: extra.hasOrders ?? true,
+  };
+}
+
+const simpleItem = {
+  id: 'line_1',
+  position: 0,
   product: { id: 'prod_simple1234', name: 'Field Notes', variant: null },
-  customer: { name: 'Ada Rivera', email: 'ada@example.com' },
   quantity: 2,
   unitPriceMinor: 2400,
+  lineTotalMinor: 4800,
+  currency: 'USD',
+};
+
+const safeOrder: ConsoleOrderView = {
+  reference: 'NX-260827-ABCD1234',
+  paymentReference: 'NPABCDEF12345678',
+  status: 'pending',
+  items: [simpleItem],
+  customer: { name: 'Ada Rivera', email: 'ada@example.com' },
   totalMinor: 4701,
   currency: 'USD',
   createdAt: '2026-08-27T12:00:00.000Z',
@@ -26,50 +54,75 @@ const safeOrder: ConsoleOrderView = {
 const otherOrder: ConsoleOrderView = {
   ...safeOrder,
   reference: 'NX-260827-FFFF0000',
+  paymentReference: 'NPFFFF0000111111',
   customer: { name: 'Bea Nguyen', email: 'bea@example.com' },
-  product: { ...safeOrder.product, name: 'Other Notes' },
+  items: [{ ...simpleItem, id: 'line_other', product: { ...simpleItem.product, name: 'Other Notes' } }],
+};
+
+const createdHistory = {
+  action: 'order_created' as const,
+  source: 'storefront' as const,
+  actorId: 'cust_1',
+  actorLabel: 'Customer',
+  contractVersion: 2 as const,
+  fromStatus: null,
+  toStatus: 'pending' as const,
+  createdAt: '2026-08-27T12:00:00.000Z',
 };
 
 const pendingDetail: ConsoleOrderDetailView = {
   ...safeOrder,
-  allowedActions: ['complete', 'cancel'],
+  allowedActions: ['mark_paid', 'cancel'],
   refundRequest: null,
-  history: [{
-    action: 'order_created',
-    source: 'customer_capability',
-    fromStatus: null,
-    toStatus: 'pending_payment',
-    createdAt: '2026-08-27T12:00:00.000Z',
-  }],
+  history: [createdHistory],
+  payment: null,
+  paymentRecordState: 'none',
 };
 
 const zeroDetail: ConsoleOrderDetailView = {
   ...pendingDetail,
   reference: 'NX-260827-00000000',
-  unitPriceMinor: 0,
+  paymentReference: 'NP00000000000000',
+  items: [{ ...simpleItem, quantity: 1, unitPriceMinor: 0, lineTotalMinor: 0 }],
   totalMinor: 0,
 };
 
-const completedDetail: ConsoleOrderDetailView = {
+const paidDetail: ConsoleOrderDetailView = {
   ...pendingDetail,
-  status: 'completed',
-  allowedActions: [],
+  status: 'paid',
+  allowedActions: ['fulfill', 'request_refund'],
+  paymentRecordState: 'recorded',
+  payment: {
+    id: 'pay_1',
+    source: 'manual',
+    method: 'Bank transfer',
+    externalReference: 'WIRE-1',
+    amountMinor: 4701,
+    currency: 'USD',
+    status: 'succeeded',
+    recordedAt: '2026-08-27T12:05:00.000Z',
+  },
   history: [
-    pendingDetail.history[0],
+    createdHistory,
     {
-      action: 'order_completed',
-      source: 'console',
-      fromStatus: 'pending_payment',
-      toStatus: 'completed',
+      action: 'order_paid',
+      source: 'bootstrap_owner',
+      actorId: null,
+      actorLabel: 'Bootstrap Owner (demo)',
+      contractVersion: 2,
+      fromStatus: 'pending',
+      toStatus: 'paid',
       createdAt: '2026-08-27T12:05:00.000Z',
     },
   ],
 };
 
 const screenDefaults: Omit<OrdersScreenProps, 'state' | 'orders'> = {
+  summary: emptySummary,
   searchDraft: '',
   statusFilter: 'all',
   refundPendingOnly: false,
+  contractOutdated: false,
   hasPreviousPage: false,
   hasNextPage: false,
   onSearchDraftChange: () => undefined,
@@ -77,6 +130,7 @@ const screenDefaults: Omit<OrdersScreenProps, 'state' | 'orders'> = {
   onStatusFilterChange: () => undefined,
   onRefundPendingOnlyChange: () => undefined,
   onRetry: () => undefined,
+  onReload: () => undefined,
   onClearFilters: () => undefined,
   onFirstPage: () => undefined,
   onPreviousPage: () => undefined,
@@ -117,9 +171,10 @@ function buttonByName(name: string): HTMLButtonElement | undefined {
   return Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent?.trim() === name);
 }
 
-function paymentCheckbox(): HTMLInputElement | undefined {
+function paymentAck(): HTMLInputElement | undefined {
   return Array.from(container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')).find((input) => (
-    input.closest('label')?.textContent?.includes('I confirm the full payment has been received.')
+    (input.closest('label')?.textContent ?? '').includes('external receipt')
+    || (input.closest('label')?.textContent ?? '').includes('zero-total')
   ));
 }
 
@@ -131,17 +186,26 @@ async function renderApp() {
   await act(async () => { root.render(createElement(ProductionConsoleApp)); });
 }
 
-async function openCompletePanel() {
-  await waitUntil(() => Boolean(buttonByName('Complete')));
-  await act(async () => { buttonByName('Complete')?.click(); });
-  await waitUntil(() => Boolean(buttonByName('Confirm Complete')));
+async function openMarkPaidPanel() {
+  await waitUntil(() => Boolean(buttonByName('Record manual payment')));
+  await act(async () => { buttonByName('Record manual payment')?.click(); });
+  await waitUntil(() => Boolean(buttonByName('Mark Paid')));
 }
 
-async function confirmComplete() {
-  const checkbox = paymentCheckbox();
+async function confirmMarkPaid() {
+  const method = container.querySelector<HTMLInputElement>('#payment-method');
+  const reference = container.querySelector<HTMLInputElement>('#payment-reference');
+  if (!method || !reference) throw new Error('missing payment fields');
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(method, 'Bank transfer');
+    method.dispatchEvent(new Event('input', { bubbles: true }));
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(reference, 'WIRE-1');
+    reference.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  const checkbox = paymentAck();
   if (!checkbox) throw new Error('missing checkbox');
   await act(async () => { checkbox.click(); });
-  await act(async () => { buttonByName('Confirm Complete')?.click(); });
+  await act(async () => { buttonByName('Mark Paid')?.click(); });
 }
 
 beforeEach(() => {
@@ -163,29 +227,33 @@ describe('Console Order contracts', () => {
     const unsafe = { ...safeOrder, capability: 'opaque-secret', privateFileKey: 'private-file', accessInstructions: 'internal delivery' };
     await act(async () => root.render(createElement(OrdersScreen, { ...screenDefaults, state: 'ready', orders: [unsafe] })));
     expect(container.querySelector('.orders-table')?.textContent).toContain(safeOrder.reference);
+    expect(container.querySelector('.orders-table')?.textContent).toContain('NPABCDEF12345678');
     expect(container.querySelector('.order-list-mobile')?.textContent).toContain('ada@example.com');
     expect(container.querySelector('.order-list-mobile')?.textContent).toContain('$47.01');
+    expect(container.querySelector('.orders-table')?.textContent).not.toContain('$24.00');
     expect(container.textContent).not.toContain('opaque-secret');
     expect(container.textContent).not.toContain('private-file');
     expect(container.textContent).not.toContain('internal delivery');
   });
 
   it('provides durable loading, empty, no-results, and error regions', async () => {
-    await act(async () => root.render(createElement(OrdersScreen, { ...screenDefaults, state: 'loading', orders: [] })));
+    await act(async () => root.render(createElement(OrdersScreen, { ...screenDefaults, state: 'loading', orders: [], summary: null })));
     expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    expect(container.textContent).not.toContain('Matching Orders');
     await act(async () => root.render(createElement(OrdersScreen, { ...screenDefaults, state: 'empty', orders: [] })));
     expect(container.textContent).toContain('No Orders have been placed.');
     await act(async () => root.render(createElement(OrdersScreen, { ...screenDefaults, state: 'no-results', orders: [] })));
     expect(container.textContent).toContain('No Orders match these filters.');
     const retry = vi.fn();
-    await act(async () => root.render(createElement(OrdersScreen, { ...screenDefaults, state: 'error', orders: [], onRetry: retry })));
+    await act(async () => root.render(createElement(OrdersScreen, { ...screenDefaults, state: 'error', orders: [], summary: null, onRetry: retry })));
+    expect(container.textContent).not.toContain('Matching Orders');
     await act(async () => buttonByName('Retry loading Orders')?.click());
     expect(retry).toHaveBeenCalledOnce();
   });
 
   it('supports direct Orders URLs, destination navigation, and popstate restoration', async () => {
     stubConsoleFetch(async (url) => {
-      if (url.pathname === '/api/console/orders') return response({ orders: [safeOrder], nextCursor: null, hasOrders: true });
+      if (url.pathname === '/api/console/orders') return response(listResponse([safeOrder]));
       if (url.pathname.startsWith('/api/console/products')) return response({ products: [] });
       throw new Error(`Unexpected request ${url.pathname}`);
     });
@@ -205,7 +273,7 @@ describe('Console Order contracts', () => {
     window.history.replaceState({}, '', '/console/orders/not-a-reference');
     stubConsoleFetch(async (url) => {
       if (url.pathname === '/api/console/orders/not-a-reference') return errorResponse(404, 'not_found', 'Order not found.');
-      if (url.pathname === '/api/console/orders') return response({ orders: [], nextCursor: null, hasOrders: true });
+      if (url.pathname === '/api/console/orders') return response(listResponse([], { hasOrders: true }));
       throw new Error(`Unexpected request ${url.pathname}`);
     });
     await renderApp();
@@ -217,7 +285,7 @@ describe('Console Order contracts', () => {
   it('loads Order detail from a direct URL, reload-equivalent remount, and popstate', async () => {
     stubConsoleFetch(async (url) => {
       if (url.pathname === `/api/console/orders/${pendingDetail.reference}`) return response({ order: pendingDetail });
-      if (url.pathname === '/api/console/orders') return response({ orders: [safeOrder], nextCursor: null, hasOrders: true });
+      if (url.pathname === '/api/console/orders') return response(listResponse([safeOrder]));
       throw new Error(`Unexpected request ${url.pathname}`);
     });
     window.history.replaceState({}, '', `/console/orders/${pendingDetail.reference}`);
@@ -225,6 +293,7 @@ describe('Console Order contracts', () => {
     await waitUntil(() => container.querySelector('h1')?.textContent === pendingDetail.reference);
     expect(container.textContent).toContain('Ada Rivera');
     expect(container.textContent).toContain('Field Notes');
+    expect(container.textContent).toContain('NPABCDEF12345678');
     await act(async () => { buttonByName('Back to Orders')?.click(); });
     await waitUntil(() => container.querySelector('h1')?.textContent === 'Orders');
     expect(window.location.pathname).toBe('/console/orders');
@@ -233,10 +302,10 @@ describe('Console Order contracts', () => {
     await waitUntil(() => container.querySelector('h1')?.textContent === pendingDetail.reference);
   });
 
-  it('submits search on Enter and applies status and refund filters immediately', async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+  it('submits trimmed raw search and applies status and refund filters immediately', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       const url = requestUrl(input);
-      if (url.pathname === '/api/console/orders') return response({ orders: [safeOrder], nextCursor: null, hasOrders: true });
+      if (url.pathname === '/api/console/orders') return response(listResponse([safeOrder]));
       throw new Error(`Unexpected request ${url.pathname}`);
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -245,37 +314,38 @@ describe('Console Order contracts', () => {
     const search = container.querySelector<HTMLInputElement>('#order-search');
     if (!search) throw new Error('missing search');
     await act(async () => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(search, 'Ada');
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(search, '  ＡＢ１２  ');
       search.dispatchEvent(new Event('input', { bubbles: true }));
     });
     expect(fetchMock.mock.calls.filter((call) => requestUrl(call[0] as RequestInfo | URL).pathname === '/api/console/orders')).toHaveLength(1);
     await act(async () => {
       container.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });
-    await waitUntil(() => fetchMock.mock.calls.some((call) => requestUrl(call[0] as RequestInfo | URL).searchParams.get('q') === 'Ada'));
-    const completedTab = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="tab"]')).find((button) => button.textContent?.trim() === 'Completed');
-    await act(async () => { completedTab?.click(); });
-    await waitUntil(() => fetchMock.mock.calls.some((call) => requestUrl(call[0] as RequestInfo | URL).searchParams.get('status') === 'completed'));
+    await waitUntil(() => fetchMock.mock.calls.some((call) => requestUrl(call[0] as RequestInfo | URL).searchParams.get('q') === 'ＡＢ１２'));
+    const paidTab = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="tab"]')).find((button) => button.textContent?.trim() === 'Paid');
+    await act(async () => { paidTab?.click(); });
+    await waitUntil(() => fetchMock.mock.calls.some((call) => requestUrl(call[0] as RequestInfo | URL).searchParams.get('status') === 'paid'));
     const refund = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')).find((input) => (
       input.closest('label')?.textContent?.includes('Pending refund requests')
     ));
     await act(async () => { refund?.click(); });
     await waitUntil(() => fetchMock.mock.calls.some((call) => requestUrl(call[0] as RequestInfo | URL).searchParams.get('refund') === 'pending'));
+    expect(new Headers(fetchMock.mock.calls[0][1]?.headers as HeadersInit).get('X-Nexus-Order-Contract')).toBe('2');
   });
 
-  it('uses the same Complete confirmation panel for a zero-total Order', async () => {
+  it('uses the same Mark Paid panel for a zero-total Order without claiming a bank transfer', async () => {
     stubConsoleFetch(async (url) => {
       if (url.pathname === `/api/console/orders/${zeroDetail.reference}`) return response({ order: zeroDetail });
       throw new Error(`Unexpected request ${url.pathname}`);
     });
     window.history.replaceState({}, '', `/console/orders/${zeroDetail.reference}`);
     await renderApp();
-    await openCompletePanel();
-    expect(container.textContent).toContain('I confirm the full payment has been received.');
+    await openMarkPaidPanel();
+    expect(container.textContent).toContain('does not claim a bank transfer');
     expect(container.textContent).toContain('USD');
-    expect(buttonByName('Confirm Complete')?.disabled).toBe(true);
-    await act(async () => { paymentCheckbox()?.click(); });
-    expect(buttonByName('Confirm Complete')?.disabled).toBe(false);
+    expect(buttonByName('Mark Paid')?.disabled).toBe(true);
+    await act(async () => { paymentAck()?.click(); });
+    expect(buttonByName('Mark Paid')?.disabled).toBe(false);
   });
 
   it('does not paint a stale Order after navigating to another reference', async () => {
@@ -287,11 +357,9 @@ describe('Console Order contracts', () => {
         return response({ order: pendingDetail });
       }
       if (url.pathname === `/api/console/orders/${otherOrder.reference}`) {
-        return response({
-          order: { ...pendingDetail, ...otherOrder, allowedActions: ['complete', 'cancel'], refundRequest: null, history: pendingDetail.history },
-        });
+        return response({ order: { ...pendingDetail, ...otherOrder } });
       }
-      if (url.pathname === '/api/console/orders') return response({ orders: [safeOrder, otherOrder], nextCursor: null, hasOrders: true });
+      if (url.pathname === '/api/console/orders') return response(listResponse([safeOrder, otherOrder]));
       throw new Error(`Unexpected request ${url.pathname}`);
     });
     window.history.replaceState({}, '', `/console/orders/${pendingDetail.reference}`);
@@ -304,87 +372,88 @@ describe('Console Order contracts', () => {
     expect(container.textContent).not.toContain('Ada Rivera');
   });
 
-  it('does not apply a late Complete of Order A onto Order B', async () => {
-    let releaseComplete: (() => void) | undefined;
-    const gate = new Promise<void>((resolve) => { releaseComplete = resolve; });
+  it('does not apply a late Mark Paid of Order A onto Order B', async () => {
+    let releasePaid: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => { releasePaid = resolve; });
     stubConsoleFetch(async (url, init) => {
       if (url.pathname === `/api/console/orders/${pendingDetail.reference}` && (!init || !init.method || init.method === 'GET')) {
         return response({ order: pendingDetail });
       }
       if (url.pathname === `/api/console/orders/${otherOrder.reference}` && (!init || !init.method || init.method === 'GET')) {
-        return response({
-          order: { ...pendingDetail, ...otherOrder, allowedActions: ['complete', 'cancel'], refundRequest: null, history: pendingDetail.history },
-        });
+        return response({ order: { ...pendingDetail, ...otherOrder } });
       }
-      if (url.pathname === `/api/console/orders/${pendingDetail.reference}/complete`) {
+      if (url.pathname === `/api/console/orders/${pendingDetail.reference}/payments/manual`) {
         await gate;
         return response({
           reference: pendingDetail.reference,
-          action: 'complete',
-          status: 'completed',
+          action: 'mark_paid',
+          status: 'paid',
           occurredAt: '2026-08-27T12:05:00.000Z',
+          paymentId: 'pay_1',
           refundRequest: null,
         });
       }
-      if (url.pathname === '/api/console/orders') {
-        return response({ orders: [safeOrder, otherOrder], nextCursor: null, hasOrders: true });
-      }
+      if (url.pathname === '/api/console/orders') return response(listResponse([safeOrder, otherOrder]));
       throw new Error(`Unexpected request ${url.pathname}`);
     });
     window.history.replaceState({}, '', `/console/orders/${pendingDetail.reference}`);
     await renderApp();
-    await openCompletePanel();
-    await confirmComplete();
+    await openMarkPaidPanel();
+    await confirmMarkPaid();
     window.history.pushState({}, '', `/console/orders/${otherOrder.reference}`);
     await act(async () => { window.dispatchEvent(new PopStateEvent('popstate')); });
     await waitUntil(() => container.querySelector('h1')?.textContent === otherOrder.reference);
-    const headingBeforeRelease = container.querySelector('h1')?.textContent;
-    expect(headingBeforeRelease).toBe(otherOrder.reference);
-    releaseComplete?.();
+    releasePaid?.();
     await flush();
     await flush();
     expect(container.querySelector('h1')?.textContent).toBe(otherOrder.reference);
     expect(container.textContent).toContain('Bea Nguyen');
     expect(container.textContent).not.toContain('Ada Rivera');
-    expect(container.textContent).toContain('Pending payment');
+    expect(container.textContent).toContain('Pending');
     expect(container.textContent).not.toContain('The outcome is not confirmed');
     expect(container.textContent).not.toContain('The action succeeded, but the latest Order could not be loaded.');
   });
 
-  it('retries Complete with the same idempotency key after an unknown outcome', async () => {
+  it('retries Mark Paid with the same key and frozen method/reference after an unknown outcome', async () => {
     const keys: string[] = [];
-    let completes = 0;
+    const bodies: string[] = [];
+    let posts = 0;
     stubConsoleFetch(async (url, init) => {
       if (url.pathname === `/api/console/orders/${pendingDetail.reference}` && (!init || !init.method || init.method === 'GET')) {
         return response({ order: pendingDetail });
       }
-      if (url.pathname === `/api/console/orders/${pendingDetail.reference}/complete`) {
-        completes += 1;
+      if (url.pathname === `/api/console/orders/${pendingDetail.reference}/payments/manual`) {
+        posts += 1;
         keys.push(new Headers(init?.headers).get('Idempotency-Key') ?? '');
-        expect(init?.body).toBe(JSON.stringify({ paymentConfirmed: true }));
+        bodies.push(String(init?.body ?? ''));
+        expect(new Headers(init?.headers).get('X-Nexus-Order-Contract')).toBe('2');
         expect(new Headers(init?.headers).get('If-Match')).toBeNull();
-        if (completes === 1) return errorResponse(503, 'order_operation_failed', 'The Order operation could not be completed.');
+        if (posts === 1) return errorResponse(503, 'order_operation_failed', 'The Order operation could not be completed.');
         return response({
           reference: pendingDetail.reference,
-          action: 'complete',
-          status: 'completed',
+          action: 'mark_paid',
+          status: 'paid',
           occurredAt: '2026-08-27T12:05:00.000Z',
+          paymentId: 'pay_1',
           refundRequest: null,
         });
       }
-      if (url.pathname === '/api/console/orders') return response({ orders: [], nextCursor: null, hasOrders: true });
+      if (url.pathname === '/api/console/orders') return response(listResponse([]));
       throw new Error(`Unexpected request ${url.pathname}`);
     });
     window.history.replaceState({}, '', `/console/orders/${pendingDetail.reference}`);
     await renderApp();
-    await openCompletePanel();
-    await confirmComplete();
+    await openMarkPaidPanel();
+    await confirmMarkPaid();
     await waitUntil(() => (container.textContent ?? '').includes('The outcome is not confirmed. Retry the same action.'));
     expect(buttonByName('Cancel')?.closest('.inline-actions')?.getAttribute('style')).toContain('display: none');
-    await act(async () => { buttonByName('Retry Complete')?.click(); });
+    expect(container.querySelector<HTMLInputElement>('#payment-method')?.disabled).toBe(true);
+    await act(async () => { buttonByName('Retry Mark Paid')?.click(); });
     await waitUntil(() => keys.length === 2);
     expect(keys[0]).toBe(keys[1]);
     expect(keys[0]?.length).toBeGreaterThanOrEqual(16);
+    expect(bodies[0]).toBe(bodies[1]);
+    expect(bodies[0]).toBe(JSON.stringify({ method: 'Bank transfer', reference: 'WIRE-1' }));
   });
 
   it('shows conflict copy and refetches after a stale opposing action', async () => {
@@ -394,10 +463,10 @@ describe('Console Order contracts', () => {
         return response({ order: detail });
       }
       if (url.pathname.endsWith('/cancel')) {
-        detail = completedDetail;
+        detail = paidDetail;
         return errorResponse(409, 'order_state_conflict', 'The Order state does not allow this action.');
       }
-      if (url.pathname === '/api/console/orders') return response({ orders: [], nextCursor: null, hasOrders: true });
+      if (url.pathname === '/api/console/orders') return response(listResponse([]));
       throw new Error(`Unexpected request ${url.pathname}`);
     });
     window.history.replaceState({}, '', `/console/orders/${pendingDetail.reference}`);
@@ -407,8 +476,9 @@ describe('Console Order contracts', () => {
     await waitUntil(() => Boolean(buttonByName('Confirm Cancel')));
     await act(async () => { buttonByName('Confirm Cancel')?.click(); });
     await waitUntil(() => (container.textContent ?? '').includes('The action was not applied. The Order has changed.'));
-    expect(container.textContent).toContain('Completed');
+    expect(container.textContent).toContain('Paid');
     expect(buttonByName('Cancel')).toBeUndefined();
+    expect(buttonByName('Fulfill')).not.toBeUndefined();
   });
 
   it('keeps the write acknowledgement when follow-up GET fails', async () => {
@@ -419,92 +489,93 @@ describe('Console Order contracts', () => {
         if (getCount === 1) return response({ order: pendingDetail });
         return errorResponse(500, 'order_operation_failed', 'The Order operation could not be completed.');
       }
-      if (url.pathname.endsWith('/complete')) {
+      if (url.pathname.endsWith('/payments/manual')) {
         return response({
           reference: pendingDetail.reference,
-          action: 'complete',
-          status: 'completed',
+          action: 'mark_paid',
+          status: 'paid',
           occurredAt: '2026-08-27T12:05:00.000Z',
+          paymentId: 'pay_1',
           refundRequest: null,
         });
       }
-      if (url.pathname === '/api/console/orders') return response({ orders: [], nextCursor: null, hasOrders: true });
+      if (url.pathname === '/api/console/orders') return response(listResponse([]));
       throw new Error(`Unexpected request ${url.pathname}`);
     });
     window.history.replaceState({}, '', `/console/orders/${pendingDetail.reference}`);
     await renderApp();
-    await openCompletePanel();
-    await confirmComplete();
+    await openMarkPaidPanel();
+    await confirmMarkPaid();
     await waitUntil(() => (container.textContent ?? '').includes('The action succeeded, but the latest Order could not be loaded.'));
     expect(container.textContent).toContain('Retry loading Order');
     expect(container.textContent).not.toContain('The outcome is not confirmed');
   });
 
   it('does not apply optimistic status before the server response', async () => {
-    let releaseComplete: (() => void) | undefined;
-    const gate = new Promise<void>((resolve) => { releaseComplete = resolve; });
+    let releasePaid: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => { releasePaid = resolve; });
     stubConsoleFetch(async (url, init) => {
       if (url.pathname === `/api/console/orders/${pendingDetail.reference}` && (!init || !init.method || init.method === 'GET')) {
         return response({ order: pendingDetail });
       }
-      if (url.pathname.endsWith('/complete')) {
+      if (url.pathname.endsWith('/payments/manual')) {
         await gate;
         return response({
           reference: pendingDetail.reference,
-          action: 'complete',
-          status: 'completed',
+          action: 'mark_paid',
+          status: 'paid',
           occurredAt: '2026-08-27T12:05:00.000Z',
+          paymentId: 'pay_1',
           refundRequest: null,
         });
       }
-      if (url.pathname === '/api/console/orders') return response({ orders: [], nextCursor: null, hasOrders: true });
+      if (url.pathname === '/api/console/orders') return response(listResponse([]));
       throw new Error(`Unexpected request ${url.pathname}`);
     });
     window.history.replaceState({}, '', `/console/orders/${pendingDetail.reference}`);
     await renderApp();
-    await openCompletePanel();
-    await confirmComplete();
-    expect(container.textContent).toContain('Pending payment');
-    expect(container.textContent).not.toContain('Completed');
-    releaseComplete?.();
+    await openMarkPaidPanel();
+    await confirmMarkPaid();
+    expect(container.querySelector('.status-tag')?.textContent).toBe('Pending');
+    expect(container.querySelector('.page-actions .status-tag')?.textContent).not.toBe('Paid');
+    releasePaid?.();
     await flush();
   });
 
-  it('describes pending Complete and Cancel only while payment is pending', async () => {
+  it('describes pending payment and Cancel only while the Order is pending', async () => {
     stubConsoleFetch(async (url) => {
       if (url.pathname === `/api/console/orders/${pendingDetail.reference}`) return response({ order: pendingDetail });
-      if (url.pathname === '/api/console/orders') return response({ orders: [safeOrder], nextCursor: null, hasOrders: true });
+      if (url.pathname === '/api/console/orders') return response(listResponse([safeOrder]));
       throw new Error(`Unexpected request ${url.pathname}`);
     });
     window.history.replaceState({}, '', `/console/orders/${pendingDetail.reference}`);
     await renderApp();
-    await waitUntil(() => Boolean(buttonByName('Complete')));
-    expect(container.textContent).toContain('Complete or Cancel only while the Order is still pending payment.');
+    await waitUntil(() => Boolean(buttonByName('Record manual payment')));
+    expect(container.textContent).toContain('Record a manual payment or Cancel only while the Order is still pending.');
   });
 
-  it('refreshes a hidden Console detail and drops stale Complete actions', async () => {
+  it('refreshes a hidden Console detail and drops stale payment actions', async () => {
     let gets = 0;
     stubConsoleFetch(async (url) => {
       if (url.pathname === `/api/console/orders/${pendingDetail.reference}`) {
         gets += 1;
-        return response({ order: gets === 1 ? pendingDetail : completedDetail });
+        return response({ order: gets === 1 ? pendingDetail : paidDetail });
       }
-      if (url.pathname === '/api/console/orders') return response({ orders: [safeOrder], nextCursor: null, hasOrders: true });
+      if (url.pathname === '/api/console/orders') return response(listResponse([safeOrder]));
       throw new Error(`Unexpected request ${url.pathname}`);
     });
     window.history.replaceState({}, '', `/console/orders/${pendingDetail.reference}`);
     await renderApp();
-    await waitUntil(() => Boolean(buttonByName('Complete')));
+    await waitUntil(() => Boolean(buttonByName('Record manual payment')));
     await act(async () => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
-    await waitUntil(() => buttonByName('Complete') == null);
-    expect(container.textContent).toContain('This Order is completed. Complete and Cancel are no longer available.');
-    expect(container.textContent).not.toContain('Complete or Cancel only while the Order is still pending payment.');
+    await waitUntil(() => buttonByName('Record manual payment') == null);
+    expect(container.textContent).toContain('This Order is paid.');
+    expect(buttonByName('Fulfill')).not.toBeUndefined();
   });
 
-
-  it('ignores a deferred pre-write GET that resolves after Complete', async () => {
+  it('ignores a deferred pre-write GET that resolves after Mark Paid', async () => {
     let gets = 0;
     let releaseStale: (() => void) | undefined;
     const staleGate = new Promise<void>((resolve) => { releaseStale = resolve; });
@@ -515,34 +586,105 @@ describe('Console Order contracts', () => {
           await staleGate;
           return response({ order: pendingDetail });
         }
-        return response({ order: gets === 1 ? pendingDetail : completedDetail });
+        return response({ order: gets === 1 ? pendingDetail : paidDetail });
       }
-      if (url.pathname.endsWith('/complete')) {
+      if (url.pathname.endsWith('/payments/manual')) {
         return response({
           reference: pendingDetail.reference,
-          action: 'complete',
-          status: 'completed',
+          action: 'mark_paid',
+          status: 'paid',
           occurredAt: '2026-08-27T12:05:00.000Z',
+          paymentId: 'pay_1',
           refundRequest: null,
         });
       }
-      if (url.pathname === '/api/console/orders') return response({ orders: [safeOrder], nextCursor: null, hasOrders: true });
+      if (url.pathname === '/api/console/orders') return response(listResponse([safeOrder]));
       throw new Error(`Unexpected request ${url.pathname}`);
     });
     window.history.replaceState({}, '', `/console/orders/${pendingDetail.reference}`);
     await renderApp();
-    await waitUntil(() => Boolean(buttonByName('Complete')));
+    await waitUntil(() => Boolean(buttonByName('Record manual payment')));
     await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
     await waitUntil(() => gets >= 2);
-    await openCompletePanel();
-    await confirmComplete();
-    await waitUntil(() => (container.textContent ?? '').includes('This Order is completed. Complete and Cancel are no longer available.'));
+    await openMarkPaidPanel();
+    await confirmMarkPaid();
+    await waitUntil(() => (container.textContent ?? '').includes('This Order is paid.'));
     releaseStale?.();
     await flush();
     await flush();
-    expect(buttonByName('Complete')).toBeUndefined();
-    expect(container.textContent).toContain('Completed');
-    expect(container.textContent).not.toContain('Complete or Cancel only while the Order is still pending payment.');
+    expect(buttonByName('Record manual payment')).toBeUndefined();
+    expect(container.textContent).toContain('Paid');
   });
 
+  it('shows reload guidance for an outdated contract and does not retry the mutation', async () => {
+    const posts: string[] = [];
+    stubConsoleFetch(async (url, init) => {
+      if (url.pathname === `/api/console/orders/${pendingDetail.reference}` && (!init || !init.method || init.method === 'GET')) {
+        return response({ order: pendingDetail });
+      }
+      if (url.pathname.endsWith('/payments/manual')) {
+        posts.push(String(init?.body ?? ''));
+        return errorResponse(409, 'client_contract_outdated', 'This client is out of date. Reload the page and try again.');
+      }
+      throw new Error(`Unexpected request ${url.pathname}`);
+    });
+    window.history.replaceState({}, '', `/console/orders/${pendingDetail.reference}`);
+    await renderApp();
+    await openMarkPaidPanel();
+    await confirmMarkPaid();
+    await waitUntil(() => (container.textContent ?? '').includes('This Console is out of date'));
+    expect(buttonByName('Mark Paid')).toBeUndefined();
+    expect(buttonByName('Retry Mark Paid')).toBeUndefined();
+    expect(posts).toHaveLength(1);
+  });
+
+  it('closes an open Mark Paid panel when refresh drops the action', async () => {
+    let gets = 0;
+    stubConsoleFetch(async (url) => {
+      if (url.pathname === `/api/console/orders/${pendingDetail.reference}`) {
+        gets += 1;
+        return response({ order: gets === 1 ? pendingDetail : paidDetail });
+      }
+      if (url.pathname === '/api/console/orders') return response(listResponse([safeOrder]));
+      throw new Error(`Unexpected request ${url.pathname}`);
+    });
+    window.history.replaceState({}, '', `/console/orders/${pendingDetail.reference}`);
+    await renderApp();
+    await openMarkPaidPanel();
+    expect(container.querySelector('#mark-paid-title')).not.toBeNull();
+    await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
+    await waitUntil(() => container.querySelector('#mark-paid-title') == null);
+    expect(buttonByName('Mark Paid')).toBeUndefined();
+    expect(buttonByName('Record manual payment')).toBeUndefined();
+    expect(buttonByName('Fulfill')).not.toBeUndefined();
+  });
+
+  it('closes the open panel on GET contract-outdated and does not POST', async () => {
+    const posts: string[] = [];
+    let gets = 0;
+    stubConsoleFetch(async (url, init) => {
+      if (url.pathname === `/api/console/orders/${pendingDetail.reference}` && (!init || !init.method || init.method === 'GET')) {
+        gets += 1;
+        if (gets === 1) return response({ order: pendingDetail });
+        return errorResponse(409, 'client_contract_outdated', 'This client is out of date. Reload the page and try again.');
+      }
+      if (url.pathname.endsWith('/payments/manual') || url.pathname.endsWith('/fulfill') || url.pathname.endsWith('/cancel')) {
+        posts.push(url.pathname);
+        return errorResponse(409, 'client_contract_outdated', 'This client is out of date. Reload the page and try again.');
+      }
+      if (url.pathname === '/api/console/orders') return response(listResponse([safeOrder]));
+      throw new Error(`Unexpected request ${url.pathname}`);
+    });
+    window.history.replaceState({}, '', `/console/orders/${pendingDetail.reference}`);
+    await renderApp();
+    await openMarkPaidPanel();
+    await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
+    await waitUntil(() => (container.textContent ?? '').includes('This Console is out of date'));
+    expect(container.querySelector('#mark-paid-title')).toBeNull();
+    expect(buttonByName('Mark Paid')).toBeUndefined();
+    expect(buttonByName('Confirm Fulfill')).toBeUndefined();
+    expect(buttonByName('Confirm Cancel')).toBeUndefined();
+    await act(async () => { buttonByName('Fulfill')?.click(); buttonByName('Cancel')?.click(); });
+    expect(posts).toHaveLength(0);
+  });
 });

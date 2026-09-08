@@ -194,6 +194,14 @@ p { line-height: 1.6; text-wrap: pretty; }
 .refund-reason { white-space: pre-wrap; }
 .character-count { color: var(--color-ink-muted); font-size: var(--type-compact); }
 
+.cart-review { display: grid; gap: var(--space-3); }
+.cart-lines { display: grid; gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
+.cart-lines li { display: grid; gap: var(--space-3); min-width: 0; padding-block-end: var(--space-3); border-block-end: var(--border) solid var(--color-border); }
+.order-item-list { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.order-item-list li { display: grid; gap: var(--space-1); min-width: 0; }
+.inline-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+
+
 @media (max-width: 56rem) {
   .storefront-workspace { grid-template-columns: 1fr; }
   .purchase-ledger { max-width: 44rem; }

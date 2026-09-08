@@ -1,23 +1,27 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 const CONSOLE_ORIGIN = process.env.PLAYWRIGHT_API_CONSOLE_BASE_URL ?? 'http://127.0.0.1:5173';
 const STOREFRONT_ORIGIN = process.env.PLAYWRIGHT_STOREFRONT_BASE_URL ?? 'http://127.0.0.1:5174';
 
 interface CustomerOrderResponse {
   reference: string;
-  status: 'pending_payment' | 'completed' | 'cancelled';
-  product: {
-    name: string;
-    variant: null | {
-      sku: string;
-      selectedOptions: Array<{ groupName: string; valueLabel: string }>;
+  paymentReference: string;
+  status: 'pending' | 'paid' | 'fulfilled' | 'canceled';
+  items: Array<{
+    product: {
+      name: string;
+      variant: null | {
+        sku: string;
+        selectedOptions: Array<{ groupName: string; valueLabel: string }>;
+      };
     };
-  };
-  quantity: number;
-  unitPriceMinor: number;
+    quantity: number;
+    unitPriceMinor: number;
+    lineTotalMinor: number;
+  }>;
   totalMinor: number;
   currency: string;
   createdAt: string;
@@ -53,13 +57,14 @@ async function createSimpleProduct(page: Page, name: string): Promise<string> {
 
 
 async function completeOrder(page: Page, reference: string) {
-  const response = await page.request.post(`${CONSOLE_ORIGIN}/api/console/orders/${encodeURIComponent(reference)}/complete`, {
+  const response = await page.request.post(`${CONSOLE_ORIGIN}/api/console/orders/${encodeURIComponent(reference)}/payments/manual`, {
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
       'Idempotency-Key': crypto.randomUUID(),
+      'X-Nexus-Order-Contract': '2',
     },
-    data: { paymentConfirmed: true },
+    data: { method: 'Bank transfer', reference: `WIRE-${reference.slice(-8)}` },
   });
   expect(response.status()).toBe(200);
 }
@@ -70,6 +75,7 @@ async function cancelOrder(page: Page, reference: string) {
       Accept: 'application/json',
       'Content-Type': 'application/json',
       'Idempotency-Key': crypto.randomUUID(),
+      'X-Nexus-Order-Contract': '2',
     },
     data: {},
   });
@@ -125,6 +131,100 @@ async function expectNoHorizontalOverflow(page: Page, width: number) {
   expect(dimensions.bodyScroll).toBeLessThanOrEqual(dimensions.client);
 }
 
+interface OrderItemLine {
+  name: string;
+  quantity: number;
+  unitPriceMinor: number;
+  lineTotalMinor: number;
+  currency: string;
+}
+
+function orderItemLines(body: CustomerOrderResponse): OrderItemLine[] {
+  return body.items.map((item) => ({
+    name: item.product.name,
+    quantity: item.quantity,
+    unitPriceMinor: item.unitPriceMinor,
+    lineTotalMinor: item.lineTotalMinor,
+    currency: body.currency,
+  }));
+}
+
+async function expectUsableOrderItemSnapshots(page: Page, items: OrderItemLine[]) {
+  const expected = await page.evaluate((rows) => rows.map((item) => ({
+    name: item.name,
+    quantity: String(item.quantity),
+    unitPrice: `${new Intl.NumberFormat(undefined, { style: 'currency', currency: item.currency }).format(item.unitPriceMinor / 100)} ${item.currency}`,
+    lineTotal: `${new Intl.NumberFormat(undefined, { style: 'currency', currency: item.currency }).format(item.lineTotalMinor / 100)} ${item.currency}`,
+  })), items);
+  const table = page.locator('.order-items-table');
+  const mobile = page.locator('.order-items-mobile');
+  const metricsOf = (locator: Locator) => locator.evaluate((el) => {
+    const style = getComputedStyle(el);
+    const rect = el.getBoundingClientRect();
+    return { display: style.display, visibility: style.visibility, width: rect.width, height: rect.height };
+  });
+  const tableMetrics = await metricsOf(table);
+  const mobileMetrics = await metricsOf(mobile);
+  const tableUsable = tableMetrics.display !== 'none' && tableMetrics.visibility !== 'hidden' && tableMetrics.width > 8 && tableMetrics.height > 8;
+  const mobileUsable = mobileMetrics.display !== 'none' && mobileMetrics.visibility !== 'hidden' && mobileMetrics.width > 8 && mobileMetrics.height > 8;
+  expect(tableUsable).not.toBe(mobileUsable);
+  expect(tableUsable || mobileUsable).toBe(true);
+  const rows = tableUsable ? table.locator('tbody tr') : mobile.locator('.order-summary-card');
+  await expect(rows).toHaveCount(expected.length);
+  for (const line of expected) {
+    const row = rows.filter({ hasText: line.name });
+    await expect(row).toBeVisible();
+    await expect(row).toContainText(line.quantity);
+    await expect(row).toContainText(line.unitPrice);
+    await expect(row).toContainText(line.lineTotal);
+    const metrics = await metricsOf(row);
+    expect(metrics.display).not.toBe('none');
+    expect(metrics.visibility).not.toBe('hidden');
+    expect(metrics.width).toBeGreaterThan(8);
+    expect(metrics.height).toBeGreaterThan(8);
+  }
+}
+
+const PHASE5_EVIDENCE = path.join('plans', '260908-1845-s3-brief-reconciliation', 'reports', 'evidence-phase-05');
+
+async function tabUntilFocused(page: Page, locator: Locator, limit = 40) {
+  for (let index = 0; index < limit; index += 1) {
+    if (await locator.evaluate((element) => element === document.activeElement).catch(() => false)) return;
+    await page.keyboard.press('Tab');
+  }
+  await expect(locator).toBeFocused();
+}
+
+async function redactVisibleEmails(page: Page) {
+  await page.evaluate(() => {
+    for (const node of document.querySelectorAll('body *')) {
+      if (!node.childElementCount && /@/.test(node.textContent ?? '')) {
+        node.textContent = '[redacted-email]';
+      }
+    }
+    for (const field of document.querySelectorAll('input, textarea')) {
+      if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) continue;
+      if (/@/.test(field.value)) field.value = '[redacted-email]';
+    }
+  });
+}
+
+async function capturePage(page: Page, locator: Locator, filename: string) {
+  mkdirSync(PHASE5_EVIDENCE, { recursive: true });
+  await redactVisibleEmails(page);
+  await locator.screenshot({ path: path.join(PHASE5_EVIDENCE, filename) });
+}
+
+async function addCatalogLine(page: Page, input: { productName: string; quantity: string; variantLabel?: string }) {
+  const product = page.locator('.catalog-row').filter({ hasText: input.productName });
+  await expect(product).toBeVisible();
+  await product.locator('button.catalog-choice').click();
+  if (input.variantLabel) await page.getByLabel('Format').selectOption({ label: input.variantLabel });
+  await page.locator('#checkout-quantity').fill(input.quantity);
+  await page.getByRole('button', { name: 'Add to Order' }).click();
+  await expect(page.locator('#checkout-cart')).toContainText(input.productName);
+}
+
 function queryLocalOrderGraph(reference: string): {
   status: string;
   history_count: number;
@@ -166,7 +266,8 @@ async function placeOrder(
   await expect(product).toBeVisible();
   await product.locator('button.catalog-choice').click();
   if (input.variantLabel) await page.getByLabel('Format').selectOption({ label: input.variantLabel });
-  await page.getByLabel('Quantity').fill(input.quantity);
+  await page.locator('#checkout-quantity').fill(input.quantity);
+  await page.getByRole('button', { name: 'Add to Order' }).click();
   await page.getByLabel('Name').fill('Demo Customer');
   await page.getByLabel('Email').fill('demo.customer@example.test');
 
@@ -180,14 +281,13 @@ async function placeOrder(
   const body = await createResponse.json() as CustomerOrderResponse;
 
   expect(body.reference).toMatch(/^NX-[A-F0-9]{16}$/);
-  expect(body.status).toBe('pending_payment');
+  expect(body.status).toBe('pending');
   expect(Number.isNaN(Date.parse(body.createdAt))).toBe(false);
   expect(containsPrivateProjectionKey(body)).toBe(false);
 
   await expect(page.getByRole('heading', { name: input.productName })).toBeVisible();
   await expect(page.getByText(`Order ${body.reference}`)).toBeVisible();
-  await expect(page.getByText('Pending payment')).toBeVisible();
-
+  await expect(page.locator('.order-status')).toHaveText('Pending');
   const orderUrl = new URL(page.url());
   const capability = new URLSearchParams(orderUrl.hash.slice(1)).get('capability') ?? '';
   expect(orderUrl.origin === STOREFRONT_ORIGIN).toBe(true);
@@ -235,9 +335,9 @@ test('creates a Simple Order with server authority, fragment-only private reload
   await consolePage.close();
 
   const order = await placeOrder(page, { productName: editedName, quantity: '2' });
-  expect(order.body.product.variant === null).toBe(true);
-  expect(order.body.quantity).toBe(2);
-  expect(order.body.unitPriceMinor).toBe(1995);
+  expect(order.body.items[0].product.variant === null).toBe(true);
+  expect(order.body.items[0].quantity).toBe(2);
+  expect(order.body.items[0].unitPriceMinor).toBe(1995);
   expect(order.body.totalMinor).toBe(3990);
   expect(order.body.currency).toBe('USD');
 
@@ -249,9 +349,8 @@ test('creates a Simple Order with server authority, fragment-only private reload
   await expect(page.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
   await page.goto(`${CONSOLE_ORIGIN}/console/orders/${order.body.reference}`);
   await expect(page.getByRole('heading', { name: order.body.reference })).toBeVisible();
-  const snapshot = page.locator('.order-detail-fields');
-  await expect(snapshot).toContainText(editedName);
-  await expect(snapshot).not.toContainText(driftedName);
+  await expect(page.locator('.order-items-table')).toContainText(editedName);
+  await expect(page.locator('.order-items-table')).not.toContainText(driftedName);
 });
 
 
@@ -266,11 +365,11 @@ test('creates an enabled Variant Order and keeps the 375px catalog and private O
   await expectNoHorizontalOverflow(page, 375);
 
   const order = await placeOrder(page, { productName, quantity: '2', variantLabel: 'PDF' });
-  expect(order.body.product.variant !== null).toBe(true);
-  expect(order.body.product.variant?.selectedOptions.some((option) => option.groupName === 'Format' && option.valueLabel === 'PDF')).toBe(true);
-  expect(order.body.product.variant?.sku.endsWith('-PDF')).toBe(true);
-  expect(order.body.quantity).toBe(2);
-  expect(order.body.unitPriceMinor).toBe(3950);
+  expect(order.body.items[0].product.variant !== null).toBe(true);
+  expect(order.body.items[0].product.variant?.selectedOptions.some((option) => option.groupName === 'Format' && option.valueLabel === 'PDF')).toBe(true);
+  expect(order.body.items[0].product.variant?.sku.endsWith('-PDF')).toBe(true);
+  expect(order.body.items[0].quantity).toBe(2);
+  expect(order.body.items[0].unitPriceMinor).toBe(3950);
   expect(order.body.totalMinor).toBe(7900);
   expect(order.body.currency).toBe('USD');
   await expectNoHorizontalOverflow(page, 375);
@@ -292,7 +391,7 @@ test('does not show a refund form on pending or cancelled private Orders', async
   await expect(page.getByLabel('Reason for refund request')).toHaveCount(0);
   await cancelOrder(page, pendingPaid.body.reference);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.getByText('This Order has been cancelled.')).toBeVisible();
+  await expect(page.getByText('This Order has been canceled.')).toBeVisible();
   await expect(page.getByLabel('Reason for refund request')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Payment next step' })).toHaveCount(0);
 
@@ -301,7 +400,7 @@ test('does not show a refund form on pending or cancelled private Orders', async
   expect(pendingZero.body.totalMinor).toBe(0);
   await cancelOrder(page, pendingZero.body.reference);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.getByText('This Order has been cancelled.')).toBeVisible();
+  await expect(page.getByText('This Order has been canceled.')).toBeVisible();
   await expect(page.getByLabel('Reason for refund request')).toHaveCount(0);
 });
 
@@ -312,7 +411,7 @@ test('requests a refund on completed zero and paid Orders without overflowing 37
   const paid = await placeOrder(page, { productName: paidName, quantity: '1' });
   await completeOrder(page, paid.body.reference);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.getByText('This Order has been completed. This page does not deliver files or pay out a refund.')).toBeVisible();
+  await expect(page.getByText('This Order is paid. This page does not deliver files or pay out a refund.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Payment next step' })).toHaveCount(0);
 
   await page.getByLabel('Reason for refund request').fill('Please reverse this purchase.');
@@ -412,7 +511,7 @@ test('retries a committed refund after response loss without a second D1 row', a
 
   const afterCommit = queryLocalOrderGraph(placed.body.reference);
   expect(afterCommit).toMatchObject({
-    status: 'completed',
+    status: 'paid',
     refund_events: 1,
     refund_count: 1,
   });
@@ -450,4 +549,148 @@ test('reaches the refund textarea by keyboard on 375px without overflow', async 
     }
   });
   await page.locator('.order-ledger').screenshot({ path: path.join(evidenceDir, 'ui-01-storefront-refund-375.png') });
+});
+
+test('places one Order with a Simple and Variant Product, then Marks Paid, Fulfills, and canonicalizes a Customer refund', async ({ page }) => {
+  test.setTimeout(180_000);
+  const token = uniqueToken();
+  const simpleName = `Verify E2E Two Simple ${token}`;
+  const variantName = `Verify E2E Two Variant ${token}`;
+  await createSimpleProduct(page, simpleName);
+  await createVariantProduct(page, variantName, token);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(STOREFRONT_ORIGIN);
+  await addCatalogLine(page, { productName: simpleName, quantity: '1' });
+  await addCatalogLine(page, { productName: variantName, quantity: '1', variantLabel: 'PDF' });
+  await page.getByLabel('Name').fill('Two Line Customer');
+  await page.getByLabel('Email').fill('two.line.customer@example.test');
+  await page.locator('#checkout-quantity').focus();
+  await tabUntilFocused(page, page.getByLabel('Name'));
+  await tabUntilFocused(page, page.getByLabel('Email'));
+  await expectNoHorizontalOverflow(page, 1280);
+  await capturePage(page, page.locator('.purchase-ledger'), 'ui-02-storefront-cart-1280.png');
+
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(page.locator('#checkout-cart')).toContainText(simpleName);
+  await expect(page.locator('#checkout-cart')).toContainText(variantName);
+  await expectNoHorizontalOverflow(page, 375);
+  await capturePage(page, page.locator('.purchase-ledger'), 'ui-02-storefront-cart-375.png');
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const createPosts: string[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (request.method() === 'POST' && url.origin === CONSOLE_ORIGIN && url.pathname === '/api/storefront/orders') {
+      createPosts.push(request.url());
+    }
+  });
+  const createResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === 'POST' && url.origin === CONSOLE_ORIGIN && url.pathname === '/api/storefront/orders';
+  });
+  await page.getByRole('button', { name: 'Place Order' }).click();
+  const createResponse = await createResponsePromise;
+  expect(createResponse.status()).toBe(201);
+  const body = await createResponse.json() as CustomerOrderResponse;
+  expect(body.items).toHaveLength(2);
+  expect(body.items.map((item) => item.product.name).sort()).toEqual([simpleName, variantName].sort());
+  expect(body.items.some((item) => item.product.variant === null)).toBe(true);
+  expect(body.items.some((item) => item.product.variant?.selectedOptions.some((option) => option.groupName === 'Format' && option.valueLabel === 'PDF'))).toBe(true);
+  expect(body.totalMinor).toBe(1995 + 3950);
+  expect(body.currency).toBe('USD');
+  expect(body.paymentReference.length).toBeGreaterThan(0);
+  expect(containsPrivateProjectionKey(body)).toBe(false);
+  expect(createPosts).toHaveLength(1);
+
+  await expect(page.getByText(`Order ${body.reference}`)).toBeVisible();
+  await expect(page.locator('.order-item-list')).toContainText(simpleName);
+  await expect(page.locator('.order-item-list')).toContainText(variantName);
+  await expect(page.getByText(body.paymentReference)).toBeVisible();
+  await expect(page.locator('.total-line')).toContainText('$59.45');
+  await expectNoHorizontalOverflow(page, 1280);
+  await capturePage(page, page.locator('.order-ledger'), 'ui-02-storefront-private-1280.png');
+  const privateUrl = new URL(page.url());
+  const capability = new URLSearchParams(privateUrl.hash.slice(1)).get('capability') ?? '';
+  expect(privateUrl.origin).toBe(STOREFRONT_ORIGIN);
+  expect(privateUrl.pathname).toBe(`/orders/${body.reference}`);
+  expect(capability.length).toBeGreaterThanOrEqual(32);
+
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(page.locator('.order-item-list')).toContainText(simpleName);
+  await expectNoHorizontalOverflow(page, 375);
+  await capturePage(page, page.locator('.order-ledger'), 'ui-02-storefront-private-375.png');
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${CONSOLE_ORIGIN}/console/orders`);
+  await expect(page.getByRole('heading', { name: 'Orders' })).toBeVisible();
+  await page.getByLabel('Search Orders').fill(body.reference);
+  await page.getByRole('button', { name: 'Search' }).click();
+  await expect(page.getByRole('link', { name: body.reference })).toBeVisible();
+  await expect(page.locator('.orders-table, .order-summary-card').first()).toContainText('+ 1 more');
+  await expect(page.getByText(body.paymentReference).first()).toBeVisible();
+  await capturePage(page, page.locator('.page-stack'), 'ui-02-console-inbox-1280.png');
+
+  await page.getByRole('link', { name: body.reference }).click();
+  await expect(page.getByRole('heading', { name: body.reference })).toBeVisible();
+  await expectUsableOrderItemSnapshots(page, orderItemLines(body));
+  await expect(page.getByText(body.paymentReference).first()).toBeVisible();
+  await expect(page.locator('.order-total').first()).toContainText('$59.45');
+  await tabUntilFocused(page, page.getByRole('button', { name: 'Record manual payment' }));
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Record manual payment' })).toBeVisible();
+  await tabUntilFocused(page, page.getByLabel('Payment method'));
+  await page.getByLabel('Payment method').fill('Bank transfer');
+  await tabUntilFocused(page, page.getByLabel('External payment reference'));
+  await page.getByLabel('External payment reference').fill(`WIRE-${body.reference.slice(-8)}`);
+  await tabUntilFocused(page, page.getByLabel('I confirm an external receipt exists for this exact total and currency.'));
+  await page.keyboard.press('Space');
+  await expectNoHorizontalOverflow(page, 1280);
+  await capturePage(page, page.locator('.page-stack'), 'ui-03-console-detail-1280.png');
+  await page.getByRole('button', { name: 'Mark Paid' }).click();
+  await expect(page.locator('.status-tag.status-active')).toContainText('Paid');
+  await page.getByRole('button', { name: 'Fulfill' }).click();
+  await expect(page.getByRole('heading', { name: 'Confirm Fulfill' })).toBeVisible();
+  await page.getByRole('button', { name: 'Confirm Fulfill' }).click();
+  await expect(page.locator('.status-tag.status-active')).toContainText('Fulfilled');
+  await expect(page.getByText('This is an operational status change only')).toHaveCount(0);
+  await capturePage(page, page.locator('.page-stack'), 'ui-02-console-fulfilled-1280.png');
+
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(`${CONSOLE_ORIGIN}/console/orders`);
+  await page.getByLabel('Search Orders').fill(body.reference);
+  await page.getByRole('button', { name: 'Search' }).click();
+  await expect(page.getByRole('link', { name: body.reference })).toBeVisible();
+  await expectNoHorizontalOverflow(page, 375);
+  await capturePage(page, page.locator('.page-stack'), 'ui-02-console-inbox-375.png');
+  await page.getByRole('link', { name: body.reference }).click();
+  await expect(page.getByRole('heading', { name: body.reference })).toBeVisible();
+  await expectUsableOrderItemSnapshots(page, orderItemLines(body));
+  await expectNoHorizontalOverflow(page, 375);
+  await capturePage(page, page.locator('.page-stack'), 'ui-03-console-detail-375.png');
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${STOREFRONT_ORIGIN}/orders/${encodeURIComponent(body.reference)}#capability=${encodeURIComponent(capability)}`);
+  await expect(page.locator('.order-status')).toHaveText('Fulfilled');
+  await expect(page.getByText('This Order is fulfilled. This page does not deliver files or pay out a refund.')).toBeVisible();
+  await expect(page.locator('.order-item-list')).toContainText(simpleName);
+  await expect(page.locator('.order-item-list')).toContainText(variantName);
+  await expect(page.getByText(body.paymentReference)).toBeVisible();
+  const refundReason = 'Customer asks to reverse this two-product Order.';
+  await page.getByRole('button', { name: 'Back to catalog' }).focus();
+  await tabUntilFocused(page, page.getByLabel('Reason for refund request'));
+  await page.getByLabel('Reason for refund request').fill(refundReason);
+  await page.getByRole('button', { name: 'Send refund request' }).click();
+  await expect(page.getByRole('heading', { name: 'Refund request pending' })).toBeVisible();
+  await expect(page.getByText(refundReason)).toBeVisible();
+  await expect(page.getByLabel('Reason for refund request')).toHaveCount(0);
+  await capturePage(page, page.locator('.order-ledger'), 'ui-02-storefront-refund-1280.png');
+
+  await page.goto(`${CONSOLE_ORIGIN}/console/orders/${body.reference}`);
+  await expect(page.getByRole('heading', { name: body.reference })).toBeVisible();
+  await expect(page.getByText(refundReason, { exact: true })).toBeVisible();
+  await expect(page.getByText('Refund request pending').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Request refund for Customer' })).toHaveCount(0);
+  await expect(page.locator('#console-refund-reason')).toHaveCount(0);
+  await capturePage(page, page.locator('.page-stack'), 'ui-02-console-existing-refund-1280.png');
 });

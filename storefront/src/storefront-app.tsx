@@ -8,16 +8,27 @@ import {
   StorefrontApiError,
 } from './api-client';
 import type {
+  CustomerOrderItemView,
   CustomerOrderView,
-  OrderAttemptIdentity,
+  FrozenCreateAttempt,
   StorefrontCatalog,
   StorefrontProduct,
 } from './storefront-view-types';
 
-
 type CatalogState = 'loading' | 'ready' | 'empty' | 'error';
 type OrderRoute = { kind: 'catalog' } | { kind: 'order'; reference: string; capability: string | null };
-type FieldErrors = Partial<Record<'variant' | 'quantity' | 'name' | 'email', string>>;
+type FieldErrors = Partial<Record<'variant' | 'quantity' | 'name' | 'email' | 'cart', string>>;
+
+interface CartLine {
+  key: string;
+  productId: string;
+  productName: string;
+  currency: string;
+  variantId: string | null;
+  variantLabel: string;
+  quantity: number;
+  unitPriceMinor: number;
+}
 
 function parseRoute(): OrderRoute {
   const match = /^\/orders\/([^/]+)\/?$/.exec(window.location.pathname);
@@ -33,14 +44,16 @@ function money(minor: number, currency: string): string {
 }
 
 const STATUS_LABEL = {
-  pending_payment: 'Pending payment',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
+  pending: 'Pending',
+  paid: 'Paid',
+  fulfilled: 'Fulfilled',
+  canceled: 'Canceled',
 } as const;
 
 const REASON_INVALID = 'Enter a reason using 1 to 1000 characters.';
-
-const COMPLETED_STATUS_COPY = 'This Order has been completed. This page does not deliver files or pay out a refund.';
+const MIXED_CURRENCY = 'This cart mixes currencies. Remove lines until every Product uses one currency. The server remains the final authority.';
+const PAID_STATUS_COPY = 'This Order is paid. This page does not deliver files or pay out a refund.';
+const FULFILLED_STATUS_COPY = 'This Order is fulfilled. This page does not deliver files or pay out a refund.';
 const REFUND_REQUEST_INTRO = 'You can send one refund request. Sending a request does not issue a refund.';
 
 function validateRefundReason(value: string): string | null {
@@ -54,6 +67,11 @@ function validateRefundReason(value: string): string | null {
   return null;
 }
 
+function itemSelection(item: CustomerOrderItemView): string {
+  if (!item.product.variant) return 'Simple Product';
+  const options = item.product.variant.selectedOptions.map((option) => `${option.groupName}: ${option.valueLabel}`).join(', ');
+  return options ? `${options} · SKU ${item.product.variant.sku}` : `SKU ${item.product.variant.sku}`;
+}
 
 function CatalogProduct({
   product,
@@ -96,6 +114,7 @@ function PrivateOrderPage({
   const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'retry' | 'conflict'>('idle');
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [refreshFailed, setRefreshFailed] = useState(false);
+  const [contractOutdated, setContractOutdated] = useState(false);
   const attemptRef = useRef<{ reference: string; key: string; reason: string } | null>(null);
   const readAbortRef = useRef<AbortController | null>(null);
   const readEpochRef = useRef(0);
@@ -126,10 +145,20 @@ function PrivateOrderPage({
         setLoadedGeneration(generation);
         setState('ready');
         setRefreshFailed(false);
+        setContractOutdated(false);
       })
       .catch((error) => {
         if (error instanceof DOMException && error.name === 'AbortError') return;
         if (epoch !== readEpochRef.current) return;
+        if (error instanceof StorefrontApiError && error.code === 'client_contract_outdated') {
+          setContractOutdated(true);
+          if (mode === 'ack-refresh') {
+            setRefreshFailed(true);
+            return;
+          }
+          setState('error');
+          return;
+        }
         if (mode === 'ack-refresh') {
           setRefreshFailed(true);
           return;
@@ -148,6 +177,7 @@ function PrivateOrderPage({
     setSubmitState('idle');
     setSubmitMessage(null);
     setRefreshFailed(false);
+    setContractOutdated(false);
     load('page');
     return () => {
       controller.abort();
@@ -167,9 +197,13 @@ function PrivateOrderPage({
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [load]);
 
-  const submitRefund = async (event: FormEvent) => {
+  const refundEligible = (candidate: CustomerOrderView) => (
+    (candidate.status === 'paid' || candidate.status === 'fulfilled') && candidate.refundRequest == null
+  );
+
+  const submitRefund = async (event: { preventDefault: () => void }) => {
     event.preventDefault();
-    if (!route.capability || !order || order.status !== 'completed' || order.refundRequest) return;
+    if (!route.capability || !order || !refundEligible(order) || contractOutdated || submitState === 'submitting') return;
     const existing = attemptRef.current;
     const candidate = existing?.reason ?? reason;
     if (!existing) {
@@ -210,6 +244,12 @@ function PrivateOrderPage({
       load('ack-refresh');
     } catch (error) {
       if (pageAbortRef.current?.signal.aborted) return;
+      if (error instanceof StorefrontApiError && error.code === 'client_contract_outdated') {
+        setContractOutdated(true);
+        setSubmitState('idle');
+        setSubmitMessage('This Storefront is out of date. Reload the page and try again.');
+        return;
+      }
       if (error instanceof StorefrontApiError && error.status === 422) {
         attemptRef.current = null;
         setSubmitState('idle');
@@ -248,51 +288,67 @@ function PrivateOrderPage({
       <button className="text-action" type="button" onClick={onBack}>Back to catalog</button>
       {state === 'loading' ? <div className="order-ledger loading-ledger" aria-label="Loading Order" aria-busy="true"><span /><span /><span /></div> : null}
       {state === 'missing-capability' ? <div className="storefront-notice storefront-error" role="alert"><h1>Private Order link required</h1><p>Open the complete link provided after checkout to view this Order.</p></div> : null}
-      {state === 'error' ? <div className="storefront-notice storefront-error" role="alert"><h1>Order could not be loaded</h1><p>The private Order is unavailable. Retry without changing the link.</p><button className="secondary-action" type="button" onClick={() => load()}>Retry Order</button></div> : null}
+      {state === 'error' ? (
+        <div className="storefront-notice storefront-error" role="alert">
+          <h1>{contractOutdated ? 'This Storefront is out of date' : 'Order could not be loaded'}</h1>
+          <p>{contractOutdated ? 'Reload the page and try again. This client will not retry the previous Order request.' : 'The private Order is unavailable. Retry without changing the link.'}</p>
+          {contractOutdated
+            ? <button className="secondary-action" type="button" onClick={() => { window.location.reload(); }}>Reload Storefront</button>
+            : <button className="secondary-action" type="button" onClick={() => load()}>Retry Order</button>}
+        </div>
+      ) : null}
       {visibleOrder ? (
         <article className="order-ledger" aria-labelledby="order-title">
           <header>
             <div>
               <p className="ledger-label">Order {visibleOrder.reference}</p>
-              <h1 id="order-title">{visibleOrder.product.name}</h1>
+              <h1 id="order-title">{visibleOrder.items[0]?.product.name ?? 'Order'}</h1>
             </div>
             <span className="order-status">{STATUS_LABEL[visibleOrder.status]}</span>
           </header>
-          {visibleOrder.product.variant ? (
-            <section>
-              <h2>Selection</h2>
-              <p className="variant-sku">SKU {visibleOrder.product.variant.sku}</p>
-              <dl>{visibleOrder.product.variant.selectedOptions.map((option) => <div key={option.groupId}><dt>{option.groupName}</dt><dd>{option.valueLabel}</dd></div>)}</dl>
-            </section>
-          ) : (
-            <section><h2>Selection</h2><p>Simple Product</p></section>
-          )}
+          <section>
+            <h2>Items</h2>
+            <ul className="order-item-list">
+              {visibleOrder.items.map((item) => (
+                <li key={item.id}>
+                  <strong>{item.product.name}</strong>
+                  <p>{itemSelection(item)}</p>
+                  <p className="numeric">{item.quantity} × {money(item.unitPriceMinor, item.currency)} = {money(item.lineTotalMinor, item.currency)} {item.currency}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
           <section className="amount-ledger">
             <dl>
-              <div><dt>Quantity</dt><dd className="numeric">{visibleOrder.quantity}</dd></div>
-              <div><dt>Unit price</dt><dd className="numeric">{money(visibleOrder.unitPriceMinor, visibleOrder.currency)}</dd></div>
-              <div className="total-line"><dt>Total</dt><dd className="numeric">{money(visibleOrder.totalMinor, visibleOrder.currency)}</dd></div>
+              <div><dt>Payment reference</dt><dd>{visibleOrder.paymentReference}</dd></div>
+              <div className="total-line"><dt>Total</dt><dd className="numeric">{money(visibleOrder.totalMinor, visibleOrder.currency)} {visibleOrder.currency}</dd></div>
             </dl>
           </section>
-          {visibleOrder.status === 'completed' ? (
+          {visibleOrder.status === 'paid' ? (
             <section>
               <h2>Order status</h2>
-              <p>{COMPLETED_STATUS_COPY}</p>
+              <p>{PAID_STATUS_COPY}</p>
             </section>
           ) : null}
-          {visibleOrder.status === 'cancelled' ? (
+          {visibleOrder.status === 'fulfilled' ? (
             <section>
               <h2>Order status</h2>
-              <p>This Order has been cancelled.</p>
+              <p>{FULFILLED_STATUS_COPY}</p>
             </section>
           ) : null}
-          {visibleOrder.paymentNextStep !== null ? (
+          {visibleOrder.status === 'canceled' ? (
+            <section>
+              <h2>Order status</h2>
+              <p>This Order has been canceled.</p>
+            </section>
+          ) : null}
+          {visibleOrder.paymentNextStep !== null && visibleOrder.status === 'pending' ? (
             <section>
               <h2>Payment next step</h2>
               <p>{visibleOrder.paymentNextStep}</p>
             </section>
           ) : null}
-          {visibleOrder.status === 'completed' && visibleOrder.refundRequest == null ? (
+          {refundEligible(visibleOrder) ? (
             <section>
               <h2>Refund request</h2>
               <p>{REFUND_REQUEST_INTRO}</p>
@@ -320,9 +376,10 @@ function PrivateOrderPage({
                   {reasonError ? <span id="refund-reason-error" className="field-error">{reasonError}</span> : null}
                 </div>
                 {submitMessage ? <p className="submit-message" role="alert">{submitMessage}</p> : null}
-                <button className="primary-action" type="submit" disabled={submitState === 'submitting'}>
+                <button className="primary-action" type="submit" disabled={submitState === 'submitting' || contractOutdated}>
                   {submitState === 'submitting' ? 'Sending refund request' : submitState === 'retry' ? 'Retry refund request' : 'Send refund request'}
                 </button>
+                {contractOutdated ? <button className="secondary-action" type="button" onClick={() => { window.location.reload(); }}>Reload Storefront</button> : null}
               </form>
             </section>
           ) : null}
@@ -356,14 +413,20 @@ export function StorefrontApp() {
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState('1');
+  const [cart, setCart] = useState<CartLine[]>([]);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'retry'>('idle');
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
-  const attemptRef = useRef<OrderAttemptIdentity | null>(null);
+  const [contractOutdated, setContractOutdated] = useState(false);
+  const attemptRef = useRef<FrozenCreateAttempt | null>(null);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const catalogRequestRef = useRef<AbortController | null>(null);
+  const lineFocusRef = useRef<string | null>(null);
+
+  const checkoutLocked = submitState === 'retry' || submitState === 'submitting' || contractOutdated;
+  const placeLocked = submitState === 'submitting' || contractOutdated;
 
   const loadCatalog = useCallback(() => {
     catalogRequestRef.current?.abort();
@@ -402,6 +465,12 @@ export function StorefrontApp() {
     };
   }, [loadCatalog, route.kind]);
 
+  useEffect(() => {
+    if (!lineFocusRef.current) return;
+    document.getElementById(lineFocusRef.current)?.focus();
+    lineFocusRef.current = null;
+  }, [fieldErrors]);
+
   const selectedProduct = catalog?.products.find((product) => product.id === selectedProductId) ?? null;
   const visibleProducts = useMemo(() => {
     const query = catalogQuery.trim().toLowerCase();
@@ -415,33 +484,130 @@ export function StorefrontApp() {
     )) ?? null;
   }, [selectedOptions, selectedProduct]);
 
+  const mixedCurrency = cart.length > 1 && cart.some((line) => line.currency !== cart[0].currency);
+  const cartTotalMinor = mixedCurrency ? 0 : cart.reduce((sum, line) => sum + line.unitPriceMinor * line.quantity, 0);
+  const cartCurrency = mixedCurrency ? null : cart[0]?.currency ?? selectedProduct?.currency ?? null;
+
+  const resetAttempt = () => {
+    if (checkoutLocked) return;
+    attemptRef.current = null;
+    setSubmitState('idle');
+  };
+
+  const addCurrentSelection = () => {
+    if (checkoutLocked || !selectedProduct) return;
+    const parsedQuantity = Number(quantity);
+    const errors: FieldErrors = {};
+    if (selectedProduct.optionGroups.length > 0 && !matchingVariant) errors.variant = 'Select one available value in every option group.';
+    if (!Number.isInteger(parsedQuantity) || parsedQuantity < 1 || parsedQuantity > 99) errors.quantity = 'Enter a whole number from 1 to 99.';
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors((current) => ({ ...current, ...errors }));
+      requestAnimationFrame(() => errorSummaryRef.current?.focus());
+      return;
+    }
+    const variantId = matchingVariant?.id ?? null;
+    if (cart.some((line) => line.productId === selectedProduct.id && line.variantId === variantId)) {
+      setFieldErrors((current) => ({ ...current, cart: 'This Product selection is already in the Order. Change quantity on that line instead.' }));
+      return;
+    }
+    if (cart.length >= 10) {
+      setFieldErrors((current) => ({ ...current, cart: 'An Order can include at most 10 Product lines.' }));
+      return;
+    }
+    const nextLine: CartLine = {
+      key: crypto.randomUUID(),
+      productId: selectedProduct.id,
+      productName: selectedProduct.name,
+      currency: selectedProduct.currency,
+      variantId,
+      variantLabel: matchingVariant
+        ? selectedProduct.optionGroups.map((group) => {
+          const valueId = matchingVariant.selectedOptions.find((option) => option.groupId === group.id)?.valueId;
+          const value = group.values.find((entry) => entry.id === valueId);
+          return `${group.name}: ${value?.label ?? valueId}`;
+        }).join(', ')
+        : 'Simple Product',
+      quantity: parsedQuantity,
+      unitPriceMinor: matchingVariant?.effectivePriceMinor ?? selectedProduct.basePriceMinor,
+    };
+    setCart((current) => [...current, nextLine]);
+    setFieldErrors((current) => ({ ...current, cart: undefined, variant: undefined, quantity: undefined }));
+    resetAttempt();
+  };
+
   const validate = useCallback((): FieldErrors => {
     const errors: FieldErrors = {};
-    const parsedQuantity = Number(quantity);
-    if (!selectedProduct || (selectedProduct.optionGroups.length > 0 && !matchingVariant)) errors.variant = 'Select one available value in every option group.';
-    if (!Number.isInteger(parsedQuantity) || parsedQuantity < 1 || parsedQuantity > 99) errors.quantity = 'Enter a whole number from 1 to 99.';
+    if (cart.length < 1) errors.cart = 'Add at least one Product before placing the Order.';
+    if (cart.length > 10) errors.cart = 'An Order can include at most 10 Product lines.';
+    if (mixedCurrency) errors.cart = MIXED_CURRENCY;
+    if (cart.some((line) => !Number.isInteger(line.quantity) || line.quantity < 1 || line.quantity > 99)) {
+      errors.quantity = 'Enter a whole number from 1 to 99.';
+    }
     if (!name.trim() || name.trim().length > 120) errors.name = 'Enter your name using 1 to 120 characters.';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors.email = 'Enter a valid email address.';
     return errors;
-  }, [email, matchingVariant, name, quantity, selectedProduct]);
+  }, [cart, email, mixedCurrency, name]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    const errors = validate();
-    setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) { requestAnimationFrame(() => errorSummaryRef.current?.focus()); return; }
-    if (!selectedProduct) return;
-    const identity = attemptRef.current ?? createOrderAttemptIdentity();
-    attemptRef.current = identity;
+    if (submitState === 'submitting' || contractOutdated) return;
+    const frozen = attemptRef.current;
+    if (!frozen) {
+      const errors = validate();
+      setFieldErrors(errors);
+      if (Object.keys(errors).length > 0) {
+        requestAnimationFrame(() => errorSummaryRef.current?.focus());
+        return;
+      }
+    }
+    const nextAttempt = frozen ?? {
+      identity: createOrderAttemptIdentity(),
+      input: {
+        customer: { name: name.trim(), email: email.trim() },
+        items: cart.map((line) => ({ productId: line.productId, variantId: line.variantId, quantity: line.quantity })),
+      },
+    };
+    attemptRef.current = nextAttempt;
+    setName(nextAttempt.input.customer.name);
+    setEmail(nextAttempt.input.customer.email);
     setSubmitState('submitting');
     setSubmitMessage(null);
     try {
-      const order = await createStorefrontOrder({ customer: { name: name.trim(), email: email.trim() }, productId: selectedProduct.id, variantId: matchingVariant?.id ?? null, quantity: Number(quantity) }, identity);
-      const next = `/orders/${encodeURIComponent(order.reference)}#capability=${encodeURIComponent(identity.capability)}`;
+      const order = await createStorefrontOrder(nextAttempt.input, nextAttempt.identity);
+      const next = `/orders/${encodeURIComponent(order.reference)}#capability=${encodeURIComponent(nextAttempt.identity.capability)}`;
       attemptRef.current = null;
+      setCart([]);
+      setQuantity('1');
+      setFieldErrors({});
+      setSubmitState('idle');
+      setSubmitMessage(null);
       window.history.pushState({}, '', next);
       setRoute(parseRoute());
     } catch (error) {
+      if (error instanceof StorefrontApiError && error.code === 'client_contract_outdated') {
+        setContractOutdated(true);
+        setSubmitState('idle');
+        setSubmitMessage('This Storefront is out of date. Reload the page and try again.');
+        return;
+      }
+      if (error instanceof StorefrontApiError && error.status === 422) {
+        attemptRef.current = null;
+        setSubmitState('idle');
+        const nextErrors: FieldErrors = {};
+        for (const field of error.fields ?? []) {
+          const itemMatch = /^\/items\/(\d+)\//.exec(field.path);
+          if (itemMatch) {
+            nextErrors.cart = field.message;
+            lineFocusRef.current = `cart-qty-${cart[Number(itemMatch[1])]?.key ?? ''}`;
+          } else if (field.path.includes('name')) nextErrors.name = field.message;
+          else if (field.path.includes('email')) nextErrors.email = field.message;
+          else nextErrors.cart = field.message;
+        }
+        setFieldErrors(nextErrors);
+        requestAnimationFrame(() => errorSummaryRef.current?.focus());
+        setSubmitMessage('Checkout could not be completed. Review your selection and details.');
+        return;
+      }
       const retryable = !(error instanceof StorefrontApiError) || error.retryable;
       if (!retryable) attemptRef.current = null;
       setSubmitState(retryable ? 'retry' : 'idle');
@@ -473,8 +639,8 @@ export function StorefrontApp() {
         <header className="catalog-heading">
           <h1>{catalog?.store.name ?? 'Digital products'}</h1>
           <p>{selectedProduct && selectedProduct.optionGroups.length > 0
-            ? 'Choose a Product, confirm the format, then complete checkout.'
-            : 'Choose a Product, then complete checkout.'}</p>
+            ? 'Choose Products, confirm each format, review the Order, then complete checkout.'
+            : 'Choose Products, review the Order, then complete checkout.'}</p>
           {catalogState === 'ready' && catalog && catalog.products.length > 1 ? (
             <div className="field catalog-search">
               <label htmlFor="catalog-search">Search Products</label>
@@ -495,11 +661,23 @@ export function StorefrontApp() {
           <div className="storefront-workspace">
             <section className="catalog-list" aria-label="Available Products">
               {visibleProducts.length === 0 ? <p>No Products match this search.</p> : null}
-              {visibleProducts.map((product) => <CatalogProduct key={product.id} product={product} selected={product.id === selectedProductId} onSelect={() => { setSelectedProductId(product.id); setSelectedOptions({}); setFieldErrors({}); attemptRef.current = null; setSubmitState('idle'); }} />)}
+              {visibleProducts.map((product) => (
+                <CatalogProduct
+                  key={product.id}
+                  product={product}
+                  selected={product.id === selectedProductId}
+                  onSelect={() => {
+                    if (checkoutLocked) return;
+                    setSelectedProductId(product.id);
+                    setSelectedOptions({});
+                    setFieldErrors((current) => ({ ...current, variant: undefined, quantity: undefined }));
+                  }}
+                />
+              ))}
             </section>
             {selectedProduct ? <form className="purchase-ledger" onSubmit={submit} noValidate>
               <header><p className="ledger-label">Purchase ledger</p><h2>{selectedProduct.name}</h2><p>{selectedProduct.publicDescription}</p></header>
-              {Object.values(fieldErrors).some(Boolean) ? <div ref={errorSummaryRef} className="error-summary" role="alert" tabIndex={-1}><strong>Review checkout details</strong><ul>{Object.entries(fieldErrors).filter((entry): entry is [string, string] => Boolean(entry[1])).map(([field, message]) => <li key={field}><a href={`#checkout-${field}`}>{message}</a></li>)}</ul></div> : null}
+              {Object.values(fieldErrors).some(Boolean) ? <div ref={errorSummaryRef} className="error-summary" role="alert" tabIndex={-1}><strong>Review checkout details</strong><ul>{Object.entries(fieldErrors).filter((entry): entry is [string, string] => Boolean(entry[1])).map(([field, message]) => <li key={field}><a href={`#checkout-${field === 'cart' ? 'cart' : field}`}>{message}</a></li>)}</ul></div> : null}
               {selectedProduct.optionGroups.length === 0 ? (
                 <p className="simple-selection">Simple Product. No format selection is required.</p>
               ) : (
@@ -511,13 +689,13 @@ export function StorefrontApp() {
                       <select
                         id={`option-${group.id}`}
                         value={selectedOptions[group.id] ?? ''}
+                        disabled={checkoutLocked}
                         aria-invalid={Boolean(fieldErrors.variant)}
                         aria-describedby={fieldErrors.variant ? 'variant-error' : undefined}
                         onBlur={() => setFieldErrors((current) => ({ ...current, variant: matchingVariant ? undefined : 'Select one available value in every option group.' }))}
                         onChange={(event) => {
+                          if (checkoutLocked) return;
                           setSelectedOptions((current) => ({ ...current, [group.id]: event.target.value }));
-                          attemptRef.current = null;
-                          setSubmitState('idle');
                         }}
                       >
                         <option value="">Select {group.name}</option>
@@ -529,13 +707,95 @@ export function StorefrontApp() {
                 </fieldset>
               )}
               <div className="checkout-fields">
-                <div className="field"><label htmlFor="checkout-quantity">Quantity</label><input id="checkout-quantity" type="number" inputMode="numeric" min="1" max="99" step="1" value={quantity} aria-invalid={Boolean(fieldErrors.quantity)} aria-describedby={fieldErrors.quantity ? 'quantity-error' : undefined} onBlur={() => setFieldErrors((current) => ({ ...current, quantity: Number.isInteger(Number(quantity)) && Number(quantity) >= 1 && Number(quantity) <= 99 ? undefined : 'Enter a whole number from 1 to 99.' }))} onChange={(event) => { setQuantity(event.target.value); attemptRef.current = null; setSubmitState('idle'); }} />{fieldErrors.quantity ? <span id="quantity-error" className="field-error">{fieldErrors.quantity}</span> : null}</div>
-                <div className="field"><label htmlFor="checkout-name">Name</label><input id="checkout-name" autoComplete="name" value={name} aria-invalid={Boolean(fieldErrors.name)} aria-describedby={fieldErrors.name ? 'name-error' : undefined} onBlur={() => setFieldErrors((current) => ({ ...current, name: name.trim() && name.trim().length <= 120 ? undefined : 'Enter your name using 1 to 120 characters.' }))} onChange={(event) => { setName(event.target.value); attemptRef.current = null; setSubmitState('idle'); }} />{fieldErrors.name ? <span id="name-error" className="field-error">{fieldErrors.name}</span> : null}</div>
-                <div className="field"><label htmlFor="checkout-email">Email</label><input id="checkout-email" type="email" autoComplete="email" value={email} aria-invalid={Boolean(fieldErrors.email)} aria-describedby={fieldErrors.email ? 'email-error' : undefined} onBlur={() => setFieldErrors((current) => ({ ...current, email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ? undefined : 'Enter a valid email address.' }))} onChange={(event) => { setEmail(event.target.value); attemptRef.current = null; setSubmitState('idle'); }} />{fieldErrors.email ? <span id="email-error" className="field-error">{fieldErrors.email}</span> : null}</div>
+                <div className="field">
+                  <label htmlFor="checkout-quantity">Quantity</label>
+                  <input
+                    id="checkout-quantity"
+                    type="number"
+                    inputMode="numeric"
+                    min="1"
+                    max="99"
+                    step="1"
+                    value={quantity}
+                    disabled={checkoutLocked}
+                    aria-invalid={Boolean(fieldErrors.quantity)}
+                    aria-describedby={fieldErrors.quantity ? 'quantity-error' : undefined}
+                    onBlur={() => setFieldErrors((current) => ({ ...current, quantity: Number.isInteger(Number(quantity)) && Number(quantity) >= 1 && Number(quantity) <= 99 ? undefined : 'Enter a whole number from 1 to 99.' }))}
+                    onChange={(event) => {
+                      if (checkoutLocked) return;
+                      setQuantity(event.target.value);
+                    }}
+                  />
+                  {fieldErrors.quantity ? <span id="quantity-error" className="field-error">{fieldErrors.quantity}</span> : null}
+                </div>
+                <div className="field"><label htmlFor="checkout-name">Name</label><input id="checkout-name" autoComplete="name" value={name} disabled={checkoutLocked} aria-invalid={Boolean(fieldErrors.name)} aria-describedby={fieldErrors.name ? 'name-error' : undefined} onBlur={() => setFieldErrors((current) => ({ ...current, name: name.trim() && name.trim().length <= 120 ? undefined : 'Enter your name using 1 to 120 characters.' }))} onChange={(event) => { if (checkoutLocked) return; setName(event.target.value); }} />{fieldErrors.name ? <span id="name-error" className="field-error">{fieldErrors.name}</span> : null}</div>
+                <div className="field"><label htmlFor="checkout-email">Email</label><input id="checkout-email" type="email" autoComplete="email" value={email} disabled={checkoutLocked} aria-invalid={Boolean(fieldErrors.email)} aria-describedby={fieldErrors.email ? 'email-error' : undefined} onBlur={() => setFieldErrors((current) => ({ ...current, email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ? undefined : 'Enter a valid email address.' }))} onChange={(event) => { if (checkoutLocked) return; setEmail(event.target.value); }} />{fieldErrors.email ? <span id="email-error" className="field-error">{fieldErrors.email}</span> : null}</div>
               </div>
-              <div className="purchase-total"><span>{matchingVariant ? 'Selected price' : 'Product price'}</span><strong className="numeric">{money(matchingVariant?.effectivePriceMinor ?? selectedProduct.basePriceMinor, selectedProduct.currency)}</strong></div>
+              <div className="inline-actions">
+                <button
+                  className="secondary-action"
+                  type="button"
+                  disabled={checkoutLocked || (selectedProduct.optionGroups.length > 0 && !matchingVariant)}
+                  onClick={addCurrentSelection}
+                >
+                  Add to Order
+                </button>
+              </div>
+              <section id="checkout-cart" className="cart-review" aria-labelledby="cart-title">
+                <h3 id="cart-title">Order review</h3>
+                {cart.length === 0 ? <p>No Products have been added yet.</p> : (
+                  <ul className="cart-lines">
+                    {cart.map((line) => (
+                      <li key={line.key}>
+                        <div>
+                          <strong>{line.productName}</strong>
+                          <p>{line.variantLabel}</p>
+                          <p className="numeric">{money(line.unitPriceMinor * line.quantity, line.currency)} {line.currency}</p>
+                        </div>
+                        <div className="field">
+                          <label htmlFor={`cart-qty-${line.key}`}>Quantity</label>
+                          <input
+                            id={`cart-qty-${line.key}`}
+                            type="number"
+                            min="1"
+                            max="99"
+                            step="1"
+                            value={line.quantity}
+                            disabled={checkoutLocked}
+                            onChange={(event) => {
+                              if (checkoutLocked) return;
+                              const nextQuantity = Number(event.target.value);
+                              setCart((current) => current.map((entry) => entry.key === line.key ? { ...entry, quantity: nextQuantity } : entry));
+                              resetAttempt();
+                            }}
+                          />
+                        </div>
+                        <button
+                          className="text-action"
+                          type="button"
+                          disabled={checkoutLocked}
+                          onClick={() => {
+                            if (checkoutLocked) return;
+                            setCart((current) => current.filter((entry) => entry.key !== line.key));
+                            resetAttempt();
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {mixedCurrency ? <p className="field-error" role="alert">{MIXED_CURRENCY}</p> : null}
+                {fieldErrors.cart ? <p id="cart-error" className="field-error">{fieldErrors.cart}</p> : null}
+              </section>
+              <div className="purchase-total">
+                <span>Order total</span>
+                <strong className="numeric">{cartCurrency ? money(cartTotalMinor, cartCurrency) : '—'}</strong>
+              </div>
               {submitMessage ? <p className="submit-message" role="alert">{submitMessage}</p> : null}
-              <button className="primary-action" type="submit" disabled={submitState === 'submitting' || (selectedProduct.optionGroups.length > 0 && !matchingVariant)}>{submitState === 'submitting' ? 'Placing Order' : submitState === 'retry' ? 'Retry checkout' : 'Place Order'}</button>
+              {contractOutdated ? <button className="secondary-action" type="button" onClick={() => { window.location.reload(); }}>Reload Storefront</button> : null}
+              <button className="primary-action" type="submit" disabled={placeLocked || cart.length === 0 || mixedCurrency}>{submitState === 'submitting' ? 'Placing Order' : submitState === 'retry' ? 'Retry checkout' : 'Place Order'}</button>
             </form> : null}
           </div>
         ) : null}

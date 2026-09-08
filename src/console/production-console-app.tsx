@@ -11,6 +11,7 @@ import { slugifyProductName } from '../catalog/slug';
 import { CsvImportScreen } from './imports/csv-import-screen';
 import {
   applyProductSchema,
+  ConsoleApiError,
   createProduct,
   downloadCsvTemplate,
   fetchProductBySlug,
@@ -26,6 +27,7 @@ import { ProductEditorScreen } from './products/product-editor-screen';
 import { OrderDetailScreen } from './orders/order-detail-screen';
 import { OrdersScreen } from './orders/orders-screen';
 import type {
+  ConsoleOrderSummary,
   ConsoleOrderView,
   ConsoleOrdersState,
   OrderStatus,
@@ -238,6 +240,8 @@ export function ProductionConsoleApp() {
   const [listState, setListState] = useState<ProductListState>('loading');
   const [criteria, setCriteria] = useState<{ query: string; status: 'all' | ProductStatus }>({ query: '', status: 'all' });
   const [orders, setOrders] = useState<ConsoleOrderView[]>([]);
+  const [orderSummary, setOrderSummary] = useState<ConsoleOrderSummary | null>(null);
+  const [ordersContractOutdated, setOrdersContractOutdated] = useState(false);
   const [ordersState, setOrdersState] = useState<ConsoleOrdersState>('loading');
   const [ordersRequest, setOrdersRequest] = useState(0);
   const [orderSearchDraft, setOrderSearchDraft] = useState('');
@@ -327,6 +331,9 @@ export function ProductionConsoleApp() {
     ordersRequestRef.current = requestId;
     const controller = new AbortController();
     const cursor = orderCursorStack[orderCursorStack.length - 1] ?? null;
+    setOrders([]);
+    setOrderSummary(null);
+    setOrdersContractOutdated(false);
     setOrdersState('loading');
     void fetchOrders({
       q: orderQuery,
@@ -337,11 +344,16 @@ export function ProductionConsoleApp() {
     }, controller.signal).then((response) => {
       if (orderRouteGenerationRef.current !== generation || ordersRequestRef.current !== requestId) return;
       setOrders(response.orders);
+      setOrderSummary(response.summary);
       setOrderNextCursor(response.nextCursor);
       setOrdersState(response.orders.length > 0 ? 'ready' : response.hasOrders ? 'no-results' : 'empty');
     }).catch((error) => {
       if (orderRouteGenerationRef.current !== generation || ordersRequestRef.current !== requestId) return;
-      if (!(error instanceof DOMException && error.name === 'AbortError')) setOrdersState('error');
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setOrders([]);
+      setOrderSummary(null);
+      setOrdersContractOutdated(error instanceof ConsoleApiError && error.code === 'client_contract_outdated');
+      setOrdersState('error');
     });
     return () => controller.abort();
   }, [orderCursorStack, orderQuery, orderRefund, orderStatus, ordersRequest, orderRouteGeneration, route.kind]);
@@ -565,14 +577,16 @@ export function ProductionConsoleApp() {
     content = <OrdersScreen
       state={ordersState}
       orders={orders}
+      summary={orderSummary}
       searchDraft={orderSearchDraft}
       statusFilter={orderStatus ?? 'all'}
       refundPendingOnly={orderRefund === 'pending'}
+      contractOutdated={ordersContractOutdated}
       hasPreviousPage={orderCursorStack.length > 0}
       hasNextPage={orderNextCursor !== null}
       onSearchDraftChange={setOrderSearchDraft}
       onSearchSubmit={() => {
-        setOrderQuery(orderSearchDraft.normalize('NFKC').trim());
+        setOrderQuery(orderSearchDraft.trim());
         resetOrderCursors();
       }}
       onStatusFilterChange={(status: OrderStatusFilter) => {
@@ -584,6 +598,7 @@ export function ProductionConsoleApp() {
         resetOrderCursors();
       }}
       onRetry={() => setOrdersRequest((current) => current + 1)}
+      onReload={() => { window.location.reload(); }}
       onClearFilters={() => {
         setOrderSearchDraft('');
         setOrderQuery('');

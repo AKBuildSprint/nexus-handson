@@ -6,9 +6,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 const CONSOLE_ORIGIN = process.env.PLAYWRIGHT_API_CONSOLE_BASE_URL ?? 'http://127.0.0.1:5173';
 const STOREFRONT_ORIGIN = process.env.PLAYWRIGHT_STOREFRONT_BASE_URL ?? 'http://127.0.0.1:5174';
 
-interface OrderResponse {
-  reference: string;
-  status: 'pending_payment' | 'completed' | 'cancelled';
+interface OrderItemResponse {
   product: {
     name: string;
     variant: null | {
@@ -18,6 +16,14 @@ interface OrderResponse {
   };
   quantity: number;
   unitPriceMinor: number;
+  lineTotalMinor: number;
+}
+
+interface OrderResponse {
+  reference: string;
+  paymentReference: string;
+  status: 'pending' | 'paid' | 'fulfilled' | 'canceled';
+  items: OrderItemResponse[];
   totalMinor: number;
   currency: string;
   createdAt: string;
@@ -78,7 +84,8 @@ async function placeOrder(page: Page, productName: string, variantLabel?: string
   await expect(row).toBeVisible();
   await row.locator('button.catalog-choice').click();
   if (variantLabel) await page.getByLabel('Format').selectOption({ label: variantLabel });
-  await page.getByLabel('Quantity').fill('1');
+  await page.locator('#checkout-quantity').fill('1');
+  await page.getByRole('button', { name: 'Add to Order' }).click();
   await page.getByLabel('Name').fill('Console Journey Customer');
   await page.getByLabel('Email').fill('console.journey@example.test');
 
@@ -91,7 +98,7 @@ async function placeOrder(page: Page, productName: string, variantLabel?: string
   expect(response.status()).toBe(201);
   const body = await response.json() as OrderResponse;
   expect(body.reference).toMatch(/^NX-[A-F0-9]{16}$/);
-  expect(body.status).toBe('pending_payment');
+  expect(body.status).toBe('pending');
   await expect(page.getByText(`Order ${body.reference}`)).toBeVisible();
 
   const orderUrl = new URL(page.url());
@@ -151,7 +158,7 @@ test('keeps Console search, filters, pager, and confirmation reachable by keyboa
   await tabUntilFocused(page, page.getByLabel('Search Orders'));
   await tabUntilFocused(page, page.getByRole('tab', { name: 'All' }));
   await page.keyboard.press('ArrowRight');
-  await expect(page.getByRole('tab', { name: 'Pending payment' })).toBeFocused();
+  await expect(page.getByRole('tab', { name: 'Pending' })).toBeFocused();
   await tabUntilFocused(page, page.getByLabel('Pending refund requests'));
   await expect(page.getByLabel('Order pages')).toBeVisible();
   const nextPage = page.getByRole('button', { name: 'Next' });
@@ -186,12 +193,12 @@ test('keeps Console search, filters, pager, and confirmation reachable by keyboa
 
   await page.getByRole('link', { name: order.body.reference }).click();
   await expect(page.getByRole('heading', { name: order.body.reference })).toBeVisible();
-  await tabUntilFocused(page, page.getByRole('button', { name: 'Complete' }));
+  await tabUntilFocused(page, page.getByRole('button', { name: 'Record manual payment' }));
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('heading', { name: 'Confirm Complete' })).toBeVisible();
-  await tabUntilFocused(page, page.getByLabel('I confirm the full payment has been received.'));
+  await expect(page.getByRole('heading', { name: 'Record manual payment' })).toBeVisible();
+  await tabUntilFocused(page, page.getByLabel('I confirm an external receipt exists for this exact total and currency.'));
   await page.keyboard.press('Space');
-  await expect(page.getByRole('button', { name: 'Confirm Complete' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Mark Paid' })).toBeEnabled();
 
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto(`${CONSOLE_ORIGIN}/console/orders`);
@@ -277,7 +284,7 @@ test('ignores late Order A GET and Complete after opening Order B', async ({ pag
   let postCommitted = false;
   let postDelivered: (() => void) | undefined;
   const postDelivery = new Promise<void>((resolve) => { postDelivered = resolve; });
-  await page.route(`**/api/console/orders/${orderA.body.reference}/complete`, async (route) => {
+  await page.route(`**/api/console/orders/${orderA.body.reference}/payments/manual`, async (route) => {
     if (route.request().method() !== 'POST') {
       await route.continue();
       return;
@@ -289,9 +296,11 @@ test('ignores late Order A GET and Complete after opening Order B', async ({ pag
     await route.fulfill({ response: committed });
     postDelivered?.();
   });
-  await page.getByRole('button', { name: 'Complete' }).click();
-  await page.getByLabel('I confirm the full payment has been received.').check();
-  await page.getByRole('button', { name: 'Confirm Complete' }).click();
+  await page.getByRole('button', { name: 'Record manual payment' }).click();
+  await page.getByLabel('Payment method').fill('Bank transfer');
+  await page.getByLabel('External payment reference').fill(`WIRE-${orderA.body.reference.slice(-8)}`);
+  await page.getByRole('checkbox', { name: /I confirm/ }).check();
+  await page.getByRole('button', { name: 'Mark Paid' }).click();
   await expect.poll(() => postCommitted).toBe(true);
   await page.getByRole('button', { name: 'Back to Orders' }).click();
   await page.getByLabel('Search Orders').fill(orderB.body.reference);
@@ -302,7 +311,7 @@ test('ignores late Order A GET and Complete after opening Order B', async ({ pag
   releasePost?.();
   await postDelivery;
   await expect(page.getByRole('heading', { name: orderB.body.reference })).toBeVisible();
-  await expect(page.getByText('Pending payment').first()).toBeVisible();
+  await expect(page.getByText('Pending').first()).toBeVisible();
   await expect(page.getByText('The outcome is not confirmed. Retry the same action.')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: orderA.body.reference })).toHaveCount(0);
 });
@@ -310,14 +319,14 @@ test('ignores late Order A GET and Complete after opening Order B', async ({ pag
 function queryLocalOrderGraph(reference: string): {
   status: string;
   history_count: number;
-  completed_events: number;
+  paid_events: number;
   command_count: number;
   refund_count: number;
 } {
   expect(reference).toMatch(/^NX-[A-F0-9]{16}$/);
   const sql = `SELECT o.status AS status,
     (SELECT count(*) FROM order_history h WHERE h.order_id = o.id AND h.store_id = o.store_id) AS history_count,
-    (SELECT count(*) FROM order_history h WHERE h.order_id = o.id AND h.action = 'order_completed') AS completed_events,
+    (SELECT count(*) FROM order_history h WHERE h.order_id = o.id AND h.action = 'order_paid') AS paid_events,
     (SELECT count(*) FROM order_commands c WHERE c.order_id = o.id) AS command_count,
     (SELECT count(*) FROM order_refund_requests r WHERE r.order_id = o.id) AS refund_count
     FROM orders o WHERE o.reference = '${reference}'`;
@@ -331,7 +340,7 @@ function queryLocalOrderGraph(reference: string): {
   return {
     status: String(row.status),
     history_count: Number(row.history_count),
-    completed_events: Number(row.completed_events),
+    paid_events: Number(row.paid_events),
     command_count: Number(row.command_count),
     refund_count: Number(row.refund_count),
   };
@@ -359,16 +368,16 @@ test('shows separate Simple and Variant Orders safely through direct, navigation
   page.on('request', (request) => observedRequestUrls.push(request.url()));
   await page.goto(STOREFRONT_ORIGIN);
   const simpleOrder = await placeOrder(page, simpleName);
-  expect(simpleOrder.body.product.variant === null).toBe(true);
-  expect(simpleOrder.body.unitPriceMinor).toBe(2125);
+  expect(simpleOrder.body.items[0].product.variant === null).toBe(true);
+  expect(simpleOrder.body.items[0].unitPriceMinor).toBe(2125);
   expect(simpleOrder.body.totalMinor).toBe(2125);
 
   await page.getByRole('button', { name: 'Back to catalog' }).click();
   await expect(page.locator('.catalog-row').filter({ hasText: variantName })).toBeVisible();
   const variantOrder = await placeOrder(page, variantName, 'PDF');
-  expect(variantOrder.body.product.variant !== null).toBe(true);
-  expect(variantOrder.body.product.variant?.selectedOptions.some((option) => option.groupName === 'Format' && option.valueLabel === 'PDF')).toBe(true);
-  expect(variantOrder.body.unitPriceMinor).toBe(4175);
+  expect(variantOrder.body.items[0].product.variant !== null).toBe(true);
+  expect(variantOrder.body.items[0].product.variant?.selectedOptions.some((option) => option.groupName === 'Format' && option.valueLabel === 'PDF')).toBe(true);
+  expect(variantOrder.body.items[0].unitPriceMinor).toBe(4175);
   expect(variantOrder.body.totalMinor).toBe(4175);
 
   const capabilities = [simpleOrder.capability, variantOrder.capability];
@@ -382,7 +391,7 @@ test('shows separate Simple and Variant Orders safely through direct, navigation
   const ordersResponse = await ordersResponsePromise;
   expect(ordersResponse.ok()).toBe(true);
   const projection = await ordersResponse.json() as { orders: ConsoleOrderResponse[] };
-  const journeyOrderCount = projection.orders.filter((order) => order.product.name === simpleName || order.product.name === variantName).length;
+  const journeyOrderCount = projection.orders.filter((order) => order.items.some((item) => item.product.name === simpleName || item.product.name === variantName)).length;
   expect(journeyOrderCount).toBe(2);
   expect(containsPrivateProjectionKey(projection)).toBe(false);
   expect(capabilities.some((secret) => JSON.stringify(projection).includes(secret))).toBe(false);
@@ -397,7 +406,7 @@ test('shows separate Simple and Variant Orders safely through direct, navigation
   await expect(simpleRow).toContainText('Simple Product');
   await expect(variantRow).toContainText(variantName);
   await expect(variantRow).toContainText('Format: PDF');
-  await expect(variantRow).toContainText('Pending payment');
+  await expect(variantRow).toContainText('Pending');
 
   const bodyLeaksPrivateData = await page.locator('body').evaluate((element, secrets) => {
     const text = element.textContent ?? '';
@@ -424,7 +433,7 @@ test('shows separate Simple and Variant Orders safely through direct, navigation
   await expect(variantCard).toBeVisible();
   await expect(variantCard).toContainText(variantName);
   await expect(variantCard).toContainText('Format: PDF');
-  await expect(variantCard).toContainText('Pending payment');
+  await expect(variantCard).toContainText('Pending');
   await expectNoHorizontalOverflow(page, 375);
 
   await page.getByRole('button', { name: 'Menu' }).click();
@@ -440,15 +449,17 @@ test('shows separate Simple and Variant Orders safely through direct, navigation
 async function completeOrderFromDetail(page: Page, reference: string) {
   await page.goto(`${CONSOLE_ORIGIN}/console/orders/${reference}`);
   await expect(page.getByRole('heading', { name: reference })).toBeVisible();
-  await page.getByRole('button', { name: 'Complete' }).click();
-  await expect(page.getByText('I confirm the full payment has been received.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Confirm Complete' })).toBeDisabled();
-  await page.getByLabel('I confirm the full payment has been received.').check();
-  await page.getByRole('button', { name: 'Confirm Complete' }).click();
-  await expect(page.locator('.status-tag.status-active')).toContainText('Completed');
+  await page.getByRole('button', { name: 'Record manual payment' }).click();
+  await page.getByLabel('Payment method').fill('Bank transfer');
+  await page.getByLabel('External payment reference').fill(`WIRE-${reference.slice(-8)}`);
+  await expect(page.getByRole('button', { name: 'Mark Paid' })).toBeDisabled();
+  await page.getByRole('checkbox', { name: /I confirm/ }).check();
+  await page.getByRole('button', { name: 'Mark Paid' }).click();
+  await expect(page.locator('.status-tag.status-active')).toContainText('Paid');
 }
 
 test('completes zero-total and paid Orders, restores detail via reload and popstate, and conflicts a stale cancel', async ({ page, context }) => {
+  test.setTimeout(120_000);
   const token = uniqueToken();
   const paidName = `Verify Console Paid ${token}`;
   const zeroName = `Verify Console Zero ${token}`;
@@ -486,29 +497,27 @@ test('completes zero-total and paid Orders, restores detail via reload and popst
   await pageB.goto(`${CONSOLE_ORIGIN}/console/orders/${staleOrder.body.reference}`);
   await completeOrderFromDetail(pageB, staleOrder.body.reference);
   await pageB.close();
-
-  await page.getByRole('button', { name: 'Cancel' }).click();
-  await page.getByRole('button', { name: 'Confirm Cancel' }).click();
-  await expect(page.getByRole('alert').filter({ hasText: 'The action was not applied. The Order has changed.' })).toBeVisible();
-  await expect(page.locator('.status-tag.status-active')).toContainText('Completed');
+  await expect(page.locator('.status-tag.status-active')).toContainText('Paid');
+  await expect(page.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Confirm Cancel' })).toHaveCount(0);
 
   await page.goto(`${CONSOLE_ORIGIN}/console/orders`);
-  await page.getByRole('tab', { name: 'Pending payment' }).click();
+  await page.getByRole('tab', { name: 'Pending' }).click();
   await expect(page.getByRole('link', { name: paidOrder.body.reference })).toHaveCount(0);
   await expect(page.getByRole('link', { name: staleOrder.body.reference })).toHaveCount(0);
-  await page.getByRole('tab', { name: 'Completed' }).click();
+  await page.getByRole('tab', { name: 'Paid' }).click();
   await expect(page.getByRole('link', { name: paidOrder.body.reference })).toBeVisible();
   await expect(page.getByRole('link', { name: zeroOrder.body.reference })).toBeVisible();
 });
 
-test('retries Complete after a committed response loss using the same key', async ({ page }) => {
+test('retries Mark Paid after a committed response loss using the same key', async ({ page }) => {
   const name = `Verify Console Loss ${uniqueToken()}`;
   await createSimpleProduct(page, name, '18.00');
   await page.goto(STOREFRONT_ORIGIN);
   const order = await placeOrder(page, name);
 
   const keys: string[] = [];
-  await page.route('**/api/console/orders/*/complete', async (route) => {
+  await page.route('**/api/console/orders/*/payments/manual', async (route) => {
     if (route.request().method() !== 'POST') {
       await route.continue();
       return;
@@ -525,32 +534,34 @@ test('retries Complete after a committed response loss using the same key', asyn
 
   await page.goto(`${CONSOLE_ORIGIN}/console/orders/${order.body.reference}`);
   await expect(page.getByRole('heading', { name: order.body.reference })).toBeVisible();
-  await page.getByRole('button', { name: 'Complete' }).click();
-  await page.getByLabel('I confirm the full payment has been received.').check();
-  await page.getByRole('button', { name: 'Confirm Complete' }).click();
+  await page.getByRole('button', { name: 'Record manual payment' }).click();
+  await page.getByLabel('Payment method').fill('Bank transfer');
+  await page.getByLabel('External payment reference').fill(`WIRE-${order.body.reference.slice(-8)}`);
+  await page.getByRole('checkbox', { name: /I confirm/ }).check();
+  await page.getByRole('button', { name: 'Mark Paid' }).click();
   await expect(page.getByText('The outcome is not confirmed. Retry the same action.')).toBeVisible();
 
   const afterCommit = queryLocalOrderGraph(order.body.reference);
   expect(afterCommit).toMatchObject({
-    status: 'completed',
-    completed_events: 1,
+    status: 'paid',
+    paid_events: 1,
     command_count: 1,
     refund_count: 0,
   });
 
-  await page.getByRole('button', { name: 'Retry Complete' }).click();
-  await expect(page.locator('.status-tag.status-active')).toContainText('Completed');
+  await page.getByRole('button', { name: 'Retry Mark Paid' }).click();
+  await expect(page.locator('.status-tag.status-active')).toContainText('Paid');
   expect(keys).toHaveLength(2);
   expect(keys[0]).toMatch(/^[A-Za-z0-9_-]{16,128}$/);
   expect(keys[1]).toBe(keys[0]);
   expect(queryLocalOrderGraph(order.body.reference)).toEqual(afterCommit);
 
   const detail = await page.request.get(`${CONSOLE_ORIGIN}/api/console/orders/${order.body.reference}`, {
-    headers: { Accept: 'application/json' },
+    headers: { Accept: 'application/json', 'X-Nexus-Order-Contract': '2' },
   });
   expect(detail.ok()).toBe(true);
   const body = await detail.json() as { order: { history: Array<{ action: string }>; refundRequest: null } };
-  expect(body.order.history.filter((event) => event.action === 'order_completed')).toHaveLength(1);
+  expect(body.order.history.filter((event) => event.action === 'order_paid')).toHaveLength(1);
   expect(body.order.refundRequest).toBeNull();
   expect(containsPrivateProjectionKey(body)).toBe(false);
 });

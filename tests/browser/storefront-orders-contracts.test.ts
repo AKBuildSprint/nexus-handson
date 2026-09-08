@@ -42,10 +42,17 @@ function setTextarea(textarea: HTMLTextAreaElement, value: string) {
 function customerOrder(overrides: Record<string, unknown> = {}) {
   return {
     reference: 'NX-260827-ABCD',
-    status: 'pending_payment',
-    product: { id: simpleProduct.id, name: simpleProduct.name, variant: null },
-    quantity: 1,
-    unitPriceMinor: 2400,
+    paymentReference: 'NPABCDEF12345678',
+    status: 'pending',
+    items: [{
+      id: 'line_1',
+      position: 0,
+      product: { id: simpleProduct.id, name: simpleProduct.name, variant: null },
+      quantity: 1,
+      unitPriceMinor: 2400,
+      lineTotalMinor: 2400,
+      currency: 'USD',
+    }],
     totalMinor: 2400,
     currency: 'USD',
     createdAt: '2026-08-27T12:00:00.000Z',
@@ -84,28 +91,30 @@ describe('Storefront Order contracts', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response({ store: { id: 'store_nexus', slug: 'nexus', name: 'Nexus Store' }, products: [variantProduct] })));
     await act(async () => root.render(createElement(StorefrontApp)));
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
-    const submit = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Place Order');
-    expect(submit?.disabled).toBe(true);
+    const add = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Add to Order');
+    const place = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Place Order');
+    expect(add?.disabled).toBe(true);
+    expect(place?.disabled).toBe(true);
     const select = container.querySelector('select');
     await act(async () => { if (select) { select.value = 'value_zip'; select.dispatchEvent(new Event('change', { bubbles: true })); } });
-    expect(submit?.disabled).toBe(true);
+    expect(add?.disabled).toBe(true);
     await act(async () => { if (select) { select.value = 'value_pdf'; select.dispatchEvent(new Event('change', { bubbles: true })); } });
-    expect(submit?.disabled).toBe(false);
+    expect(add?.disabled).toBe(false);
     const quantity = container.querySelector<HTMLInputElement>('#checkout-quantity');
     await act(async () => { if (quantity) setInput(quantity, '100'); });
-    await act(async () => submit?.click());
+    await act(async () => add?.click());
     expect(quantity?.getAttribute('aria-invalid')).toBe('true');
     expect(container.textContent).toContain('Enter a whole number from 1 to 99.');
   });
 
-  it('reuses one in-memory capability and idempotency key for a lost-response retry', async () => {
-    const calls: Array<{ url: string; headers: Headers }> = [];
+  it('reuses one in-memory capability, payload, and cart for a lost-response retry', async () => {
+    const calls: Array<{ url: string; headers: Headers; body: string }> = [];
     let postCount = 0;
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url.endsWith('/api/storefront/products')) return response({ store: { id: 'store_nexus', slug: 'nexus', name: 'Nexus Store' }, products: [simpleProduct] });
+      if (url.endsWith('/api/storefront/products')) return response({ store: { id: 'store_nexus', slug: 'nexus', name: 'Nexus Store' }, products: [simpleProduct, variantProduct] });
       if (init?.method === 'POST') {
-        calls.push({ url, headers: new Headers(init.headers) });
+        calls.push({ url, headers: new Headers(init.headers), body: String(init.body ?? '') });
         postCount += 1;
         if (postCount === 1) throw new TypeError('lost response');
       }
@@ -116,24 +125,89 @@ describe('Storefront Order contracts', () => {
     const name = container.querySelector<HTMLInputElement>('#checkout-name');
     const email = container.querySelector<HTMLInputElement>('#checkout-email');
     await act(async () => { if (name) setInput(name, 'Ada Rivera'); if (email) setInput(email, 'ada@example.com'); });
+    const add = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Add to Order');
+    await act(async () => { add?.click(); await Promise.resolve(); });
+    const variantChoice = Array.from(container.querySelectorAll<HTMLButtonElement>('button.catalog-choice')).find((button) => button.closest('.catalog-row')?.textContent?.includes('Signal Kit'));
+    await act(async () => { variantChoice?.click(); await Promise.resolve(); });
+    const select = container.querySelector('select');
+    await act(async () => { if (select) { select.value = 'value_pdf'; select.dispatchEvent(new Event('change', { bubbles: true })); } });
+    await act(async () => { add?.click(); await Promise.resolve(); });
+    expect(container.textContent).toContain('Field Notes');
+    expect(container.textContent).toContain('Signal Kit');
     const place = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Place Order');
     await act(async () => { place?.click(); await Promise.resolve(); await Promise.resolve(); });
     expect(container.textContent).toContain('Retry to safely continue');
+    expect(container.querySelector<HTMLInputElement>('#checkout-name')?.disabled).toBe(true);
+    expect(container.querySelector<HTMLInputElement>('#checkout-email')?.disabled).toBe(true);
+    const cart = container.querySelector('#checkout-cart');
+    expect(cart?.textContent).toContain('Field Notes');
+    expect(cart?.textContent).toContain('Signal Kit');
+    expect(Array.from(cart?.querySelectorAll<HTMLInputElement>('input') ?? []).every((input) => input.disabled)).toBe(true);
+    expect(Array.from(cart?.querySelectorAll<HTMLButtonElement>('button') ?? []).every((button) => button.disabled)).toBe(true);
+    const addLocked = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Add to Order');
+    expect(addLocked?.disabled).toBe(true);
+    await act(async () => {
+      addLocked?.click();
+      cart?.querySelectorAll<HTMLButtonElement>('button').forEach((button) => button.click());
+    });
+    expect(cart?.querySelectorAll('li')).toHaveLength(2);
     const retry = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Retry checkout');
     await act(async () => { retry?.click(); await Promise.resolve(); await Promise.resolve(); });
     expect(calls).toHaveLength(2);
     expect(calls[1].headers.get('Idempotency-Key')).toBe(calls[0].headers.get('Idempotency-Key'));
     expect(calls[1].headers.get('X-Nexus-Order-Capability')).toBe(calls[0].headers.get('X-Nexus-Order-Capability'));
+    expect(calls[0].headers.get('X-Nexus-Order-Contract')).toBe('2');
+    expect(calls[1].body).toBe(calls[0].body);
+    const payload = JSON.parse(calls[0].body) as { items: Array<{ productId: string; variantId: string | null; quantity: number }> };
+    expect(payload.items).toEqual([
+      { productId: simpleProduct.id, variantId: null, quantity: 1 },
+      { productId: variantProduct.id, variantId: 'var_pdf12345678', quantity: 1 },
+    ]);
     expect(window.location.search).toBe('');
     expect(window.location.pathname).toBe('/orders/NX-260827-ABCD');
     expect(window.location.hash).toMatch(/^#capability=/);
     expect(container.textContent).not.toContain(calls[0].headers.get('X-Nexus-Order-Capability'));
   });
 
+  it('shows reload guidance for an outdated contract and does not retry checkout', async () => {
+    const posts: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/api/storefront/products')) return response({ store: { id: 'store_nexus', slug: 'nexus', name: 'Nexus Store' }, products: [simpleProduct] });
+      if (init?.method === 'POST') {
+        posts.push(String(init.body ?? ''));
+        return response({ error: { code: 'client_contract_outdated', message: 'This client is out of date. Reload the page and try again.', fields: [], incidentId: null } }, 409);
+      }
+      return response(customerOrder());
+    }));
+    await renderApp();
+    const name = container.querySelector<HTMLInputElement>('#checkout-name');
+    const email = container.querySelector<HTMLInputElement>('#checkout-email');
+    await act(async () => { if (name) setInput(name, 'Ada Rivera'); if (email) setInput(email, 'ada@example.com'); });
+    const add = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Add to Order');
+    await act(async () => { add?.click(); await Promise.resolve(); });
+    const place = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Place Order');
+    await act(async () => { place?.click(); await Promise.resolve(); await Promise.resolve(); });
+    expect(container.textContent).toContain('This Storefront is out of date');
+    const retry = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Retry checkout' || button.textContent === 'Place Order');
+    expect(retry?.disabled).toBe(true);
+    await act(async () => { retry?.click(); await Promise.resolve(); await Promise.resolve(); });
+    expect(posts).toHaveLength(1);
+    expect(container.textContent).toContain('Reload Storefront');
+  });
+
   it('renders only the Customer-safe private projection and server-returned money', async () => {
     window.history.replaceState({}, '', '/orders/NX-260827-ABCD#capability=opaque_capability_value_1234567890');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(customerOrder({
-      quantity: 2,
+      items: [{
+        id: 'line_1',
+        position: 0,
+        product: { id: simpleProduct.id, name: simpleProduct.name, variant: null },
+        quantity: 2,
+        unitPriceMinor: 2400,
+        lineTotalMinor: 4701,
+        currency: 'USD',
+      }],
       totalMinor: 4701,
       accessInstructions: 'private',
       privateFileKey: 'secret-key',
@@ -151,18 +225,18 @@ describe('Storefront Order contracts', () => {
     window.history.replaceState({}, '', '/orders/NX-260827-ABCD#capability=opaque_capability_value_1234567890');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(customerOrder())));
     await renderApp();
-    expect(container.textContent).toContain('Pending payment');
+    expect(container.textContent).toContain('Pending');
     expect(container.textContent).toContain('Payment instructions will be provided separately.');
     expect(container.querySelector('#refund-reason')).toBeNull();
     expect(container.textContent).not.toContain('Send refund request');
   });
 
-  it('refreshes a hidden private Order and offers a refund after Complete', async () => {
+  it('refreshes a hidden private Order and offers a refund after Paid', async () => {
     let gets = 0;
     window.history.replaceState({}, '', '/orders/NX-260827-ABCD#capability=opaque_capability_value_1234567890');
     vi.stubGlobal('fetch', vi.fn(async () => {
       gets += 1;
-      return response(customerOrder(gets === 1 ? {} : { status: 'completed', paymentNextStep: null }));
+      return response(customerOrder(gets === 1 ? {} : { status: 'paid', paymentNextStep: null }));
     }));
     await renderApp();
     expect(container.querySelector('#refund-reason')).toBeNull();
@@ -179,7 +253,7 @@ describe('Storefront Order contracts', () => {
     let gets = 0;
     let releaseStale: (() => void) | undefined;
     const staleGate = new Promise<void>((resolve) => { releaseStale = resolve; });
-    const completed = customerOrder({ status: 'completed', paymentNextStep: null });
+    const completed = customerOrder({ status: 'paid', paymentNextStep: null });
     const pendingRefund = {
       id: 'rr_ack',
       status: 'pending' as const,
@@ -193,7 +267,7 @@ describe('Storefront Order contracts', () => {
         return response({
           reference: 'NX-260827-ABCD',
           action: 'request_refund',
-          status: 'completed',
+          status: 'paid',
           occurredAt: '2026-08-27T13:00:00.000Z',
           refundRequest: pendingRefund,
         });
@@ -233,8 +307,8 @@ describe('Storefront Order contracts', () => {
       products: [simpleProduct, variantProduct],
     })));
     await renderApp();
-    expect(container.textContent).toContain('Choose a Product, then complete checkout.');
-    expect(container.textContent).not.toContain('Choose a Product, confirm the format, then complete checkout.');
+    expect(container.textContent).toContain('Choose Products, review the Order, then complete checkout.');
+    expect(container.textContent).not.toContain('Choose Products, confirm each format, review the Order, then complete checkout.');
     const search = container.querySelector<HTMLInputElement>('#catalog-search');
     expect(search).not.toBeNull();
     await act(async () => {
@@ -247,38 +321,46 @@ describe('Storefront Order contracts', () => {
     expect(container.querySelector('.catalog-list')?.textContent).not.toContain('Field Notes');
   });
 
-  it('lets completed Orders of any total request a refund and omits payment copy', async () => {
+  it('lets paid Orders of any total request a refund and omits payment copy', async () => {
     window.history.replaceState({}, '', '/orders/NX-260827-ZERO#capability=opaque_capability_value_1234567890');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(customerOrder({
       reference: 'NX-260827-ZERO',
-      status: 'completed',
-      unitPriceMinor: 0,
+      status: 'paid',
+      items: [{
+        id: 'line_1',
+        position: 0,
+        product: { id: simpleProduct.id, name: simpleProduct.name, variant: null },
+        quantity: 1,
+        unitPriceMinor: 0,
+        lineTotalMinor: 0,
+        currency: 'USD',
+      }],
       totalMinor: 0,
       paymentNextStep: null,
     }))));
     await renderApp();
-    expect(container.textContent).toContain('This Order has been completed. This page does not deliver files or pay out a refund.');
+    expect(container.textContent).toContain('This Order is paid. This page does not deliver files or pay out a refund.');
     expect(container.textContent).toContain('You can send one refund request. Sending a request does not issue a refund.');
     expect(container.textContent).not.toContain('Payment next step');
     expect(container.querySelector('#refund-reason')).not.toBeNull();
     expect(container.textContent).toContain('$0.00');
   });
 
-  it('does not offer a refund form on a cancelled Order', async () => {
+  it('does not offer a refund form on a canceled Order', async () => {
     window.history.replaceState({}, '', '/orders/NX-260827-ABCD#capability=opaque_capability_value_1234567890');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(customerOrder({
-      status: 'cancelled',
+      status: 'canceled',
       paymentNextStep: null,
     }))));
     await renderApp();
-    expect(container.textContent).toContain('This Order has been cancelled.');
+    expect(container.textContent).toContain('This Order has been canceled.');
     expect(container.querySelector('#refund-reason')).toBeNull();
   });
 
   it('replaces the form with the stored pending refund request', async () => {
     window.history.replaceState({}, '', '/orders/NX-260827-ABCD#capability=opaque_capability_value_1234567890');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(customerOrder({
-      status: 'completed',
+      status: 'paid',
       paymentNextStep: null,
       refundRequest: {
         id: 'rr_stored',
@@ -297,7 +379,7 @@ describe('Storefront Order contracts', () => {
   it('validates refund reason by Unicode code points', async () => {
     window.history.replaceState({}, '', '/orders/NX-260827-ABCD#capability=opaque_capability_value_1234567890');
     const fetchMock = vi.fn().mockResolvedValue(response(customerOrder({
-      status: 'completed',
+      status: 'paid',
       paymentNextStep: null,
     })));
     vi.stubGlobal('fetch', fetchMock);
@@ -331,7 +413,7 @@ describe('Storefront Order contracts', () => {
         return response({
           reference: 'NX-260827-ABCD',
           action: 'request_refund',
-          status: 'completed',
+          status: 'paid',
           occurredAt: '2026-08-27T13:00:00.000Z',
           refundRequest: {
             id: 'rr_one',
@@ -342,7 +424,7 @@ describe('Storefront Order contracts', () => {
         });
       }
       return response(customerOrder({
-        status: 'completed',
+        status: 'paid',
         paymentNextStep: null,
         refundRequest: postCount === 0 ? null : {
           id: 'rr_one',
@@ -379,7 +461,7 @@ describe('Storefront Order contracts', () => {
         return response({
           reference: 'NX-260827-ABCD',
           action: 'request_refund',
-          status: 'completed',
+          status: 'paid',
           occurredAt: '2026-08-27T13:00:00.000Z',
           refundRequest: {
             id: 'rr_one',
@@ -390,7 +472,7 @@ describe('Storefront Order contracts', () => {
         });
       }
       return response(customerOrder({
-        status: 'completed',
+        status: 'paid',
         paymentNextStep: null,
         refundRequest: posted ? {
           id: 'rr_one',
@@ -421,8 +503,16 @@ describe('Storefront Order contracts', () => {
       if (url.includes('NX-AAAAAAA0000001')) return lateA;
       return response(customerOrder({
         reference: 'NX-BBBBBBB0000002',
-        status: 'completed',
-        product: { id: simpleProduct.id, name: 'Order B', variant: null },
+        status: 'paid',
+        items: [{
+          id: 'line_b',
+          position: 0,
+          product: { id: simpleProduct.id, name: 'Order B', variant: null },
+          quantity: 1,
+          unitPriceMinor: 2400,
+          lineTotalMinor: 2400,
+          currency: 'USD',
+        }],
         paymentNextStep: null,
       }));
     }));
@@ -435,8 +525,16 @@ describe('Storefront Order contracts', () => {
     });
     resolveA(response(customerOrder({
       reference: 'NX-AAAAAAA0000001',
-      status: 'completed',
-      product: { id: simpleProduct.id, name: 'Order A', variant: null },
+      status: 'paid',
+      items: [{
+        id: 'line_a',
+        position: 0,
+        product: { id: simpleProduct.id, name: 'Order A', variant: null },
+        quantity: 1,
+        unitPriceMinor: 2400,
+        lineTotalMinor: 2400,
+        currency: 'USD',
+      }],
       paymentNextStep: null,
       refundRequest: {
         id: 'rr_a',
@@ -473,7 +571,7 @@ describe('Storefront Order contracts', () => {
       }
       getCount += 1;
       if (getCount > 1) return response({ error: { code: 'order_operation_failed', message: 'unavailable', fields: [], incidentId: null } }, 500);
-      return response(customerOrder({ status: 'completed', paymentNextStep: null }));
+      return response(customerOrder({ status: 'paid', paymentNextStep: null }));
     }));
     await renderApp();
     const textarea = container.querySelector<HTMLTextAreaElement>('#refund-reason');

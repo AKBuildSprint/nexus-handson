@@ -1,11 +1,19 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
-import { cancelConsoleOrder, completeConsoleOrder, ConsoleApiError, fetchOrder } from '../api-client';
+import {
+  cancelConsoleOrder,
+  ConsoleApiError,
+  createConsoleRefundRequest,
+  fetchOrder,
+  fulfill,
+  markPaid,
+} from '../api-client';
 import type {
   ConsoleOrderDetailState,
   ConsoleOrderDetailView,
   ConsoleOrderHistoryView,
   OrderAuditSource,
   OrderHistoryAction,
+  OrderItemView,
   OrderStatus,
 } from './order-ui-types';
 
@@ -16,38 +24,57 @@ interface OrderDetailScreenProps {
   onBack: () => void;
 }
 
-type OrderAction = 'complete' | 'cancel';
+type OrderAction = 'mark_paid' | 'fulfill' | 'cancel' | 'request_refund';
 type ConfirmPanel = OrderAction | null;
 type DetailNotice =
   | { kind: 'unknown' }
-  | { kind: 'conflict'; idempotency: boolean }
+  | { kind: 'conflict'; idempotency: boolean; reload: boolean }
   | { kind: 'read-after-write' }
+  | { kind: 'outdated' }
   | { kind: 'error'; message: string };
 
+type FrozenAttempt =
+  | { action: 'mark_paid'; orderReference: string; key: string; method: string; paymentReference: string }
+  | { action: 'fulfill'; orderReference: string; key: string }
+  | { action: 'cancel'; orderReference: string; key: string }
+  | { action: 'request_refund'; orderReference: string; key: string; reason: string };
+
 const MUTATION_DEADLINE_MS = 15_000;
+const REASON_INVALID = 'Enter a reason using 1 to 1000 characters.';
+const METHOD_INVALID = 'Enter a payment method using 1 to 80 characters.';
+const REFERENCE_INVALID = 'Enter an external payment reference using 1 to 160 characters.';
 
 const STATUS_CLASS: Record<OrderStatus, string> = {
-  pending_payment: 'status-draft',
-  completed: 'status-active',
-  cancelled: 'status-archived',
+  pending: 'status-draft',
+  paid: 'status-active',
+  fulfilled: 'status-active',
+  canceled: 'status-archived',
 };
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
-  pending_payment: 'Pending payment',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
+  pending: 'Pending',
+  paid: 'Paid',
+  fulfilled: 'Fulfilled',
+  canceled: 'Canceled',
 };
 
 const HISTORY_ACTION_LABEL: Record<OrderHistoryAction, string> = {
   order_created: 'Created',
-  order_completed: 'Completed',
+  order_completed: 'Legacy completion (payment confirmed; fulfillment not recorded)',
   order_cancelled: 'Cancelled',
+  order_paid: 'Paid',
+  order_fulfilled: 'Fulfilled',
+  order_canceled: 'Canceled',
   refund_requested: 'Refund requested',
 };
 
 const HISTORY_SOURCE_LABEL: Record<OrderAuditSource, string> = {
   console: 'Console',
   customer_capability: 'Customer',
+  bootstrap_owner: 'Bootstrap Owner (demo)',
+  storefront: 'Customer',
+  user: 'User (recorded identity; not a signed-in Console account)',
+  system: 'System (recorded identity; not a signed-in Console account)',
 };
 
 const CONSOLE_ORDER_SYNC = 'nexus-console-orders';
@@ -60,16 +87,19 @@ function publishConsoleOrderChange(reference: string) {
 }
 
 function detailIntro(order: ConsoleOrderDetailView): string {
-  if (order.status === 'pending_payment') {
-    return 'Review the stored Customer Order snapshot. Complete or Cancel only while the Order is still pending payment.';
+  if (order.status === 'pending') {
+    return 'Review the stored Customer Order snapshot. Record a manual payment or Cancel only while the Order is still pending.';
   }
-  if (order.status === 'cancelled') {
-    return 'Review the stored Customer Order snapshot. This Order is cancelled. Complete and Cancel are no longer available.';
+  if (order.status === 'canceled') {
+    return 'Review the stored Customer Order snapshot. This Order is canceled. Payment, Fulfill, and Cancel are no longer available.';
   }
   if (order.refundRequestStatus === 'pending') {
     return 'Review the stored Customer Order snapshot. A refund request is pending. This Console does not pay out or approve the request.';
   }
-  return 'Review the stored Customer Order snapshot. This Order is completed. Complete and Cancel are no longer available.';
+  if (order.status === 'fulfilled') {
+    return 'Review the stored Customer Order snapshot. This Order is fulfilled. Fulfillment is an operational status and does not grant Product Access.';
+  }
+  return 'Review the stored Customer Order snapshot. This Order is paid. Fulfill records an operational status change and does not grant Product Access.';
 }
 
 function formatMoney(minor: number, currency: string): string {
@@ -77,24 +107,84 @@ function formatMoney(minor: number, currency: string): string {
 }
 
 function statusPresentation(status: string): { label: string; className: string } {
-  if (status === 'pending_payment' || status === 'completed' || status === 'cancelled') {
+  if (status === 'pending' || status === 'paid' || status === 'fulfilled' || status === 'canceled') {
     return { label: STATUS_LABEL[status], className: `status-tag ${STATUS_CLASS[status]}` };
   }
   return { label: 'Unknown status', className: 'status-tag' };
 }
 
-function historyActionLabel(action: string): string {
+function historyActionLabel(action: string, actorLabel: string): string {
+  if (action === 'order_completed') return actorLabel || HISTORY_ACTION_LABEL.order_completed;
   return action in HISTORY_ACTION_LABEL ? HISTORY_ACTION_LABEL[action as OrderHistoryAction] : action;
 }
 
-function historySourceLabel(source: string): string {
+function historySourceLabel(source: string, actorLabel: string): string {
+  if (actorLabel && source !== 'console' && source !== 'customer_capability') return actorLabel;
+  if (source === 'bootstrap_owner') return actorLabel || HISTORY_SOURCE_LABEL.bootstrap_owner;
+  if (source === 'storefront') return actorLabel || HISTORY_SOURCE_LABEL.storefront;
   return source in HISTORY_SOURCE_LABEL ? HISTORY_SOURCE_LABEL[source as OrderAuditSource] : source;
 }
 
-function orderSelection(order: ConsoleOrderDetailView): string {
-  if (!order.product.variant) return 'Simple Product';
-  const options = order.product.variant.selectedOptions.map((option) => `${option.groupName}: ${option.valueLabel}`).join(', ');
-  return options ? `${options} · SKU ${order.product.variant.sku}` : `SKU ${order.product.variant.sku}`;
+function itemSelection(item: OrderItemView): string {
+  if (!item.product.variant) return 'Simple Product';
+  const options = item.product.variant.selectedOptions.map((option) => `${option.groupName}: ${option.valueLabel}`).join(', ');
+  return options ? `${options} · SKU ${item.product.variant.sku}` : `SKU ${item.product.variant.sku}`;
+}
+
+function itemLineCopy(item: OrderItemView) {
+  return {
+    name: item.product.name,
+    selection: itemSelection(item),
+    quantity: item.quantity,
+    unitPrice: `${formatMoney(item.unitPriceMinor, item.currency)} ${item.currency}`,
+    lineTotal: `${formatMoney(item.lineTotalMinor, item.currency)} ${item.currency}`,
+  };
+}
+
+function OrderItemSnapshots({ items }: { items: OrderItemView[] }) {
+  return (
+    <>
+      <table className="console-table order-items-table" aria-label="Order items">
+        <thead>
+          <tr>
+            <th scope="col">Item</th>
+            <th scope="col">Quantity</th>
+            <th scope="col">Unit price</th>
+            <th scope="col">Line total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => {
+            const line = itemLineCopy(item);
+            return (
+              <tr key={item.id}>
+                <td><strong>{line.name}</strong><br /><span className="meta-text">{line.selection}</span></td>
+                <td className="numeric">{line.quantity}</td>
+                <td className="numeric">{line.unitPrice}</td>
+                <td className="numeric">{line.lineTotal}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <div className="order-items-mobile" aria-label="Order items">
+        {items.map((item) => {
+          const line = itemLineCopy(item);
+          return (
+            <article className="order-summary-card" key={item.id}>
+              <h3>{line.name}</h3>
+              <p className="meta-text">{line.selection}</p>
+              <dl>
+                <div><dt>Quantity</dt><dd className="numeric">{line.quantity}</dd></div>
+                <div><dt>Unit price</dt><dd className="numeric">{line.unitPrice}</dd></div>
+                <div><dt>Line total</dt><dd className="numeric">{line.lineTotal}</dd></div>
+              </dl>
+            </article>
+          );
+        })}
+      </div>
+    </>
+  );
 }
 
 function isAbortError(error: unknown): boolean {
@@ -123,17 +213,38 @@ function deadlineSignal(parent: AbortSignal, ms: number): { signal: AbortSignal;
   };
 }
 
+function validateBoundedText(value: string, min: number, max: number, message: string): string | null {
+  const normalized = value.replace(/\r\n|\r/g, '\n').trim();
+  const length = Array.from(normalized).length;
+  if (length < min || length > max) return message;
+  for (const char of normalized) {
+    if (/\p{Cf}/u.test(char)) return message;
+    if (/\p{Cc}/u.test(char) && char !== '\t' && char !== '\n') return message;
+  }
+  return null;
+}
+
 function HistoryEntry({ event }: { event: ConsoleOrderHistoryView }) {
   const from = event.fromStatus ? statusPresentation(event.fromStatus).label : 'None';
   const to = statusPresentation(event.toStatus).label;
   return (
     <li>
-      <strong>{historyActionLabel(event.action)}</strong>
+      <strong>{historyActionLabel(event.action, event.actorLabel)}</strong>
       <span className="meta-text">
-        {historySourceLabel(event.source)} · {from} → {to} · {new Date(event.createdAt).toLocaleString()}
+        {historySourceLabel(event.source, event.actorLabel)} · {from} → {to} · {new Date(event.createdAt).toLocaleString()}
       </span>
     </li>
   );
+}
+
+function paidHistoryActor(order: ConsoleOrderDetailView): string | null {
+  const paid = [...order.history].reverse().find((event) => event.action === 'order_paid' || event.action === 'order_completed');
+  return paid ? historySourceLabel(paid.source, paid.actorLabel) : null;
+}
+
+function refundHistoryActor(order: ConsoleOrderDetailView): string | null {
+  const requested = [...order.history].reverse().find((event) => event.action === 'refund_requested');
+  return requested ? historySourceLabel(requested.source, requested.actorLabel) : null;
 }
 
 export function OrderDetailScreen({
@@ -145,14 +256,18 @@ export function OrderDetailScreen({
   const [state, setState] = useState<ConsoleOrderDetailState>('loading');
   const [order, setOrder] = useState<ConsoleOrderDetailView | null>(null);
   const [panel, setPanel] = useState<ConfirmPanel>(null);
-  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [paymentReference, setPaymentReference] = useState('');
+  const [paymentAcknowledged, setPaymentAcknowledged] = useState(false);
+  const [refundReason, setRefundReason] = useState('');
+  const [fieldError, setFieldError] = useState<{ path: string; message: string } | null>(null);
   const [inFlight, setInFlight] = useState(false);
   const [notice, setNotice] = useState<DetailNotice | null>(null);
   const [lockedAction, setLockedAction] = useState<OrderAction | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const panelHeadingRef = useRef<HTMLHeadingElement>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const attemptRef = useRef<{ reference: string; action: OrderAction; key: string } | null>(null);
+  const attemptRef = useRef<FrozenAttempt | null>(null);
   const inFlightRef = useRef(false);
   const loadOrderRef = useRef<(generation: number, capturedReference: string, signal: AbortSignal, mode?: 'page' | 'refresh') => void>(() => undefined);
   const loadAbortRef = useRef<AbortController | null>(null);
@@ -183,11 +298,20 @@ export function OrderDetailScreen({
       if (mode === 'refresh' && !inFlightRef.current) {
         const actions = response.order.allowedActions;
         setPanel((current) => (current && !actions.includes(current) ? null : current));
-        if (!actions.includes('complete')) setPaymentConfirmed(false);
+        setLockedAction((current) => (current && !actions.includes(current) ? null : current));
       }
     }).catch((error: unknown) => {
       if (epoch !== readEpochRef.current) return;
       if (!stillCurrent(generation, capturedReference) || isAbortError(error)) return;
+      if (error instanceof ConsoleApiError && error.code === 'client_contract_outdated') {
+        attemptRef.current = null;
+        setLockedAction(null);
+        setPanel(null);
+        setPaymentAcknowledged(false);
+        setNotice({ kind: 'outdated' });
+        setState((current) => current === 'ready' ? current : 'error');
+        return;
+      }
       if (error instanceof ConsoleApiError && error.status === 404) {
         setOrder(null);
         setState('not-found');
@@ -209,7 +333,11 @@ export function OrderDetailScreen({
     attemptRef.current = null;
     setOrder(null);
     setPanel(null);
-    setPaymentConfirmed(false);
+    setPaymentMethod('');
+    setPaymentReference('');
+    setPaymentAcknowledged(false);
+    setRefundReason('');
+    setFieldError(null);
     setInFlight(false);
     setNotice(null);
     setLockedAction(null);
@@ -259,18 +387,26 @@ export function OrderDetailScreen({
     }
   }, [panel]);
 
+  const fieldsLocked = Boolean(attemptRef.current) && notice?.kind === 'unknown';
+
   const closePanel = () => {
     if (inFlight) return;
     restoreTriggerRef.current = true;
     setPanel(null);
-    setPaymentConfirmed(false);
+    setFieldError(null);
+    if (!fieldsLocked) {
+      setPaymentAcknowledged(false);
+    }
   };
 
   const openPanel = (action: OrderAction, trigger: HTMLButtonElement) => {
     if (lockedAction && lockedAction !== action) return;
     triggerRef.current = trigger;
     setNotice(null);
-    setPaymentConfirmed(false);
+    setFieldError(null);
+    if (!attemptRef.current || attemptRef.current.action !== action) {
+      setPaymentAcknowledged(false);
+    }
     setPanel(action);
   };
 
@@ -290,20 +426,55 @@ export function OrderDetailScreen({
     } catch (error) {
       if (epoch !== readEpochRef.current) return;
       if (!stillCurrent(generation, capturedReference) || isAbortError(error)) return;
+      if (error instanceof ConsoleApiError && error.code === 'client_contract_outdated') {
+        setNotice({ kind: 'outdated' });
+        return;
+      }
       setNotice({ kind: 'read-after-write' });
     }
   };
 
   const confirmAction = async (action: OrderAction) => {
-    if (inFlight) return;
-    if (action === 'complete' && !paymentConfirmed) return;
+    if (inFlight || notice?.kind === 'outdated') return;
     const generation = generationRef.current;
     const capturedReference = referenceRef.current;
     let attempt = attemptRef.current;
-    if (!attempt || attempt.reference !== capturedReference || attempt.action !== action) {
-      attempt = { reference: capturedReference, action, key: crypto.randomUUID() };
+    if (!attempt || attempt.orderReference !== capturedReference || attempt.action !== action) {
+      if (action === 'mark_paid') {
+        const methodError = validateBoundedText(paymentMethod, 1, 80, METHOD_INVALID);
+        const referenceError = validateBoundedText(paymentReference, 1, 160, REFERENCE_INVALID);
+        if (methodError || referenceError || !paymentAcknowledged) {
+          setFieldError(methodError ? { path: '/method', message: methodError } : referenceError ? { path: '/reference', message: referenceError } : { path: '/ack', message: 'Acknowledge the external receipt before recording payment.' });
+          return;
+        }
+        attempt = {
+          action: 'mark_paid',
+          orderReference: capturedReference,
+          key: crypto.randomUUID(),
+          method: paymentMethod.trim(),
+          paymentReference: paymentReference.trim(),
+        };
+        setPaymentMethod(attempt.method);
+        setPaymentReference(attempt.paymentReference);
+      } else if (action === 'request_refund') {
+        const reasonError = validateBoundedText(refundReason, 1, 1000, REASON_INVALID);
+        if (reasonError) {
+          setFieldError({ path: '/reason', message: reasonError });
+          return;
+        }
+        attempt = {
+          action: 'request_refund',
+          orderReference: capturedReference,
+          key: crypto.randomUUID(),
+          reason: refundReason.replace(/\r\n|\r/g, '\n').trim(),
+        };
+        setRefundReason(attempt.reason);
+      } else {
+        attempt = { action, orderReference: capturedReference, key: crypto.randomUUID() };
+      }
       attemptRef.current = attempt;
     }
+    if (!attempt) return;
     mutationAbortRef.current?.abort();
     loadAbortRef.current?.abort();
     readEpochRef.current += 1;
@@ -313,9 +484,14 @@ export function OrderDetailScreen({
     setInFlight(true);
     setLockedAction(action);
     setNotice(null);
+    setFieldError(null);
     try {
-      if (action === 'complete') {
-        await completeConsoleOrder(capturedReference, attempt.key, deadline.signal);
+      if (attempt.action === 'mark_paid') {
+        await markPaid(capturedReference, { method: attempt.method, reference: attempt.paymentReference }, attempt.key, deadline.signal);
+      } else if (attempt.action === 'fulfill') {
+        await fulfill(capturedReference, attempt.key, deadline.signal);
+      } else if (attempt.action === 'request_refund') {
+        await createConsoleRefundRequest(capturedReference, attempt.reason, attempt.key, deadline.signal);
       } else {
         await cancelConsoleOrder(capturedReference, attempt.key, deadline.signal);
       }
@@ -327,24 +503,41 @@ export function OrderDetailScreen({
       attemptRef.current = null;
       setLockedAction(null);
       setPanel(null);
-      setPaymentConfirmed(false);
+      setPaymentAcknowledged(false);
       onInvalidateList();
       publishConsoleOrderChange(capturedReference);
       await refetchAfterWrite(generation, capturedReference);
     } catch (error) {
       if (!stillCurrent(generation, capturedReference)) return;
-      if (error instanceof ConsoleApiError && error.status === 409) {
+      if (error instanceof ConsoleApiError && error.code === 'client_contract_outdated') {
         attemptRef.current = null;
         setLockedAction(null);
         setPanel(null);
-        setPaymentConfirmed(false);
-        setNotice({ kind: 'conflict', idempotency: error.code === 'idempotency_conflict' });
+        setPaymentAcknowledged(false);
+        setNotice({ kind: 'outdated' });
+        return;
+      }
+      if (error instanceof ConsoleApiError && error.status === 409) {
+        const legacyKey = error.code === 'idempotency_conflict' && error.message.includes('previous contract');
+        attemptRef.current = null;
+        setLockedAction(null);
+        setPanel(null);
+        setPaymentAcknowledged(false);
+        setNotice({ kind: 'conflict', idempotency: error.code === 'idempotency_conflict', reload: legacyKey });
         onInvalidateList();
         publishConsoleOrderChange(capturedReference);
         loadAbortRef.current?.abort();
         const refresh = new AbortController();
         loadAbortRef.current = refresh;
         loadOrder(generation, capturedReference, refresh.signal);
+        return;
+      }
+      if (error instanceof ConsoleApiError && error.status === 422) {
+        attemptRef.current = null;
+        setLockedAction(null);
+        const first = error.fields[0];
+        setFieldError(first ? { path: first.path, message: first.message } : { path: '', message: error.message });
+        setNotice({ kind: 'error', message: error.message });
         return;
       }
       if (error instanceof ConsoleApiError && error.status !== 408 && error.status !== 429 && error.status < 500) {
@@ -375,10 +568,17 @@ export function OrderDetailScreen({
   };
 
   const status = order ? statusPresentation(order.status) : null;
-  const showComplete = Boolean(order && ((order.allowedActions.includes('complete') || lockedAction === 'complete')));
-  const showCancel = Boolean(order && ((order.allowedActions.includes('cancel') || lockedAction === 'cancel')));
-  const completeLockedOut = lockedAction === 'cancel';
-  const cancelLockedOut = lockedAction === 'complete';
+  const showMarkPaid = Boolean(order && (order.allowedActions.includes('mark_paid') || lockedAction === 'mark_paid'));
+  const showFulfill = Boolean(order && (order.allowedActions.includes('fulfill') || lockedAction === 'fulfill'));
+  const showCancel = Boolean(order && (order.allowedActions.includes('cancel') || lockedAction === 'cancel'));
+  const showRefund = Boolean(order && (order.allowedActions.includes('request_refund') || lockedAction === 'request_refund'));
+  const actionsHidden = panel !== null || notice?.kind === 'read-after-write' || notice?.kind === 'outdated' || state !== 'ready';
+  const displayedMethod = fieldsLocked && attemptRef.current?.action === 'mark_paid' ? attemptRef.current.method : paymentMethod;
+  const displayedPaymentReference = fieldsLocked && attemptRef.current?.action === 'mark_paid' ? attemptRef.current.paymentReference : paymentReference;
+  const displayedReason = fieldsLocked && attemptRef.current?.action === 'request_refund' ? attemptRef.current.reason : refundReason;
+  const paymentActor = order ? paidHistoryActor(order) : null;
+  const refundActor = order ? refundHistoryActor(order) : null;
+
   return (
     <div className="page-stack">
       <button className="text-button" type="button" onClick={onBack}>Back to Orders</button>
@@ -399,10 +599,12 @@ export function OrderDetailScreen({
 
       {state === 'error' && !order ? (
         <div className="empty-state notice-error" role="alert">
-          <h1 tabIndex={-1} ref={headingRef}>Order could not be loaded</h1>
-          <p>Retry to request the safe Console projection again.</p>
+          <h1 tabIndex={-1} ref={headingRef}>{notice?.kind === 'outdated' ? 'This Console is out of date' : 'Order could not be loaded'}</h1>
+          <p>{notice?.kind === 'outdated' ? 'Reload the page and try again. This client will not retry the previous Order request.' : 'Retry to request the safe Console projection again.'}</p>
           <div className="inline-actions">
-            <button className="button" type="button" onClick={retryLoading}>Retry loading Order</button>
+            {notice?.kind === 'outdated'
+              ? <button className="button" type="button" onClick={() => { window.location.reload(); }}>Reload Console</button>
+              : <button className="button" type="button" onClick={retryLoading}>Retry loading Order</button>}
             <button className="button" type="button" onClick={onBack}>Back to Orders</button>
           </div>
         </div>
@@ -430,6 +632,19 @@ export function OrderDetailScreen({
             <div className="notice notice-error" role="alert">
               <strong>The action was not applied. The Order has changed.</strong>
               {notice.idempotency ? <span>The idempotency key is already bound to another Order command.</span> : null}
+              {notice.reload ? (
+                <>
+                  <span>This command key is from a previous contract. Reload the Order and retry with a new key.</span>
+                  <button className="button" type="button" onClick={() => { window.location.reload(); }}>Reload Console</button>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+          {notice?.kind === 'outdated' ? (
+            <div className="notice notice-error" role="alert">
+              <strong>This Console is out of date.</strong>
+              <span>Reload the page and try again. This client will not retry the previous Order request.</span>
+              <button className="button" type="button" onClick={() => { window.location.reload(); }}>Reload Console</button>
             </div>
           ) : null}
           {notice?.kind === 'read-after-write' ? (
@@ -450,30 +665,89 @@ export function OrderDetailScreen({
             </div>
           ) : null}
 
-          {panel === 'complete' ? (
-            <section className="notice notice-info" aria-labelledby="complete-order-title">
-              <h2 id="complete-order-title" tabIndex={-1} ref={panelHeadingRef}>Confirm Complete</h2>
+          {panel === 'mark_paid' ? (
+            <section className="notice notice-info" aria-labelledby="mark-paid-title">
+              <h2 id="mark-paid-title" tabIndex={-1} ref={panelHeadingRef}>Record manual payment</h2>
               <p>
-                Complete Order {order.reference} for {formatMoney(order.totalMinor, order.currency)} {order.currency}.
-                Confirm that the full payment has been received. Zero-total Orders use this same confirmation.
+                Record payment for Order {order.reference} totaling {formatMoney(order.totalMinor, order.currency)} {order.currency}.
+                {order.totalMinor === 0
+                  ? ' Supply an honest zero-charge method and reference. This does not claim a bank transfer occurred.'
+                  : ' Confirm that an external receipt exists for this exact total. This Console does not move money.'}
               </p>
-              <label className="checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={paymentConfirmed}
-                  disabled={inFlight}
-                  onChange={(event) => setPaymentConfirmed(event.target.checked)}
-                />
-                I confirm the full payment has been received.
-              </label>
+              <form
+                className="order-action-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void confirmAction('mark_paid');
+                }}
+              >
+                <div className="field">
+                  <label htmlFor="payment-method">Payment method</label>
+                  <input
+                    id="payment-method"
+                    value={displayedMethod}
+                    disabled={inFlight || fieldsLocked}
+                    aria-invalid={fieldError?.path === '/method'}
+                    aria-describedby={fieldError?.path === '/method' ? 'payment-method-error' : undefined}
+                    onChange={(event) => {
+                      if (fieldsLocked) return;
+                      setPaymentMethod(event.target.value);
+                    }}
+                  />
+                  {fieldError?.path === '/method' ? <span id="payment-method-error" className="field-error">{fieldError.message}</span> : null}
+                </div>
+                <div className="field">
+                  <label htmlFor="payment-reference">External payment reference</label>
+                  <input
+                    id="payment-reference"
+                    value={displayedPaymentReference}
+                    disabled={inFlight || fieldsLocked}
+                    aria-invalid={fieldError?.path === '/reference'}
+                    aria-describedby={fieldError?.path === '/reference' ? 'payment-reference-error' : undefined}
+                    onChange={(event) => {
+                      if (fieldsLocked) return;
+                      setPaymentReference(event.target.value);
+                    }}
+                  />
+                  {fieldError?.path === '/reference' ? <span id="payment-reference-error" className="field-error">{fieldError.message}</span> : null}
+                </div>
+                <label className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={paymentAcknowledged}
+                    disabled={inFlight}
+                    onChange={(event) => setPaymentAcknowledged(event.target.checked)}
+                  />
+                  {order.totalMinor === 0
+                    ? 'I confirm this zero-total Order should be marked paid without a bank transfer.'
+                    : 'I confirm an external receipt exists for this exact total and currency.'}
+                </label>
+                {fieldError?.path === '/ack' ? <p className="field-error">{fieldError.message}</p> : null}
+                <div className="inline-actions">
+                  <button className="button button-primary" type="submit" disabled={inFlight || !paymentAcknowledged || notice?.kind === 'outdated'}>
+                    {notice?.kind === 'unknown' ? 'Retry Mark Paid' : 'Mark Paid'}
+                  </button>
+                  <button className="button" type="button" disabled={inFlight} onClick={closePanel}>Back to Order</button>
+                </div>
+              </form>
+            </section>
+          ) : null}
+
+          {panel === 'fulfill' ? (
+            <section className="notice notice-info" aria-labelledby="fulfill-order-title">
+              <h2 id="fulfill-order-title" tabIndex={-1} ref={panelHeadingRef}>Confirm Fulfill</h2>
+              <p>
+                Mark Order {order.reference} as fulfilled. This is an operational status change only.
+                It does not grant Product Access or claim that files were delivered.
+              </p>
               <div className="inline-actions">
                 <button
                   className="button button-primary"
                   type="button"
-                  disabled={inFlight || !paymentConfirmed}
-                  onClick={() => { void confirmAction('complete'); }}
+                  disabled={inFlight || notice?.kind === 'outdated'}
+                  onClick={() => { void confirmAction('fulfill'); }}
                 >
-                  {notice?.kind === 'unknown' ? 'Retry Complete' : 'Confirm Complete'}
+                  {notice?.kind === 'unknown' ? 'Retry Fulfill' : 'Confirm Fulfill'}
                 </button>
                 <button className="button" type="button" disabled={inFlight} onClick={closePanel}>Back to Order</button>
               </div>
@@ -485,13 +759,13 @@ export function OrderDetailScreen({
               <h2 id="cancel-order-title" tabIndex={-1} ref={panelHeadingRef}>Confirm Cancel</h2>
               <p>
                 Cancel Order {order.reference} for {formatMoney(order.totalMinor, order.currency)} {order.currency}.
-                Only Orders pending payment can be cancelled.
+                Only pending Orders can be canceled.
               </p>
               <div className="inline-actions">
                 <button
                   className="button button-danger"
                   type="button"
-                  disabled={inFlight}
+                  disabled={inFlight || notice?.kind === 'outdated'}
                   onClick={() => { void confirmAction('cancel'); }}
                 >
                   {notice?.kind === 'unknown' ? 'Retry Cancel' : 'Confirm Cancel'}
@@ -501,29 +775,86 @@ export function OrderDetailScreen({
             </section>
           ) : null}
 
-          {(showComplete || showCancel) ? (
-            <div
-              className="inline-actions"
-              style={{ display: panel !== null || notice?.kind === 'read-after-write' || state !== 'ready' ? 'none' : undefined }}
-            >
-              {showComplete ? (
+          {panel === 'request_refund' ? (
+            <section className="notice notice-info" aria-labelledby="console-refund-title">
+              <h2 id="console-refund-title" tabIndex={-1} ref={panelHeadingRef}>Request refund for Customer</h2>
+              <p>
+                Submit one pending refund request on behalf of the Customer. This anonymous bootstrap Console is a demo,
+                not authenticated Owner access. Manual refunds require confirmation of an external return in a later step.
+                This does not approve, reject, or return money.
+              </p>
+              <form
+                className="order-action-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void confirmAction('request_refund');
+                }}
+              >
+                <div className="field">
+                  <label htmlFor="console-refund-reason">Reason</label>
+                  <textarea
+                    id="console-refund-reason"
+                    value={displayedReason}
+                    disabled={inFlight || fieldsLocked}
+                    aria-invalid={fieldError?.path === '/reason'}
+                    aria-describedby={fieldError?.path === '/reason' ? 'console-refund-reason-error' : undefined}
+                    onChange={(event) => {
+                      if (fieldsLocked) return;
+                      setRefundReason(event.target.value);
+                    }}
+                  />
+                  {fieldError?.path === '/reason' ? <span id="console-refund-reason-error" className="field-error">{fieldError.message}</span> : null}
+                </div>
+                <div className="inline-actions">
+                  <button className="button button-primary" type="submit" disabled={inFlight || notice?.kind === 'outdated'}>
+                    {notice?.kind === 'unknown' ? 'Retry refund request' : 'Submit refund request'}
+                  </button>
+                  <button className="button" type="button" disabled={inFlight} onClick={closePanel}>Back to Order</button>
+                </div>
+              </form>
+            </section>
+          ) : null}
+
+          {(showMarkPaid || showFulfill || showCancel || showRefund) ? (
+            <div className="inline-actions" style={{ display: actionsHidden ? 'none' : undefined }}>
+              {showMarkPaid ? (
                 <button
                   className="button button-primary"
                   type="button"
-                  disabled={inFlight || completeLockedOut}
-                  onClick={(event: MouseEvent<HTMLButtonElement>) => openPanel('complete', event.currentTarget)}
+                  disabled={inFlight || (lockedAction !== null && lockedAction !== 'mark_paid')}
+                  onClick={(event: MouseEvent<HTMLButtonElement>) => openPanel('mark_paid', event.currentTarget)}
                 >
-                  Complete
+                  Record manual payment
+                </button>
+              ) : null}
+              {showFulfill ? (
+                <button
+                  className="button button-primary"
+                  type="button"
+                  disabled={inFlight || (lockedAction !== null && lockedAction !== 'fulfill')}
+                  onClick={(event: MouseEvent<HTMLButtonElement>) => openPanel('fulfill', event.currentTarget)}
+                >
+                  Fulfill
                 </button>
               ) : null}
               {showCancel ? (
                 <button
                   className="button button-danger"
                   type="button"
-                  disabled={inFlight || cancelLockedOut}
+                  disabled={inFlight || (lockedAction !== null && lockedAction !== 'cancel')}
                   onClick={(event: MouseEvent<HTMLButtonElement>) => openPanel('cancel', event.currentTarget)}
                 >
                   Cancel
+                </button>
+              ) : null}
+              {showRefund ? (
+                <button
+                  className="button"
+                  type="button"
+                  disabled={inFlight || (lockedAction !== null && lockedAction !== 'request_refund')}
+                  onClick={(event: MouseEvent<HTMLButtonElement>) => openPanel('request_refund', event.currentTarget)}
+                >
+                  Request refund for Customer
                 </button>
               ) : null}
             </div>
@@ -532,29 +863,55 @@ export function OrderDetailScreen({
           <section className="order-detail-section" aria-labelledby="order-snapshot-title">
             <h2 id="order-snapshot-title">Order snapshot</h2>
             <dl className="order-detail-fields">
+              <div><dt>Order reference</dt><dd>{order.reference}</dd></div>
+              <div><dt>Payment reference</dt><dd>{order.paymentReference}</dd></div>
               <div><dt>Customer</dt><dd>{order.customer.name}<br /><span className="meta-text">{order.customer.email}</span></dd></div>
-              <div><dt>Product</dt><dd>{order.product.name}<br /><span className="meta-text">{orderSelection(order)}</span></dd></div>
-              <div><dt>Quantity</dt><dd className="numeric">{order.quantity}</dd></div>
-              <div><dt>Unit price</dt><dd className="numeric">{formatMoney(order.unitPriceMinor, order.currency)}</dd></div>
               <div><dt>Total</dt><dd className="numeric order-total">{formatMoney(order.totalMinor, order.currency)} {order.currency}</dd></div>
               <div><dt>Created</dt><dd>{new Date(order.createdAt).toLocaleString()}</dd></div>
             </dl>
+            <OrderItemSnapshots items={order.items} />
           </section>
 
-          {order.refundRequest ? (
-            <section className="order-detail-section" aria-labelledby="order-refund-title">
-              <h2 id="order-refund-title">Refund request</h2>
-              <p><span className="refund-badge">Refund request pending</span></p>
-              <p className="order-reason">{order.refundRequest.reason}</p>
-              <p className="meta-text">{new Date(order.refundRequest.createdAt).toLocaleString()}</p>
-            </section>
-          ) : null}
+          <section className="order-detail-section" aria-labelledby="order-payment-title">
+            <h2 id="order-payment-title">Payment</h2>
+            {order.paymentRecordState === 'legacy_unrecorded' ? (
+              <p>Original payment-record information is missing for this migrated paid Order. Do not ask the Customer to pay again.</p>
+            ) : null}
+            {order.payment ? (
+              <dl className="order-detail-fields">
+                <div><dt>Source</dt><dd>{order.payment.source}</dd></div>
+                <div><dt>Method</dt><dd>{order.payment.method}</dd></div>
+                <div><dt>External reference</dt><dd>{order.payment.externalReference}</dd></div>
+                <div><dt>Recorded actor</dt><dd>{paymentActor ?? 'Bootstrap Owner (demo)'}</dd></div>
+                <div><dt>Recorded time</dt><dd>{new Date(order.payment.recordedAt).toLocaleString()}</dd></div>
+              </dl>
+            ) : order.paymentRecordState === 'none' ? (
+              <p>No payment has been recorded.</p>
+            ) : null}
+          </section>
+
+          <section className="order-detail-section" aria-labelledby="order-refund-title">
+            <h2 id="order-refund-title">Refund request</h2>
+            {order.refundRequest ? (
+              <>
+                <p><span className="refund-badge">Refund request pending</span></p>
+                <p className="order-reason">{order.refundRequest.reason}</p>
+                <p className="meta-text">
+                  {new Date(order.refundRequest.createdAt).toLocaleString()}
+                  {refundActor ? ` · ${refundActor}` : ''}
+                </p>
+                <p>Manual refunds require confirmation of an external return in a later step. Money has not been returned.</p>
+              </>
+            ) : (
+              <p>No refund request is open. Manual refunds require confirmation of an external return in a later step.</p>
+            )}
+          </section>
 
           <section className="order-detail-section" aria-labelledby="order-history-title">
             <h2 id="order-history-title">History</h2>
             <ol className="order-history">
               {order.history.map((event) => (
-                <HistoryEntry key={`${event.action}-${event.createdAt}-${event.source}`} event={event} />
+                <HistoryEntry key={`${event.action}-${event.createdAt}-${event.source}-${event.contractVersion}`} event={event} />
               ))}
             </ol>
           </section>

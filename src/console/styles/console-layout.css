@@ -620,7 +620,8 @@ legend {
   font-variant-numeric: tabular-nums;
 }
 
-.order-list-mobile {
+.order-list-mobile,
+.order-items-mobile {
   display: none;
 }
 
@@ -640,7 +641,8 @@ legend {
   gap: var(--space-3);
 }
 
-.order-summary-card h2 {
+.order-summary-card h2,
+.order-summary-card h3 {
   overflow-wrap: anywhere;
   font-family: var(--font-body);
   font-size: var(--type-body-size);
@@ -685,6 +687,48 @@ legend {
 .order-tools {
   grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, auto);
 }
+
+.order-matching-summary {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2);
+}
+
+.order-matching-summary dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.order-matching-summary div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.order-matching-summary dt {
+  color: var(--color-ink-muted);
+  font-size: var(--type-meta-size);
+  font-weight: var(--weight-semibold);
+}
+
+.order-matching-summary dd {
+  margin: 0;
+}
+
+.order-items-table {
+  table-layout: fixed;
+}
+
+.order-action-form {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.order-action-form .field-error {
+  color: var(--color-error-ink);
+}
+
 
 .order-search-row {
   display: flex;
@@ -1341,7 +1385,8 @@ legend {
     display: grid;
   }
 
-  .order-list-mobile {
+  .order-list-mobile,
+  .order-items-mobile {
     display: grid;
   }
 
