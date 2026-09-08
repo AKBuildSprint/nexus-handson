@@ -5,7 +5,7 @@ const STOREFRONT_ORIGIN = process.env.PLAYWRIGHT_STOREFRONT_BASE_URL ?? 'http://
 
 interface OrderResponse {
   reference: string;
-  status: 'pending_payment';
+  status: 'pending_payment' | 'completed' | 'cancelled';
   product: {
     name: string;
     variant: null | {
@@ -22,7 +22,9 @@ interface OrderResponse {
 
 interface ConsoleOrderResponse extends OrderResponse {
   customer: { name: string; email: string };
+  refundRequestStatus: 'pending' | null;
 }
+
 
 function uniqueToken(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -43,9 +45,9 @@ async function saveProduct(page: Page) {
   await expect(page.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
 }
 
-async function createSimpleProduct(page: Page, name: string) {
+async function createSimpleProduct(page: Page, name: string, basePrice = '21.25') {
   await page.goto(`${CONSOLE_ORIGIN}/console/products/new`);
-  await fillRequiredProduct(page, name, '21.25');
+  await fillRequiredProduct(page, name, basePrice);
   await saveProduct(page);
 }
 
@@ -209,4 +211,68 @@ test('shows separate Simple and Variant Orders safely through direct, navigation
   await expect(page.getByRole('heading', { name: 'Orders' })).toBeVisible();
   await expect(variantCard).toBeVisible();
   await expectNoHorizontalOverflow(page, 375);
+});
+
+async function completeOrderFromDetail(page: Page, reference: string) {
+  await page.goto(`${CONSOLE_ORIGIN}/console/orders/${reference}`);
+  await expect(page.getByRole('heading', { name: reference })).toBeVisible();
+  await page.getByRole('button', { name: 'Complete' }).click();
+  await expect(page.getByText('I confirm the full payment has been received.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Confirm Complete' })).toBeDisabled();
+  await page.getByLabel('I confirm the full payment has been received.').check();
+  await page.getByRole('button', { name: 'Confirm Complete' }).click();
+  await expect(page.locator('.status-tag.status-active')).toContainText('Completed');
+}
+
+test('completes zero-total and paid Orders, restores detail via reload and popstate, and conflicts a stale cancel', async ({ page, context }) => {
+  const token = uniqueToken();
+  const paidName = `Verify Console Paid ${token}`;
+  const zeroName = `Verify Console Zero ${token}`;
+  const staleName = `Verify Console Stale ${token}`;
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await createSimpleProduct(page, paidName, '21.25');
+  await createSimpleProduct(page, zeroName, '0.00');
+  await createSimpleProduct(page, staleName, '12.00');
+
+  await page.goto(STOREFRONT_ORIGIN);
+  const paidOrder = await placeOrder(page, paidName);
+  expect(paidOrder.body.totalMinor).toBe(2125);
+  await page.getByRole('button', { name: 'Back to catalog' }).click();
+  const zeroOrder = await placeOrder(page, zeroName);
+  expect(zeroOrder.body.totalMinor).toBe(0);
+  await page.getByRole('button', { name: 'Back to catalog' }).click();
+  const staleOrder = await placeOrder(page, staleName);
+
+  await page.goto(`${CONSOLE_ORIGIN}/console/orders/${paidOrder.body.reference}`);
+  await expect(page.getByRole('heading', { name: paidOrder.body.reference })).toBeVisible();
+  await expect(page.locator('.console-nav [aria-current="page"]')).toContainText('Orders');
+  await page.reload();
+  await expect(page.getByRole('heading', { name: paidOrder.body.reference })).toBeVisible();
+  await page.getByRole('button', { name: 'Back to Orders' }).first().click();
+  await expect(page.getByRole('heading', { name: 'Orders' })).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: paidOrder.body.reference })).toBeVisible();
+
+  await completeOrderFromDetail(page, paidOrder.body.reference);
+  await completeOrderFromDetail(page, zeroOrder.body.reference);
+
+  const pageB = await context.newPage();
+  await page.goto(`${CONSOLE_ORIGIN}/console/orders/${staleOrder.body.reference}`);
+  await expect(page.getByRole('heading', { name: staleOrder.body.reference })).toBeVisible();
+  await pageB.goto(`${CONSOLE_ORIGIN}/console/orders/${staleOrder.body.reference}`);
+  await completeOrderFromDetail(pageB, staleOrder.body.reference);
+  await pageB.close();
+
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await page.getByRole('button', { name: 'Confirm Cancel' }).click();
+  await expect(page.getByRole('alert').filter({ hasText: 'The action was not applied. The Order has changed.' })).toBeVisible();
+  await expect(page.locator('.status-tag.status-active')).toContainText('Completed');
+
+  await page.goto(`${CONSOLE_ORIGIN}/console/orders`);
+  await page.getByRole('tab', { name: 'Pending payment' }).click();
+  await expect(page.getByRole('link', { name: paidOrder.body.reference })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: staleOrder.body.reference })).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Completed' }).click();
+  await expect(page.getByRole('link', { name: paidOrder.body.reference })).toBeVisible();
+  await expect(page.getByRole('link', { name: zeroOrder.body.reference })).toBeVisible();
 });

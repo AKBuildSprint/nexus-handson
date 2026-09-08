@@ -682,6 +682,107 @@ legend {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
+.order-tools {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, auto);
+}
+
+.order-search-row {
+  display: flex;
+  min-width: 0;
+  align-items: end;
+  gap: var(--space-2);
+}
+
+.order-search-row input {
+  flex: 1;
+}
+
+.order-status-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.refund-badge {
+  display: inline-flex;
+  min-height: var(--space-6);
+  align-items: center;
+  width: fit-content;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--space-6);
+  background: var(--color-warning-surface);
+  color: var(--color-warning-ink);
+  font-size: var(--type-meta-size);
+  font-weight: var(--weight-bold);
+  line-height: var(--type-meta-line);
+}
+
+.order-pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+}
+
+.order-detail-section {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.order-detail-fields {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.order-detail-fields div {
+  display: grid;
+  grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.order-detail-fields dt {
+  color: var(--color-ink-muted);
+  font-size: var(--type-meta-size);
+  font-weight: var(--weight-semibold);
+}
+
+.order-detail-fields dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.order-reason {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.order-history {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.order-history li {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.orders-table td .refund-badge,
+.orders-table td .status-tag {
+  display: flex;
+  margin-block-start: var(--space-1);
+}
+
+.orders-table td .status-tag:first-child {
+  margin-block-start: 0;
+}
+
 .product-list-mobile,
 .variant-list-mobile {
   display: none;
