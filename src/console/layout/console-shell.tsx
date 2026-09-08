@@ -48,20 +48,65 @@ export function ConsoleShell({
       </a>
 
       <aside className="console-rail" aria-label="Console navigation">
-        <div className="console-brand">
-          <strong>Nexus</strong>
-          <span>Operations Console</span>
+        <div className="console-rail-top">
+          <div className="console-brand">
+            <strong>Nexus</strong>
+            <span>Operations Console</span>
+          </div>
+          <div className="console-role-pill">
+            <span>Viewing as Store operator</span>
+          </div>
+          <nav className="console-nav">
+            <button
+              className={activeDestination === 'Products' ? 'active' : undefined}
+              aria-current={activeDestination === 'Products' ? 'page' : undefined}
+              type="button"
+              onClick={(event) => onOpenProducts(event.currentTarget)}
+            >
+              Products
+            </button>
+            {onOpenOrders ? (
+              <button
+                className={activeDestination === 'Orders' ? 'active' : undefined}
+                aria-current={activeDestination === 'Orders' ? 'page' : undefined}
+                type="button"
+                onClick={(event) => onOpenOrders(event.currentTarget)}
+              >
+                Orders
+              </button>
+            ) : null}
+          </nav>
         </div>
-        <nav className="console-nav">
-          <button className={activeDestination === 'Products' ? 'active' : undefined} aria-current={activeDestination === 'Products' ? 'page' : undefined} type="button" onClick={(event) => onOpenProducts(event.currentTarget)}>
-            Products
-          </button>
-          {onOpenOrders ? <button className={activeDestination === 'Orders' ? 'active' : undefined} aria-current={activeDestination === 'Orders' ? 'page' : undefined} type="button" onClick={(event) => onOpenOrders(event.currentTarget)}>Orders</button> : null}
-        </nav>
-        <p className="console-rail-note">
-          {railNote ?? 'Frontend design prototype. Scenario data is isolated from future production inputs.'}
-        </p>
+        <div className="console-rail-bottom">
+          <div className="console-account">
+            <span className="console-avatar" aria-hidden="true">
+              <span className="icon-glyph">person</span>
+            </span>
+            <div>
+              <div className="console-account-name">Nexus</div>
+              <div className="console-account-meta">Store operator</div>
+            </div>
+          </div>
+          {railNote ? <p className="console-rail-note">{railNote}</p> : null}
+        </div>
       </aside>
+
+      <header className="console-deskbar">
+        <span className="console-deskbar-kicker">Nexus Operations Console · {activeDestination}</span>
+        <div className="console-deskbar-tools">
+          <button
+            className="console-icon-button"
+            type="button"
+            aria-label="Focus search"
+            onClick={() => document.getElementById('product-search')?.focus() ?? document.getElementById('order-search')?.focus()}
+          >
+            <span className="icon-glyph" aria-hidden="true">search</span>
+          </button>
+          <span className="console-avatar" aria-hidden="true">
+            <span className="icon-glyph">person</span>
+          </span>
+        </div>
+      </header>
 
       <header className="console-topbar">
         <strong>Nexus · {activeDestination}</strong>

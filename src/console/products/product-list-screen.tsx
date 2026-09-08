@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import type { ProductListState, ProductStatus, ProductSummary } from './product-ui-types';
 
 interface ProductListScreenProps {
@@ -14,6 +14,26 @@ interface ProductListScreenProps {
 
 const FILTERS: ReadonlyArray<'All' | ProductStatus> = ['All', 'Draft', 'Active', 'Archived'];
 
+function readListCriteria(): { query: string; filter: (typeof FILTERS)[number] } {
+  const params = new URLSearchParams(window.location.search);
+  const status = params.get('status');
+  const filter = status === 'draft' ? 'Draft' : status === 'active' ? 'Active' : status === 'archived' ? 'Archived' : 'All';
+  return { query: params.get('q') ?? '', filter };
+}
+
+function writeListCriteria(query: string, filter: (typeof FILTERS)[number]): void {
+  const params = new URLSearchParams(window.location.search);
+  const trimmed = query.trim();
+  if (trimmed) params.set('q', trimmed);
+  else params.delete('q');
+  if (filter === 'All') params.delete('status');
+  else params.set('status', filter.toLowerCase());
+  const search = params.toString();
+  const next = `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash}`;
+  const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (current !== next) window.history.replaceState(window.history.state, '', next);
+}
+
 function StatusTag({ status }: { status: ProductStatus }) {
   return <span className={`status-tag status-${status.toLowerCase()}`}>{status}</span>;
 }
@@ -28,8 +48,9 @@ export function ProductListScreen({
   onRetry,
   onCriteriaChange,
 }: ProductListScreenProps) {
-  const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]>('All');
+  const initialCriteria = readListCriteria();
+  const [query, setQuery] = useState(initialCriteria.query);
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]>(initialCriteria.filter);
   const [templateState, setTemplateState] = useState<'idle' | 'loading' | 'success' | 'error'>(
     state === 'template-error' ? 'error' : 'idle',
   );
@@ -49,9 +70,18 @@ export function ProductListScreen({
       return matchesQuery && matchesFilter;
     });
   }, [filter, products, query]);
+  const catalogCounts = useMemo(() => ({
+    total: products.length,
+    active: products.filter((product) => product.status === 'Active').length,
+    variant: products.filter((product) => product.type === 'Variant').length,
+    simple: products.filter((product) => product.type === 'Simple').length,
+  }), [products]);
   useEffect(() => {
     onCriteriaChange?.(query, filter === 'All' ? 'all' : filter.toLowerCase() as 'draft' | 'active' | 'archived');
   }, [filter, onCriteriaChange, query]);
+  useEffect(() => {
+    writeListCriteria(query, filter);
+  }, [filter, query]);
   const downloadTemplate = async () => {
     setTemplateState('loading');
     try {
@@ -83,6 +113,7 @@ export function ProductListScreen({
     <div className="page-stack">
       <header className="page-header">
         <div className="page-header-copy">
+          <p className="page-kicker">Catalog operations · Nexus</p>
           <h1>Products</h1>
           <p>Find, create, and import the digital Products available in this Store.</p>
         </div>
@@ -91,13 +122,38 @@ export function ProductListScreen({
             Import CSV
           </button>
           <button className="button" type="button" onClick={downloadTemplate} disabled={templateState === 'loading'}>
-            {templateState === 'loading' ? 'Downloading template' : templateState === 'error' ? 'Retry CSV template' : 'Download CSV template'}
+            {templateState === 'loading' ? 'Downloading template…' : templateState === 'error' ? 'Retry CSV template' : 'Download CSV template'}
           </button>
           <button className="button button-primary" type="button" onClick={onAddProduct}>
             Add Product
           </button>
         </div>
       </header>
+
+      {state !== 'loading' && state !== 'error' ? (
+        <section className="metric-strip" aria-label="Catalog counts">
+          <article className="metric-card metric-card-accent">
+            <p className="metric-label">Products</p>
+            <p className="metric-value">{catalogCounts.total}</p>
+            <p className="metric-meta">{catalogCounts.active} Active in this Store</p>
+          </article>
+          <article className="metric-card">
+            <p className="metric-label">Active</p>
+            <p className="metric-value">{catalogCounts.active}</p>
+            <p className="metric-meta">Visible on the Storefront</p>
+          </article>
+          <article className="metric-card">
+            <p className="metric-label">Simple</p>
+            <p className="metric-value">{catalogCounts.simple}</p>
+            <p className="metric-meta">No Variant schema</p>
+          </article>
+          <article className="metric-card">
+            <p className="metric-label">Variant</p>
+            <p className="metric-value">{catalogCounts.variant}</p>
+            <p className="metric-meta">Enabled combinations in the matrix</p>
+          </article>
+        </section>
+      ) : null}
 
       {templateState === 'success' ? (
         <div className="notice notice-success" role="status">
@@ -120,7 +176,9 @@ export function ProductListScreen({
             id="product-search"
             type="search"
             value={query}
-            placeholder="Search by Product name"
+            placeholder="Field Notes…"
+            name="q"
+            autoComplete="off"
             onChange={(event) => setQuery(event.target.value)}
           />
         </div>
@@ -162,7 +220,7 @@ export function ProductListScreen({
         </p>
 
         {state === 'loading' || state === 'filtered-loading' ? (
-          <div aria-label={state === 'filtered-loading' ? 'Updating filtered Products' : 'Loading Products'}>
+          <div aria-label={state === 'filtered-loading' ? 'Updating filtered Products' : 'Loading…'}>
             {[0, 1, 2, 3].map((row) => (
               <div className="skeleton-row" key={row} aria-hidden="true">
                 {[0, 1, 2, 3, 4, 5].map((cell) => (
@@ -234,13 +292,14 @@ export function ProductListScreen({
                     <td>
                       {product.id === openingProductId ? (
                         <button className="text-button" type="button" disabled aria-label={`Opening ${product.name}`}>
-                          Opening Product
+                          Opening Product…
                         </button>
                       ) : (
                         <a
                           className="product-link"
                           href={`/console/products/${encodeURIComponent(product.slug ?? product.id)}`}
-                          onClick={(event) => {
+                          onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+                            if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
                             event.preventDefault();
                             onEditProduct(product.id);
                           }}
@@ -264,13 +323,14 @@ export function ProductListScreen({
                 <article className="product-summary-card" key={product.id}>
                   {product.id === openingProductId ? (
                     <button className="text-button" type="button" disabled aria-label={`Opening ${product.name}`}>
-                      Opening Product
+                      Opening Product…
                     </button>
                   ) : (
                     <a
                       className="product-link"
                       href={`/console/products/${encodeURIComponent(product.slug ?? product.id)}`}
-                      onClick={(event) => {
+                      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+                        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
                         event.preventDefault();
                         onEditProduct(product.id);
                       }}
