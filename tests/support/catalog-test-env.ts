@@ -4,6 +4,8 @@ import migrationTwo from '../../migrations/0002-product-variants.sql?raw';
 import migrationThree from '../../migrations/0003-imports.sql?raw';
 import migrationFour from '../../migrations/0004-orders.sql?raw';
 import migrationFive from '../../migrations/0005-order-operations.sql?raw';
+import migrationSix from '../../migrations/0006-order-brief-contract.sql?raw';
+import migrationSeven from '../../migrations/0007-manual-payments.sql?raw';
 import worker from '../../src/worker';
 
 function splitMigrationSql(sql: string): string[] {
@@ -75,19 +77,24 @@ export const catalogMigrations: D1Migration[] = [
   { name: '0003-imports.sql', queries: splitMigrationSql(migrationThree) },
   { name: '0004-orders.sql', queries: splitMigrationSql(migrationFour) },
   { name: '0005-order-operations.sql', queries: splitMigrationSql(migrationFive) },
+  { name: '0006-order-brief-contract.sql', queries: splitMigrationSql(migrationSix) },
+  { name: '0007-manual-payments.sql', queries: splitMigrationSql(migrationSeven) },
 ];
 
-export function applyCatalogMigrations(through: 4 | 5 = 5): Promise<void> {
+export type CatalogMigrationThrough = 4 | 5 | 6 | 7;
+
+export function applyCatalogMigrations(through: CatalogMigrationThrough = 7): Promise<void> {
   return applyD1Migrations(env.DB, catalogMigrations.slice(0, through));
 }
 
-export async function resetCatalogThrough(through: 4 | 5): Promise<void> {
+export async function resetCatalogThrough(through: CatalogMigrationThrough): Promise<void> {
   const tables = [
     'order_commands',
+    'payments',
+    'order_history',
     'order_refund_requests',
     'order_idempotency',
     'order_access',
-    'order_history',
     'order_lines',
     'orders',
     'customers',
@@ -105,7 +112,7 @@ export async function resetCatalogThrough(through: 4 | 5): Promise<void> {
 }
 
 export async function resetCatalog(): Promise<void> {
-  return resetCatalogThrough(5);
+  return resetCatalogThrough(7);
 }
 
 export const TEST_STOREFRONT_ORIGIN = 'https://storefront.test';

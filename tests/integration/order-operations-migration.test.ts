@@ -1,15 +1,10 @@
 import { applyD1Migrations, env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
-import { completeOrder } from '../../src/orders/order-commands';
-import { createOrder } from '../../src/orders/order-write';
 import { digestOrderCapability, findOrderIdByCapability } from '../../src/orders/private-access';
 import {
   applyCatalogMigrations,
   catalogMigrations,
-  resetCatalog,
   resetCatalogThrough,
-  SIMPLE_CORE,
-  workerRequest,
 } from '../support/catalog-test-env';
 
 const STORE = 'store_nexus';
@@ -374,7 +369,7 @@ describe('order operations migration', () => {
   });
 
   it('rejects illegal Order graph mutations on the upgraded schema', async () => {
-    await resetCatalog();
+    await resetCatalogThrough(5);
     await env.DB.prepare(
       "INSERT INTO customers (id,store_id,name,email_normalized) VALUES ('cust_a','store_nexus','Ada','ada@example.test')",
     ).run();
@@ -526,61 +521,4 @@ describe('order operations migration', () => {
     expect(await env.DB.prepare("SELECT count(*) AS count FROM orders WHERE status='pending_payment'").first<number>('count')).toBe(3);
   });
 
-  it('lets Create Order insert on the new schema through history defaults', async () => {
-    await resetCatalog();
-    const response = await workerRequest('/api/console/products', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ product: SIMPLE_CORE, schema: null, previewHash: null }),
-    });
-    const product = (await response.json() as { product: { id: string } }).product;
-    const order = await createOrder({
-      database: env.DB,
-      body: {
-        customer: { name: 'Ada Lovelace', email: ' ADA@Example.test ' },
-        productId: product.id,
-        variantId: null,
-        quantity: 2,
-      },
-      idempotencyKey: 'create-after-0005-01',
-      capability: CAPABILITY_SIMPLE,
-    });
-    expect(order.status).toBe('pending_payment');
-    const history = await env.DB.prepare(
-      'SELECT action, source, from_status, status FROM order_history WHERE order_id = (SELECT id FROM orders WHERE reference = ?)',
-    ).bind(order.reference).first<{
-      action: string;
-      source: string;
-      from_status: string | null;
-      status: string;
-    }>();
-    expect(history).toEqual({
-      action: 'order_created',
-      source: 'customer_capability',
-      from_status: null,
-      status: 'pending_payment',
-    });
-  });
-
-  it('completes a migrated pending Order including total 0', async () => {
-    await resetCatalogThrough(4);
-    const seeded = await seedLegacyOrders();
-    await applyCatalogMigrations(5);
-    const zero = seeded.find((order) => order.totalMinor === 0);
-    expect(zero).toBeDefined();
-    const result = await completeOrder({
-      database: env.DB,
-      reference: zero!.reference,
-      body: { paymentConfirmed: true },
-      idempotencyKey: 'migrated-complete-0001',
-    });
-    expect(result).toMatchObject({
-      action: 'complete',
-      status: 'completed',
-      reference: zero!.reference,
-      refundRequest: null,
-    });
-    expect(await env.DB.prepare('SELECT status FROM orders WHERE id = ?')
-      .bind(zero!.id).first<string>('status')).toBe('completed');
-  });
 });

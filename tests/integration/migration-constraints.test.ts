@@ -1,6 +1,6 @@
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { applyCatalogMigrations, resetCatalog } from '../support/catalog-test-env';
+import { applyCatalogMigrations, resetCatalog, resetCatalogThrough } from '../support/catalog-test-env';
 
 beforeEach(resetCatalog);
 
@@ -99,6 +99,7 @@ describe('catalog migration boundaries', () => {
   });
 
   it('enforces Store-scoped Order identity, one line, quantity, and status', async () => {
+    await resetCatalogThrough(5);
     await env.DB.prepare(
       "INSERT INTO customers (id,store_id,name,email_normalized) VALUES ('cust_a','store_nexus','Ada','ada@example.test')",
     ).run();
