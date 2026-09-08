@@ -469,4 +469,80 @@ describe('Console Order contracts', () => {
     releaseComplete?.();
     await flush();
   });
+
+  it('describes pending Complete and Cancel only while payment is pending', async () => {
+    stubConsoleFetch(async (url) => {
+      if (url.pathname === `/api/console/orders/${pendingDetail.reference}`) return response({ order: pendingDetail });
+      if (url.pathname === '/api/console/orders') return response({ orders: [safeOrder], nextCursor: null, hasOrders: true });
+      throw new Error(`Unexpected request ${url.pathname}`);
+    });
+    window.history.replaceState({}, '', `/console/orders/${pendingDetail.reference}`);
+    await renderApp();
+    await waitUntil(() => Boolean(buttonByName('Complete')));
+    expect(container.textContent).toContain('Complete or Cancel only while the Order is still pending payment.');
+  });
+
+  it('refreshes a hidden Console detail and drops stale Complete actions', async () => {
+    let gets = 0;
+    stubConsoleFetch(async (url) => {
+      if (url.pathname === `/api/console/orders/${pendingDetail.reference}`) {
+        gets += 1;
+        return response({ order: gets === 1 ? pendingDetail : completedDetail });
+      }
+      if (url.pathname === '/api/console/orders') return response({ orders: [safeOrder], nextCursor: null, hasOrders: true });
+      throw new Error(`Unexpected request ${url.pathname}`);
+    });
+    window.history.replaceState({}, '', `/console/orders/${pendingDetail.reference}`);
+    await renderApp();
+    await waitUntil(() => Boolean(buttonByName('Complete')));
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await waitUntil(() => buttonByName('Complete') == null);
+    expect(container.textContent).toContain('This Order is completed. Complete and Cancel are no longer available.');
+    expect(container.textContent).not.toContain('Complete or Cancel only while the Order is still pending payment.');
+  });
+
+
+  it('ignores a deferred pre-write GET that resolves after Complete', async () => {
+    let gets = 0;
+    let releaseStale: (() => void) | undefined;
+    const staleGate = new Promise<void>((resolve) => { releaseStale = resolve; });
+    stubConsoleFetch(async (url, init) => {
+      if (url.pathname === `/api/console/orders/${pendingDetail.reference}` && (!init || !init.method || init.method === 'GET')) {
+        gets += 1;
+        if (gets === 2) {
+          await staleGate;
+          return response({ order: pendingDetail });
+        }
+        return response({ order: gets === 1 ? pendingDetail : completedDetail });
+      }
+      if (url.pathname.endsWith('/complete')) {
+        return response({
+          reference: pendingDetail.reference,
+          action: 'complete',
+          status: 'completed',
+          occurredAt: '2026-08-27T12:05:00.000Z',
+          refundRequest: null,
+        });
+      }
+      if (url.pathname === '/api/console/orders') return response({ orders: [safeOrder], nextCursor: null, hasOrders: true });
+      throw new Error(`Unexpected request ${url.pathname}`);
+    });
+    window.history.replaceState({}, '', `/console/orders/${pendingDetail.reference}`);
+    await renderApp();
+    await waitUntil(() => Boolean(buttonByName('Complete')));
+    await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
+    await waitUntil(() => gets >= 2);
+    await openCompletePanel();
+    await confirmComplete();
+    await waitUntil(() => (container.textContent ?? '').includes('This Order is completed. Complete and Cancel are no longer available.'));
+    releaseStale?.();
+    await flush();
+    await flush();
+    expect(buttonByName('Complete')).toBeUndefined();
+    expect(container.textContent).toContain('Completed');
+    expect(container.textContent).not.toContain('Complete or Cancel only while the Order is still pending payment.');
+  });
+
 });

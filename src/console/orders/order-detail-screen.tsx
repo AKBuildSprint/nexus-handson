@@ -50,6 +50,28 @@ const HISTORY_SOURCE_LABEL: Record<OrderAuditSource, string> = {
   customer_capability: 'Customer',
 };
 
+const CONSOLE_ORDER_SYNC = 'nexus-console-orders';
+
+function publishConsoleOrderChange(reference: string) {
+  if (typeof BroadcastChannel !== 'function') return;
+  const channel = new BroadcastChannel(CONSOLE_ORDER_SYNC);
+  channel.postMessage({ reference });
+  channel.close();
+}
+
+function detailIntro(order: ConsoleOrderDetailView): string {
+  if (order.status === 'pending_payment') {
+    return 'Review the stored Customer Order snapshot. Complete or Cancel only while the Order is still pending payment.';
+  }
+  if (order.status === 'cancelled') {
+    return 'Review the stored Customer Order snapshot. This Order is cancelled. Complete and Cancel are no longer available.';
+  }
+  if (order.refundRequestStatus === 'pending') {
+    return 'Review the stored Customer Order snapshot. A refund request is pending. This Console does not pay out or approve the request.';
+  }
+  return 'Review the stored Customer Order snapshot. This Order is completed. Complete and Cancel are no longer available.';
+}
+
 function formatMoney(minor: number, currency: string): string {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(minor / 100);
 }
@@ -131,27 +153,40 @@ export function OrderDetailScreen({
   const panelHeadingRef = useRef<HTMLHeadingElement>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const attemptRef = useRef<{ reference: string; action: OrderAction; key: string } | null>(null);
+  const inFlightRef = useRef(false);
+  const loadOrderRef = useRef<(generation: number, capturedReference: string, signal: AbortSignal, mode?: 'page' | 'refresh') => void>(() => undefined);
   const loadAbortRef = useRef<AbortController | null>(null);
   const mutationAbortRef = useRef<AbortController | null>(null);
   const restoreTriggerRef = useRef(false);
   const generationRef = useRef(routeGeneration);
   const referenceRef = useRef(reference);
+  const readEpochRef = useRef(0);
 
   generationRef.current = routeGeneration;
   referenceRef.current = reference;
+  inFlightRef.current = inFlight;
 
   const stillCurrent = (generation: number, capturedReference: string) => (
     generationRef.current === generation && referenceRef.current === capturedReference
   );
 
-  const loadOrder = (generation: number, capturedReference: string, signal: AbortSignal) => {
-    setState('loading');
+  const loadOrder = (generation: number, capturedReference: string, signal: AbortSignal, mode: 'page' | 'refresh' = 'page') => {
+    const epoch = readEpochRef.current + 1;
+    readEpochRef.current = epoch;
+    if (mode === 'page') setState('loading');
     void fetchOrder(capturedReference, signal).then((response) => {
+      if (epoch !== readEpochRef.current) return;
       if (!stillCurrent(generation, capturedReference)) return;
       setOrder(response.order);
       setState('ready');
       setNotice((current) => current?.kind === 'read-after-write' ? null : current);
+      if (mode === 'refresh' && !inFlightRef.current) {
+        const actions = response.order.allowedActions;
+        setPanel((current) => (current && !actions.includes(current) ? null : current));
+        if (!actions.includes('complete')) setPaymentConfirmed(false);
+      }
     }).catch((error: unknown) => {
+      if (epoch !== readEpochRef.current) return;
       if (!stillCurrent(generation, capturedReference) || isAbortError(error)) return;
       if (error instanceof ConsoleApiError && error.status === 404) {
         setOrder(null);
@@ -161,6 +196,7 @@ export function OrderDetailScreen({
       setState((current) => current === 'ready' ? current : 'error');
     });
   };
+  loadOrderRef.current = loadOrder;
 
   useEffect(() => {
     const generation = routeGeneration;
@@ -181,6 +217,30 @@ export function OrderDetailScreen({
     return () => {
       mutationAbortRef.current?.abort();
       loadAbortRef.current?.abort();
+    };
+  }, [reference, routeGeneration]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'hidden') return;
+      if (inFlightRef.current) return;
+      const generation = generationRef.current;
+      const capturedReference = referenceRef.current;
+      loadAbortRef.current?.abort();
+      const controller = new AbortController();
+      loadAbortRef.current = controller;
+      loadOrderRef.current(generation, capturedReference, controller.signal, 'refresh');
+    };
+    const onMessage = (event: MessageEvent<{ reference?: string }>) => {
+      if (event.data?.reference === referenceRef.current) refresh();
+    };
+    const channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel(CONSOLE_ORDER_SYNC) : null;
+    channel?.addEventListener('message', onMessage);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      channel?.removeEventListener('message', onMessage);
+      channel?.close();
+      document.removeEventListener('visibilitychange', refresh);
     };
   }, [reference, routeGeneration]);
 
@@ -214,14 +274,21 @@ export function OrderDetailScreen({
     setPanel(action);
   };
 
-  const refetchAfterWrite = async (generation: number, capturedReference: string, signal: AbortSignal) => {
+  const refetchAfterWrite = async (generation: number, capturedReference: string) => {
+    loadAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
+    const epoch = readEpochRef.current + 1;
+    readEpochRef.current = epoch;
     try {
-      const response = await fetchOrder(capturedReference, signal);
+      const response = await fetchOrder(capturedReference, controller.signal);
+      if (epoch !== readEpochRef.current) return;
       if (!stillCurrent(generation, capturedReference)) return;
       setOrder(response.order);
       setState('ready');
       setNotice(null);
     } catch (error) {
+      if (epoch !== readEpochRef.current) return;
       if (!stillCurrent(generation, capturedReference) || isAbortError(error)) return;
       setNotice({ kind: 'read-after-write' });
     }
@@ -238,6 +305,8 @@ export function OrderDetailScreen({
       attemptRef.current = attempt;
     }
     mutationAbortRef.current?.abort();
+    loadAbortRef.current?.abort();
+    readEpochRef.current += 1;
     const controller = new AbortController();
     mutationAbortRef.current = controller;
     const deadline = deadlineSignal(controller.signal, MUTATION_DEADLINE_MS);
@@ -252,6 +321,7 @@ export function OrderDetailScreen({
       }
       if (!stillCurrent(generation, capturedReference)) {
         onInvalidateList();
+        publishConsoleOrderChange(capturedReference);
         return;
       }
       attemptRef.current = null;
@@ -259,7 +329,8 @@ export function OrderDetailScreen({
       setPanel(null);
       setPaymentConfirmed(false);
       onInvalidateList();
-      await refetchAfterWrite(generation, capturedReference, loadAbortRef.current?.signal ?? controller.signal);
+      publishConsoleOrderChange(capturedReference);
+      await refetchAfterWrite(generation, capturedReference);
     } catch (error) {
       if (!stillCurrent(generation, capturedReference)) return;
       if (error instanceof ConsoleApiError && error.status === 409) {
@@ -269,6 +340,7 @@ export function OrderDetailScreen({
         setPaymentConfirmed(false);
         setNotice({ kind: 'conflict', idempotency: error.code === 'idempotency_conflict' });
         onInvalidateList();
+        publishConsoleOrderChange(capturedReference);
         loadAbortRef.current?.abort();
         const refresh = new AbortController();
         loadAbortRef.current = refresh;
@@ -341,7 +413,7 @@ export function OrderDetailScreen({
           <header className="page-header">
             <div className="page-header-copy">
               <h1 tabIndex={-1} ref={headingRef}>{order.reference}</h1>
-              <p>Review the stored Customer Order snapshot. Complete or Cancel only when the Order is still pending payment.</p>
+              <p>{detailIntro(order)}</p>
             </div>
             <div className="page-actions">
               <span className={status?.className}>{status?.label}</span>
