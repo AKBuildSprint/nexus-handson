@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { ProductDetailResponse } from '../../src/catalog/catalog-types';
-import { createOrderItemCatalogSnapshotResolver } from '../../src/catalog/private-order-snapshot';
+import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
+import { createOrderItemCatalogSnapshotResolver } from '@nexus/catalog/private-order-snapshot';
 import { env } from 'cloudflare:test';
 import { resetCatalog, SIMPLE_CORE, VARIANT_CORE, oneVariantSchema, workerRequest } from '../support/catalog-test-env';
 

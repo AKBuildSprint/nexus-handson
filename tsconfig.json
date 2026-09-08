@@ -24,8 +24,8 @@
     "noUnusedParameters": true
   },
   "include": [
-    "src",
-    "storefront/src",
+    "apps",
+    "packages",
     "scripts",
     "tests",
     "worker-configuration.d.ts",

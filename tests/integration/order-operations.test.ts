@@ -1,9 +1,9 @@
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { ProductDetailResponse } from '../../src/catalog/catalog-types';
-import { executeConsoleOrderAction, requestOrderRefund } from '../../src/orders/order-operations';
-import { listConsoleOrders, readConsoleOrderDetail } from '../../src/orders/order-read';
-import { createOrder } from '../../src/orders/order-write';
+import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
+import { executeConsoleOrderAction, requestOrderRefund } from '@nexus/orders/order-operations';
+import { listConsoleOrders, readConsoleOrderDetail } from '@nexus/orders/order-read';
+import { createOrder } from '@nexus/orders/order-write';
 import {
   resetCatalog,
   SIMPLE_CORE,

@@ -1,6 +1,6 @@
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { SchemaDraft } from '../../src/shared/schema-draft-refs';
+import type { SchemaDraft } from '@nexus/catalog/shared/schema-draft-refs';
 import { resetCatalog, VARIANT_CORE, oneVariantSchema, workerRequest } from '../support/catalog-test-env';
 
 beforeEach(resetCatalog);

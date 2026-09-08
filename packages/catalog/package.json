@@ -1,0 +1,12 @@
+{
+  "name": "@nexus/catalog",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "papaparse": "5.7.0"
+  }
+}

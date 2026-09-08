@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { inspectAndCountDeliveryBody } from '../../src/files/delivery-file';
+import { inspectAndCountDeliveryBody } from '@nexus/catalog/files/delivery-file';
 
 async function consume(stream: ReadableStream<Uint8Array>): Promise<number> {
   const reader = stream.getReader();

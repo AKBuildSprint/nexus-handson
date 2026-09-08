@@ -1,7 +1,7 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "nexus-s1-468cba",
-	"main": "src/worker/index.ts",
+	"main": "apps/worker/src/index.ts",
 	"compatibility_date": "2026-08-22",
 	"workers_dev": true,
 	"preview_urls": false,

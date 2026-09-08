@@ -1,9 +1,9 @@
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { preflightExactMatch, type ImportWritePlan } from '../../src/import/exact-match';
-import { executeImportWrite } from '../../src/import/import-write';
-import { parseCsvBytes } from '../../src/import/csv-parser';
-import { validateCsvRows } from '../../src/import/csv-validator';
+import { preflightExactMatch, type ImportWritePlan } from '@nexus/catalog/import/exact-match';
+import { executeImportWrite } from '@nexus/catalog/import/import-write';
+import { parseCsvBytes } from '@nexus/catalog/import/csv-parser';
+import { validateCsvRows } from '@nexus/catalog/import/csv-validator';
 import template from '../fixtures/import/unified-template.csv?raw';
 import { resetCatalog } from '../support/catalog-test-env';
 

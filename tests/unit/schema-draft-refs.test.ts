@@ -3,7 +3,7 @@ import {
   DraftReferenceValidationError,
   validateAndMapSchemaDraft,
   type SchemaDraft,
-} from '../../src/shared/schema-draft-refs';
+} from '@nexus/catalog/shared/schema-draft-refs';
 
 function validDraft(): SchemaDraft {
   return {

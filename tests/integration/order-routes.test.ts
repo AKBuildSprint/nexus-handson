@@ -1,14 +1,14 @@
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ProductDetailResponse } from '../../src/catalog/catalog-types';
-import { executeConsoleOrderAction } from '../../src/orders/order-operations';
+import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
+import { executeConsoleOrderAction } from '@nexus/orders/order-operations';
 import {
   resetCatalog,
   SIMPLE_CORE,
   TEST_STOREFRONT_ORIGIN,
   workerRequest,
 } from '../support/catalog-test-env';
-import worker from '../../src/worker';
+import worker from '../../apps/worker/src';
 
 
 const CAPABILITY_A = 'A'.repeat(43);

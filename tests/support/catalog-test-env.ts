@@ -4,7 +4,7 @@ import migrationTwo from '../../migrations/0002-product-variants.sql?raw';
 import migrationThree from '../../migrations/0003-imports.sql?raw';
 import migrationFour from '../../migrations/0004-orders.sql?raw';
 import migrationFive from '../../migrations/0005-order-operations.sql?raw';
-import worker from '../../src/worker';
+import worker from '../../apps/worker/src';
 
 function splitMigrationSql(sql: string): string[] {
   const queries: string[] = [];

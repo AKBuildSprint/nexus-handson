@@ -1,16 +1,16 @@
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ProductDetailResponse } from '../../src/catalog/catalog-types';
-import { executeConsoleOrderAction, requestOrderRefund } from '../../src/orders/order-operations';
-import { listConsoleOrders } from '../../src/orders/order-read';
+import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
+import { executeConsoleOrderAction, requestOrderRefund } from '@nexus/orders/order-operations';
+import { listConsoleOrders } from '@nexus/orders/order-read';
 import {
   resetCatalog,
   SIMPLE_CORE,
   TEST_STOREFRONT_ORIGIN,
   workerRequest,
 } from '../support/catalog-test-env';
-import { routeConsoleOrderRequest } from '../../src/worker/console-order-routes';
-import worker from '../../src/worker';
+import { routeConsoleOrderRequest } from '../../apps/worker/src/console-order-routes';
+import worker from '../../apps/worker/src';
 
 beforeEach(resetCatalog);
 

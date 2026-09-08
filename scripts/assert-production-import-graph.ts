@@ -27,7 +27,7 @@ try {
     throw new Error(`Production import graph reaches forbidden design/prototype modules:\n${forbidden.sort().join('\n')}`);
   }
 
-  if (![...reachableProjectModules].some((moduleId) => moduleId.endsWith('src/console/main.tsx'))) {
+  if (![...reachableProjectModules].some((moduleId) => moduleId.endsWith('apps/console/src/main.tsx'))) {
     throw new Error('Production import graph metadata does not contain the Console entrypoint.');
   }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import worker from '../../src/worker';
-import type { Env } from '../../src/worker/environment';
+import worker from '../../apps/worker/src';
+import type { Env } from '../../apps/worker/src/environment';
 
 function testEnvironment(assetFetch: (request: Request) => Promise<Response>): Pick<Env, 'ASSETS'> {
   return {

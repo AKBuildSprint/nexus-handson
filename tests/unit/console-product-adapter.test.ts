@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildSchema } from '../../src/console/production-console-app';
-import type { ProductEditorFixture } from '../../src/console/products/product-ui-types';
+import { buildSchema } from '../../apps/console/src/production-console-app';
+import type { ProductEditorFixture } from '../../apps/console/src/products/product-ui-types';
 
 const product: ProductEditorFixture = {
   name: 'Color Pack',

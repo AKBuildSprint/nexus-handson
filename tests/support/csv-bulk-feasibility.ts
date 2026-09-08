@@ -1,4 +1,4 @@
-import type { CsvRow } from '../../src/shared/csv-contract';
+import type { CsvRow } from '@nexus/catalog/shared/csv-contract';
 
 const PRODUCT_CHUNK = 100;
 const GROUP_CHUNK = 250;

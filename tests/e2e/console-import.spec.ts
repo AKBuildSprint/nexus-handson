@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { CSV_HEADER, CSV_HEADER_LINE, serializeCsvRow, type CsvRow } from '../../src/shared/csv-contract';
+import { CSV_HEADER, CSV_HEADER_LINE, serializeCsvRow, type CsvRow } from '@nexus/catalog/shared/csv-contract';
 
 const fixtureDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../fixtures/import');
 

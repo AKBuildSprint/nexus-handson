@@ -1,6 +1,6 @@
 # Nexus Console, API, and Storefront
 
-Nexus has two independently built and deployed surfaces: the React/Vite Console served by the API Worker, and a static Storefront that calls that Worker from a distinct origin. Product and Order data is stored in D1 through the `DB` binding, while delivery files and retained CSV originals stay in a private R2 bucket through the `FILES` binding.
+Nexus has two independently built and deployed surfaces: the React/Vite Console served by the API Worker, and a static Storefront that calls that Worker from a distinct origin. Product and Order data is stored in D1 through the `DB` binding, while delivery files and retained CSV originals stay in a private R2 bucket through the `FILES` binding. Source lives in npm workspaces `apps/{console,storefront,worker}` and `packages/{catalog,orders}`; root `wrangler.jsonc` and `migrations/` stay at the repository root.
 
 This repository is configured for public `workers.dev` teaching deployments. It has no custom domain and no public R2 route.
 
@@ -48,7 +48,7 @@ npm run build:console
 VITE_STOREFRONT_API_BASE_URL=http://127.0.0.1:5173 npm run build:storefront
 ```
 
-The two production builds are independent. `npm run build` remains the API/Console default; `build:console` is its explicit alias, while `build:storefront` uses [`storefront/vite.config.ts`](./storefront/vite.config.ts). The corresponding artifacts can be inspected independently with `npm run preview:console` and `npm run preview:storefront`; all command ownership remains in [`package.json`](./package.json).
+The two production builds are independent. `npm run build` remains the API/Console default; `build:console` is its explicit alias, while `build:storefront` uses [`apps/storefront/vite.config.ts`](./apps/storefront/vite.config.ts). The corresponding artifacts can be inspected independently with `npm run preview:console` and `npm run preview:storefront`; all command ownership remains in [`package.json`](./package.json).
 
 `npm test` runs the workerd and browser Vitest suites. The Console build type-checks, builds the Worker/client bundle, and rejects a production import graph that reaches prototype scenario data.
 
@@ -79,7 +79,7 @@ The persisted API-side identities are:
 - D1 database: `nexus-s1-468cba-db` (`DB`)
 - Private R2 bucket: `nexus-s1-468cba-private` (`FILES`)
 
-The Storefront Worker name is intentionally not embedded in [`storefront/wrangler.jsonc`](./storefront/wrangler.jsonc); its deploy command requires an appended confirmed name. Inspect the authenticated account and exact resources before mutation:
+The Storefront Worker name is intentionally not embedded in [`apps/storefront/wrangler.jsonc`](./apps/storefront/wrangler.jsonc); its deploy command requires an appended confirmed name. Inspect the authenticated account and exact resources before mutation:
 
 ```sh
 npx wrangler whoami
@@ -87,7 +87,7 @@ npx wrangler d1 list
 npx wrangler r2 bucket list
 ```
 
-Do not create replacement resources when an identity is absent or ambiguous. Resolve that condition against [`resource-identities.json`](./resource-identities.json), [`wrangler.jsonc`](./wrangler.jsonc), and [`storefront/wrangler.jsonc`](./storefront/wrangler.jsonc) first.
+Do not create replacement resources when an identity is absent or ambiguous. Resolve that condition against [`resource-identities.json`](./resource-identities.json), [`wrangler.jsonc`](./wrangler.jsonc), and [`apps/storefront/wrangler.jsonc`](./apps/storefront/wrangler.jsonc) first.
 
 Use confirmed values for `$D1_DATABASE_NAME`, `$STOREFRONT_WORKER_NAME`, and the two exact deployed HTTPS origins below; do not construct or guess a Worker origin. Deployment order is dependency-bearing:
 
@@ -162,4 +162,4 @@ Console catalog, import, upload, and Order-operation routes remain intentionally
 
 A Customer Refund Request is request-only: it records a pending reason and time, does not move money, does not change Order status, and stays pending after fulfillment. The Storefront's private Order capability remains only in the URL fragment and explicit API header. It is still a bearer secret: never log, publish, paste, or share a private Order URL or raw capability. Neither surface may expose delivery configuration, private object identity, or the raw capability in public output.
 
-These public `workers.dev` surfaces are anonymous demos, not a custom-domain, authenticated Owner, provider-confirmed payment, delivery grant, or business-critical production claim. Real identity and permissions remain later-scope work. S3 acceptance is local: Workerd integration, browser contracts, two-origin Playwright with `CI=1`, root typecheck (including `storefront/src`), and both production builds. Local D1 proof is not remote D1 proof.
+These public `workers.dev` surfaces are anonymous demos, not a custom-domain, authenticated Owner, provider-confirmed payment, delivery grant, or business-critical production claim. Real identity and permissions remain later-scope work. S3 acceptance is local: Workerd integration, browser contracts, two-origin Playwright with `CI=1`, root typecheck (including `apps/storefront/src`), and both production builds. Local D1 proof is not remote D1 proof.

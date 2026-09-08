@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createOrder } from '../../src/orders/order-write';
-import { digestOrderCapability, readPrivateOrder } from '../../src/orders/private-access';
+import { createOrder } from '@nexus/orders/order-write';
+import { digestOrderCapability, readPrivateOrder } from '@nexus/orders/private-access';
 import { applyCatalogMigrations, applyS2Migrations } from '../support/catalog-test-env';
 
 const CAPABILITY = 'A'.repeat(43);

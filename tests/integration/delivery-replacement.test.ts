@@ -1,6 +1,6 @@
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { putDeliveryFile } from '../../src/files/delivery-file';
+import { putDeliveryFile } from '@nexus/catalog/files/delivery-file';
 import { resetCatalog, SIMPLE_CORE, workerRequest } from '../support/catalog-test-env';
 
 beforeEach(async () => {

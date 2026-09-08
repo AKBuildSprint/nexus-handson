@@ -1,10 +1,10 @@
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { ProductDetailResponse } from '../../src/catalog/catalog-types';
-import { createOrderItemCatalogSnapshotResolver } from '../../src/catalog/private-order-snapshot';
-import { listConsoleOrders } from '../../src/orders/order-read';
-import { createOrder } from '../../src/orders/order-write';
-import { digestOrderCapability, readPrivateOrder } from '../../src/orders/private-access';
+import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
+import { createOrderItemCatalogSnapshotResolver } from '@nexus/catalog/private-order-snapshot';
+import { listConsoleOrders } from '@nexus/orders/order-read';
+import { createOrder } from '@nexus/orders/order-write';
+import { digestOrderCapability, readPrivateOrder } from '@nexus/orders/private-access';
 import {
   resetCatalog,
   SIMPLE_CORE,

@@ -2,13 +2,13 @@ import { act, createElement, StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { page } from 'vitest/browser';
-import { ProductionConsoleApp } from '../../src/console/production-console-app';
-import { OrdersScreen } from '../../src/console/orders/orders-screen';
+import { ProductionConsoleApp } from '../../apps/console/src/production-console-app';
+import { OrdersScreen } from '../../apps/console/src/orders/orders-screen';
 import type {
   ConsoleOrderDetailView,
   ConsoleOrderListCriteria,
   ConsoleOrderView,
-} from '../../src/console/orders/order-ui-types';
+} from '../../apps/console/src/orders/order-ui-types';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
