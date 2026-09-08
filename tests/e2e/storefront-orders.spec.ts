@@ -312,7 +312,7 @@ test('requests a refund on completed zero and paid Orders without overflowing 37
   const paid = await placeOrder(page, { productName: paidName, quantity: '1' });
   await completeOrder(page, paid.body.reference);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.getByText('This Order has been completed. No delivery or refund is performed by this page.')).toBeVisible();
+  await expect(page.getByText('This Order has been completed. This page does not deliver files or pay out a refund.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Payment next step' })).toHaveCount(0);
 
   await page.getByLabel('Reason for refund request').fill('Please reverse this purchase.');

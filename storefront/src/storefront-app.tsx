@@ -40,6 +40,9 @@ const STATUS_LABEL = {
 
 const REASON_INVALID = 'Enter a reason using 1 to 1000 characters.';
 
+const COMPLETED_STATUS_COPY = 'This Order has been completed. This page does not deliver files or pay out a refund.';
+const REFUND_REQUEST_INTRO = 'You can send one refund request. Sending a request does not issue a refund.';
+
 function validateRefundReason(value: string): string | null {
   const normalized = value.replace(/\r\n|\r/g, '\n').trim();
   const length = Array.from(normalized).length;
@@ -94,10 +97,14 @@ function PrivateOrderPage({
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [refreshFailed, setRefreshFailed] = useState(false);
   const attemptRef = useRef<{ reference: string; key: string; reason: string } | null>(null);
+  const readAbortRef = useRef<AbortController | null>(null);
+  const readEpochRef = useRef(0);
   const pageAbortRef = useRef<AbortController | null>(null);
+  const submitStateRef = useRef(submitState);
+  submitStateRef.current = submitState;
   const errorSummaryRef = useRef<HTMLDivElement>(null);
 
-  const load = useCallback((signal?: AbortSignal, mode: 'page' | 'refresh' | 'ack-refresh' = 'page') => {
+  const load = useCallback((mode: 'page' | 'refresh' | 'ack-refresh' = 'page') => {
     if (!route.capability) {
       setState('missing-capability');
       return;
@@ -107,9 +114,14 @@ function PrivateOrderPage({
       setOrder(null);
       setLoadedGeneration(null);
     }
-    void fetchStorefrontOrder(route.reference, route.capability, signal)
+    readAbortRef.current?.abort();
+    const controller = new AbortController();
+    readAbortRef.current = controller;
+    const epoch = readEpochRef.current + 1;
+    readEpochRef.current = epoch;
+    void fetchStorefrontOrder(route.reference, route.capability, controller.signal)
       .then((result) => {
-        if (signal?.aborted) return;
+        if (epoch !== readEpochRef.current) return;
         setOrder(result);
         setLoadedGeneration(generation);
         setState('ready');
@@ -117,6 +129,7 @@ function PrivateOrderPage({
       })
       .catch((error) => {
         if (error instanceof DOMException && error.name === 'AbortError') return;
+        if (epoch !== readEpochRef.current) return;
         if (mode === 'ack-refresh') {
           setRefreshFailed(true);
           return;
@@ -135,11 +148,23 @@ function PrivateOrderPage({
     setSubmitState('idle');
     setSubmitMessage(null);
     setRefreshFailed(false);
-    load(controller.signal);
+    load('page');
     return () => {
       controller.abort();
+      readAbortRef.current?.abort();
+      readEpochRef.current += 1;
       if (pageAbortRef.current === controller) pageAbortRef.current = null;
     };
+  }, [load]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (submitStateRef.current === 'submitting') return;
+      load('refresh');
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, [load]);
 
   const submitRefund = async (event: FormEvent) => {
@@ -165,6 +190,8 @@ function PrivateOrderPage({
     setReasonError(null);
     setSubmitState('submitting');
     setSubmitMessage(null);
+    readAbortRef.current?.abort();
+    readEpochRef.current += 1;
     try {
       const result = await createStorefrontRefundRequest(
         frozen.reference,
@@ -180,7 +207,7 @@ function PrivateOrderPage({
         return { ...current, refundRequest: result.refundRequest };
       });
       setSubmitState('idle');
-      load(pageAbortRef.current?.signal, 'ack-refresh');
+      load('ack-refresh');
     } catch (error) {
       if (pageAbortRef.current?.signal.aborted) return;
       if (error instanceof StorefrontApiError && error.status === 422) {
@@ -195,7 +222,7 @@ function PrivateOrderPage({
         attemptRef.current = null;
         setSubmitState('conflict');
         setSubmitMessage('The request was not applied. The Order has changed.');
-        load(pageAbortRef.current?.signal, 'refresh');
+        load('refresh');
         return;
       }
       const unknownOutcome = !(error instanceof StorefrontApiError) || error.retryable;
@@ -221,7 +248,7 @@ function PrivateOrderPage({
       <button className="text-action" type="button" onClick={onBack}>Back to catalog</button>
       {state === 'loading' ? <div className="order-ledger loading-ledger" aria-label="Loading Order" aria-busy="true"><span /><span /><span /></div> : null}
       {state === 'missing-capability' ? <div className="storefront-notice storefront-error" role="alert"><h1>Private Order link required</h1><p>Open the complete link provided after checkout to view this Order.</p></div> : null}
-      {state === 'error' ? <div className="storefront-notice storefront-error" role="alert"><h1>Order could not be loaded</h1><p>The private Order is unavailable. Retry without changing the link.</p><button className="secondary-action" type="button" onClick={() => load(pageAbortRef.current?.signal)}>Retry Order</button></div> : null}
+      {state === 'error' ? <div className="storefront-notice storefront-error" role="alert"><h1>Order could not be loaded</h1><p>The private Order is unavailable. Retry without changing the link.</p><button className="secondary-action" type="button" onClick={() => load()}>Retry Order</button></div> : null}
       {visibleOrder ? (
         <article className="order-ledger" aria-labelledby="order-title">
           <header>
@@ -250,7 +277,7 @@ function PrivateOrderPage({
           {visibleOrder.status === 'completed' ? (
             <section>
               <h2>Order status</h2>
-              <p>This Order has been completed. No delivery or refund is performed by this page.</p>
+              <p>{COMPLETED_STATUS_COPY}</p>
             </section>
           ) : null}
           {visibleOrder.status === 'cancelled' ? (
@@ -268,6 +295,7 @@ function PrivateOrderPage({
           {visibleOrder.status === 'completed' && visibleOrder.refundRequest == null ? (
             <section>
               <h2>Refund request</h2>
+              <p>{REFUND_REQUEST_INTRO}</p>
               <form className="refund-form" onSubmit={submitRefund} noValidate>
                 {reasonError ? (
                   <div ref={errorSummaryRef} className="error-summary" role="alert" tabIndex={-1}>
@@ -309,7 +337,7 @@ function PrivateOrderPage({
           {refreshFailed ? (
             <div className="storefront-notice" role="status">
               <p>The request succeeded, but the latest Order could not be loaded.</p>
-              <button className="secondary-action" type="button" onClick={() => load(pageAbortRef.current?.signal, 'ack-refresh')}>Retry loading Order</button>
+              <button className="secondary-action" type="button" onClick={() => load('ack-refresh')}>Retry loading Order</button>
             </div>
           ) : null}
           <footer>Created {new Date(visibleOrder.createdAt).toLocaleString()}</footer>
@@ -323,6 +351,7 @@ export function StorefrontApp() {
   const [route, setRoute] = useState<OrderRoute>(parseRoute);
   const [capabilityGeneration, setCapabilityGeneration] = useState(0);
   const [catalog, setCatalog] = useState<StorefrontCatalog | null>(null);
+  const [catalogQuery, setCatalogQuery] = useState('');
   const [catalogState, setCatalogState] = useState<CatalogState>('loading');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
@@ -374,6 +403,11 @@ export function StorefrontApp() {
   }, [loadCatalog, route.kind]);
 
   const selectedProduct = catalog?.products.find((product) => product.id === selectedProductId) ?? null;
+  const visibleProducts = useMemo(() => {
+    const query = catalogQuery.trim().toLowerCase();
+    if (!catalog || query.length === 0) return catalog?.products ?? [];
+    return catalog.products.filter((product) => product.name.toLowerCase().includes(query));
+  }, [catalog, catalogQuery]);
   const matchingVariant = useMemo(() => {
     if (!selectedProduct || selectedProduct.optionGroups.length === 0) return null;
     return selectedProduct.variants.find((variant) => selectedProduct.optionGroups.every((group) =>
@@ -436,13 +470,33 @@ export function StorefrontApp() {
   return (
     <StorefrontFrame>
       <main id="storefront-content" className="catalog-page" tabIndex={-1}>
-        <header className="catalog-heading"><h1>{catalog?.store.name ?? 'Digital products'}</h1><p>Choose a Product, confirm the format, then complete checkout.</p></header>
+        <header className="catalog-heading">
+          <h1>{catalog?.store.name ?? 'Digital products'}</h1>
+          <p>{selectedProduct && selectedProduct.optionGroups.length > 0
+            ? 'Choose a Product, confirm the format, then complete checkout.'
+            : 'Choose a Product, then complete checkout.'}</p>
+          {catalogState === 'ready' && catalog && catalog.products.length > 1 ? (
+            <div className="field catalog-search">
+              <label htmlFor="catalog-search">Search Products</label>
+              <input
+                id="catalog-search"
+                type="search"
+                value={catalogQuery}
+                autoComplete="off"
+                onChange={(event) => setCatalogQuery(event.target.value)}
+              />
+            </div>
+          ) : null}
+        </header>
         {catalogState === 'loading' ? <div className="catalog-loading" aria-label="Loading catalog" aria-busy="true"><span /><span /><span /></div> : null}
         {catalogState === 'error' ? <div className="storefront-notice storefront-error" role="alert"><h2>Catalog could not be loaded</h2><p>Check your connection and try again.</p><button className="secondary-action" type="button" onClick={loadCatalog}>Retry catalog</button></div> : null}
         {catalogState === 'empty' ? <div className="storefront-notice"><h2>No Products are available</h2><p>Return later. Published Products will appear here.</p></div> : null}
         {catalogState === 'ready' && catalog ? (
           <div className="storefront-workspace">
-            <section className="catalog-list" aria-label="Available Products">{catalog.products.map((product) => <CatalogProduct key={product.id} product={product} selected={product.id === selectedProductId} onSelect={() => { setSelectedProductId(product.id); setSelectedOptions({}); setFieldErrors({}); attemptRef.current = null; setSubmitState('idle'); }} />)}</section>
+            <section className="catalog-list" aria-label="Available Products">
+              {visibleProducts.length === 0 ? <p>No Products match this search.</p> : null}
+              {visibleProducts.map((product) => <CatalogProduct key={product.id} product={product} selected={product.id === selectedProductId} onSelect={() => { setSelectedProductId(product.id); setSelectedOptions({}); setFieldErrors({}); attemptRef.current = null; setSubmitState('idle'); }} />)}
+            </section>
             {selectedProduct ? <form className="purchase-ledger" onSubmit={submit} noValidate>
               <header><p className="ledger-label">Purchase ledger</p><h2>{selectedProduct.name}</h2><p>{selectedProduct.publicDescription}</p></header>
               {Object.values(fieldErrors).some(Boolean) ? <div ref={errorSummaryRef} className="error-summary" role="alert" tabIndex={-1}><strong>Review checkout details</strong><ul>{Object.entries(fieldErrors).filter((entry): entry is [string, string] => Boolean(entry[1])).map(([field, message]) => <li key={field}><a href={`#checkout-${field}`}>{message}</a></li>)}</ul></div> : null}

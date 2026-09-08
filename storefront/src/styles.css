@@ -91,6 +91,8 @@ p { line-height: 1.6; text-wrap: pretty; }
 .catalog-heading { display: grid; max-width: 44rem; gap: var(--space-4); margin-block-end: var(--space-12); }
 .catalog-heading h1 { font-size: var(--type-display); letter-spacing: -0.03em; }
 .catalog-heading p { color: var(--color-ink-muted); font-size: 1.125rem; }
+
+.catalog-search { max-width: 24rem; }
 .storefront-workspace { display: grid; grid-template-columns: minmax(0, 7fr) minmax(20rem, 5fr); gap: var(--space-12); align-items: start; }
 .catalog-list { min-width: 0; border-block-start: var(--border) solid var(--color-ink); }
 .catalog-row { padding-block: var(--space-6); border-block-end: var(--border) solid var(--color-border); }

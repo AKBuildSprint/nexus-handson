@@ -157,6 +157,96 @@ describe('Storefront Order contracts', () => {
     expect(container.textContent).not.toContain('Send refund request');
   });
 
+  it('refreshes a hidden private Order and offers a refund after Complete', async () => {
+    let gets = 0;
+    window.history.replaceState({}, '', '/orders/NX-260827-ABCD#capability=opaque_capability_value_1234567890');
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      gets += 1;
+      return response(customerOrder(gets === 1 ? {} : { status: 'completed', paymentNextStep: null }));
+    }));
+    await renderApp();
+    expect(container.querySelector('#refund-reason')).toBeNull();
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container.querySelector('#refund-reason')).not.toBeNull();
+    expect(container.textContent).toContain('This page does not deliver files or pay out a refund.');
+  });
+
+  it('ignores a deferred pre-write GET that resolves after refund', async () => {
+    let gets = 0;
+    let releaseStale: (() => void) | undefined;
+    const staleGate = new Promise<void>((resolve) => { releaseStale = resolve; });
+    const completed = customerOrder({ status: 'completed', paymentNextStep: null });
+    const pendingRefund = {
+      id: 'rr_ack',
+      status: 'pending' as const,
+      reason: 'Wrong size',
+      createdAt: '2026-08-27T13:00:00.000Z',
+    };
+    window.history.replaceState({}, '', '/orders/NX-260827-ABCD#capability=opaque_capability_value_1234567890');
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('refund-requests')) {
+        return response({
+          reference: 'NX-260827-ABCD',
+          action: 'request_refund',
+          status: 'completed',
+          occurredAt: '2026-08-27T13:00:00.000Z',
+          refundRequest: pendingRefund,
+        });
+      }
+      gets += 1;
+      if (gets === 2) {
+        await staleGate;
+        return response(completed);
+      }
+      return response(gets === 1 ? completed : { ...completed, refundRequest: pendingRefund });
+    }));
+    await renderApp();
+    expect(container.querySelector('#refund-reason')).not.toBeNull();
+    await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
+    await act(async () => {
+      for (let attempt = 0; attempt < 40 && gets < 2; attempt += 1) await Promise.resolve();
+    });
+    expect(gets).toBeGreaterThanOrEqual(2);
+    const textarea = container.querySelector<HTMLTextAreaElement>('#refund-reason');
+    await act(async () => { if (textarea) setTextarea(textarea, 'Wrong size'); });
+    const send = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Send refund request');
+    await act(async () => { send?.click(); });
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    expect(container.textContent).toContain('Refund request pending');
+    expect(container.querySelector('#refund-reason')).toBeNull();
+    releaseStale?.();
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    expect(container.querySelector('#refund-reason')).toBeNull();
+    expect(container.textContent).toContain('Refund request pending');
+    expect(container.textContent).toContain('Wrong size');
+  });
+
+
+  it('omits format instructions for Simple Products and filters the catalog', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response({
+      store: { id: 'store_nexus', slug: 'nexus', name: 'Nexus Store' },
+      products: [simpleProduct, variantProduct],
+    })));
+    await renderApp();
+    expect(container.textContent).toContain('Choose a Product, then complete checkout.');
+    expect(container.textContent).not.toContain('Choose a Product, confirm the format, then complete checkout.');
+    const search = container.querySelector<HTMLInputElement>('#catalog-search');
+    expect(search).not.toBeNull();
+    await act(async () => {
+      if (!search) return;
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      setter?.call(search, 'Signal');
+      search.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(container.querySelector('.catalog-list')?.textContent).toContain('Signal Kit');
+    expect(container.querySelector('.catalog-list')?.textContent).not.toContain('Field Notes');
+  });
+
   it('lets completed Orders of any total request a refund and omits payment copy', async () => {
     window.history.replaceState({}, '', '/orders/NX-260827-ZERO#capability=opaque_capability_value_1234567890');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(customerOrder({
@@ -167,7 +257,8 @@ describe('Storefront Order contracts', () => {
       paymentNextStep: null,
     }))));
     await renderApp();
-    expect(container.textContent).toContain('This Order has been completed. No delivery or refund is performed by this page.');
+    expect(container.textContent).toContain('This Order has been completed. This page does not deliver files or pay out a refund.');
+    expect(container.textContent).toContain('You can send one refund request. Sending a request does not issue a refund.');
     expect(container.textContent).not.toContain('Payment next step');
     expect(container.querySelector('#refund-reason')).not.toBeNull();
     expect(container.textContent).toContain('$0.00');
