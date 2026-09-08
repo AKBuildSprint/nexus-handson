@@ -1,5 +1,6 @@
 import { applyD1Migrations, env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
+import { completeOrder } from '../../src/orders/order-commands';
 import { createOrder } from '../../src/orders/order-write';
 import { digestOrderCapability, findOrderIdByCapability } from '../../src/orders/private-access';
 import {
@@ -559,5 +560,27 @@ describe('order operations migration', () => {
       from_status: null,
       status: 'pending_payment',
     });
+  });
+
+  it('completes a migrated pending Order including total 0', async () => {
+    await resetCatalogThrough(4);
+    const seeded = await seedLegacyOrders();
+    await applyCatalogMigrations(5);
+    const zero = seeded.find((order) => order.totalMinor === 0);
+    expect(zero).toBeDefined();
+    const result = await completeOrder({
+      database: env.DB,
+      reference: zero!.reference,
+      body: { paymentConfirmed: true },
+      idempotencyKey: 'migrated-complete-0001',
+    });
+    expect(result).toMatchObject({
+      action: 'complete',
+      status: 'completed',
+      reference: zero!.reference,
+      refundRequest: null,
+    });
+    expect(await env.DB.prepare('SELECT status FROM orders WHERE id = ?')
+      .bind(zero!.id).first<string>('status')).toBe('completed');
   });
 });

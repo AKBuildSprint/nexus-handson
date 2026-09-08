@@ -1,6 +1,6 @@
 export interface ConsoleOrderView {
   reference: string;
-  status: 'pending_payment';
+  status: 'pending_payment' | 'completed' | 'cancelled';
   product: {
     id: string;
     name: string;

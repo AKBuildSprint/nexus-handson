@@ -29,7 +29,7 @@ export interface StorefrontProduct {
 
 export interface CustomerOrderView {
   reference: string;
-  status: 'pending_payment';
+  status: 'pending_payment' | 'completed' | 'cancelled';
   product: {
     id: string;
     name: string;

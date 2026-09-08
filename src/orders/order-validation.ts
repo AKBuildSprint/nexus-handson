@@ -123,3 +123,84 @@ export function parseOrderCapability(value: unknown): string {
     'A valid Order capability is required.',
   );
 }
+
+function parseCommandKey(idempotencyKey: unknown): string {
+  return opaqueHeader(
+    idempotencyKey,
+    '/headers/idempotency-key',
+    IDEMPOTENCY_KEY,
+    'idempotency_key_invalid',
+    'A valid idempotency key is required.',
+  );
+}
+
+function reasonHasDisallowedControls(reason: string): boolean {
+  for (const char of reason) {
+    if (/\p{Cf}/u.test(char)) return true;
+    if (/\p{Cc}/u.test(char) && char !== '\t' && char !== '\n') return true;
+  }
+  return false;
+}
+
+function normalizeRefundReason(value: unknown): string {
+  if (typeof value !== 'string') {
+    throw new OrderValidationError('validation_failed', 'The request is invalid.', [
+      {
+        path: '/reason',
+        code: 'reason_invalid',
+        message: 'Enter a reason using 1 to 1000 characters.',
+      },
+    ]);
+  }
+  const normalized = value.replace(/\r\n|\r/g, '\n').trim();
+  const length = Array.from(normalized).length;
+  if (length < 1 || length > 1000 || reasonHasDisallowedControls(normalized)) {
+    throw new OrderValidationError('validation_failed', 'The request is invalid.', [
+      {
+        path: '/reason',
+        code: 'reason_invalid',
+        message: 'Enter a reason using 1 to 1000 characters.',
+      },
+    ]);
+  }
+  return normalized;
+}
+
+export function parseCompleteOrderInput(
+  body: unknown,
+  idempotencyKey: unknown,
+): { idempotencyKey: string } {
+  const request = objectAt(body, '');
+  rejectUnknown(request, ['paymentConfirmed'], '');
+  if (request.paymentConfirmed !== true) {
+    throw new OrderValidationError('validation_failed', 'The request is invalid.', [
+      {
+        path: '/paymentConfirmed',
+        code: 'payment_confirmed_invalid',
+        message: 'Payment confirmation is required.',
+      },
+    ]);
+  }
+  return { idempotencyKey: parseCommandKey(idempotencyKey) };
+}
+
+export function parseCancelOrderInput(
+  body: unknown,
+  idempotencyKey: unknown,
+): { idempotencyKey: string } {
+  const request = objectAt(body, '');
+  rejectUnknown(request, [], '');
+  return { idempotencyKey: parseCommandKey(idempotencyKey) };
+}
+
+export function parseRefundRequestInput(
+  body: unknown,
+  idempotencyKey: unknown,
+): { idempotencyKey: string; reason: string } {
+  const request = objectAt(body, '');
+  rejectUnknown(request, ['reason'], '');
+  return {
+    idempotencyKey: parseCommandKey(idempotencyKey),
+    reason: normalizeRefundReason(request.reason),
+  };
+}

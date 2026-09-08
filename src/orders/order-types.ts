@@ -1,4 +1,25 @@
-export type OrderStatus = 'pending_payment';
+export type OrderStatus = 'pending_payment' | 'completed' | 'cancelled';
+
+export type OrderCommandAction = 'complete' | 'cancel' | 'request_refund';
+
+export type OrderHistoryAction = 'order_created' | 'order_completed' | 'order_cancelled' | 'refund_requested';
+
+export type OrderAuditSource = 'console' | 'customer_capability';
+
+export interface RefundRequestProjection {
+  id: string;
+  status: 'pending';
+  reason: string;
+  createdAt: string;
+}
+
+export interface OrderCommandResult {
+  reference: string;
+  action: OrderCommandAction;
+  status: 'completed' | 'cancelled';
+  occurredAt: string;
+  refundRequest: RefundRequestProjection | null;
+}
 
 export interface OrderFieldError {
   path: string;
