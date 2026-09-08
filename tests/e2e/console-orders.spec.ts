@@ -1,6 +1,4 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
-import path from 'node:path';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 const CONSOLE_ORIGIN = process.env.PLAYWRIGHT_API_CONSOLE_BASE_URL ?? 'http://127.0.0.1:5173';
@@ -141,7 +139,7 @@ async function tabUntilFocused(page: Page, locator: Locator, limit = 40) {
   await expect(locator).toBeFocused();
 }
 
-test('keeps Console search, filters, pager, and confirmation reachable by keyboard without overflow', async ({ page }) => {
+test('keeps Console search, filters, pager, and confirmation reachable by keyboard without overflow', async ({ page }, testInfo) => {
   const name = `Verify Console Keys ${uniqueToken()}`;
   await createSimpleProduct(page, name, '9.50');
   await page.goto(STOREFRONT_ORIGIN);
@@ -186,13 +184,8 @@ test('keeps Console search, filters, pager, and confirmation reachable by keyboa
   expect(desktopOverflow.viewport).toBe(1280);
   expect(desktopOverflow.overflowing).toEqual([]);
 
-  const evidenceDir = path.join('plans', 'reports', 'evidence-session-3');
-  mkdirSync(evidenceDir, { recursive: true });
   await redactVisibleEmails(page);
-  const desktopEvidence = path.join(evidenceDir, 'ui-01-console-list-1280.png');
-  if (!existsSync(desktopEvidence)) {
-    await page.locator('.page-stack').screenshot({ path: desktopEvidence });
-  }
+  await page.locator('.page-stack').screenshot({ path: testInfo.outputPath('ui-01-console-list-1280.png') });
 
   await page.getByRole('link', { name: order.body.reference }).click();
   await expect(page.getByRole('heading', { name: order.body.reference })).toBeVisible();
@@ -208,10 +201,7 @@ test('keeps Console search, filters, pager, and confirmation reachable by keyboa
   await expect(page.getByRole('heading', { name: 'Orders' })).toBeVisible();
   await expectNoHorizontalOverflow(page, 375);
   await redactVisibleEmails(page);
-  const compactEvidence = path.join(evidenceDir, 'ui-01-console-list-375.png');
-  if (!existsSync(compactEvidence)) {
-    await page.locator('.page-stack').screenshot({ path: compactEvidence });
-  }
+  await page.locator('.page-stack').screenshot({ path: testInfo.outputPath('ui-01-console-list-375.png') });
 });
 
 test('ignores late Order A GET and Complete after opening Order B', async ({ page }) => {

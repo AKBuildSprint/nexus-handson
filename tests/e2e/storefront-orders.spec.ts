@@ -1,7 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
-import path from 'node:path';
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 
 const CONSOLE_ORIGIN = process.env.PLAYWRIGHT_API_CONSOLE_BASE_URL ?? 'http://127.0.0.1:5173';
 const STOREFRONT_ORIGIN = process.env.PLAYWRIGHT_STOREFRONT_BASE_URL ?? 'http://127.0.0.1:5174';
@@ -185,8 +183,6 @@ async function expectUsableOrderItemSnapshots(page: Page, items: OrderItemLine[]
   }
 }
 
-const PHASE5_EVIDENCE = path.join('plans', '260908-1845-s3-brief-reconciliation', 'reports', 'evidence-phase-05');
-
 async function tabUntilFocused(page: Page, locator: Locator, limit = 40) {
   for (let index = 0; index < limit; index += 1) {
     if (await locator.evaluate((element) => element === document.activeElement).catch(() => false)) return;
@@ -209,12 +205,9 @@ async function redactVisibleEmails(page: Page) {
   });
 }
 
-async function capturePage(page: Page, locator: Locator, filename: string) {
-  mkdirSync(PHASE5_EVIDENCE, { recursive: true });
-  const target = path.join(PHASE5_EVIDENCE, filename);
-  if (existsSync(target)) return;
+async function capturePage(page: Page, locator: Locator, testInfo: TestInfo, filename: string) {
   await redactVisibleEmails(page);
-  await locator.screenshot({ path: target });
+  await locator.screenshot({ path: testInfo.outputPath(filename) });
 }
 
 async function addCatalogLine(page: Page, input: { productName: string; quantity: string; variantLabel?: string }) {
@@ -528,7 +521,7 @@ test('retries a committed refund after response loss without a second D1 row', a
   expect(queryLocalOrderGraph(placed.body.reference)).toEqual(afterCommit);
 });
 
-test('reaches the refund textarea by keyboard on 375px without overflow', async ({ page }) => {
+test('reaches the refund textarea by keyboard on 375px without overflow', async ({ page }, testInfo) => {
   const name = `Verify E2E Keys ${uniqueToken()}`;
   await createSimpleProduct(page, name);
   await page.goto(STOREFRONT_ORIGIN);
@@ -540,23 +533,11 @@ test('reaches the refund textarea by keyboard on 375px without overflow', async 
   await expect(page.getByLabel('Reason for refund request')).toBeFocused();
   await page.keyboard.type('Keyboard path.');
   await expectNoHorizontalOverflow(page, 375);
-
-  const evidenceDir = path.join('plans', 'reports', 'evidence-session-3');
-  mkdirSync(evidenceDir, { recursive: true });
-  await page.evaluate(() => {
-    for (const node of document.querySelectorAll('body *')) {
-      if (!node.childElementCount && /@/.test(node.textContent ?? '')) {
-        node.textContent = '[redacted-email]';
-      }
-    }
-  });
-  const refundEvidence = path.join(evidenceDir, 'ui-01-storefront-refund-375.png');
-  if (!existsSync(refundEvidence)) {
-    await page.locator('.order-ledger').screenshot({ path: refundEvidence });
-  }
+  await redactVisibleEmails(page);
+  await page.locator('.order-ledger').screenshot({ path: testInfo.outputPath('ui-01-storefront-refund-375.png') });
 });
 
-test('places one Order with a Simple and Variant Product, then Marks Paid, Fulfills, and canonicalizes a Customer refund', async ({ page }) => {
+test('places one Order with a Simple and Variant Product, then Marks Paid, Fulfills, and canonicalizes a Customer refund', async ({ page }, testInfo) => {
   test.setTimeout(180_000);
   const token = uniqueToken();
   const simpleName = `Verify E2E Two Simple ${token}`;
@@ -574,13 +555,13 @@ test('places one Order with a Simple and Variant Product, then Marks Paid, Fulfi
   await tabUntilFocused(page, page.getByLabel('Name'));
   await tabUntilFocused(page, page.getByLabel('Email'));
   await expectNoHorizontalOverflow(page, 1280);
-  await capturePage(page, page.locator('.purchase-ledger'), 'ui-02-storefront-cart-1280.png');
+  await capturePage(page, page.locator('.purchase-ledger'), testInfo, 'ui-02-storefront-cart-1280.png');
 
   await page.setViewportSize({ width: 375, height: 812 });
   await expect(page.locator('#checkout-cart')).toContainText(simpleName);
   await expect(page.locator('#checkout-cart')).toContainText(variantName);
   await expectNoHorizontalOverflow(page, 375);
-  await capturePage(page, page.locator('.purchase-ledger'), 'ui-02-storefront-cart-375.png');
+  await capturePage(page, page.locator('.purchase-ledger'), testInfo, 'ui-02-storefront-cart-375.png');
 
   await page.setViewportSize({ width: 1280, height: 900 });
   const createPosts: string[] = [];
@@ -614,7 +595,7 @@ test('places one Order with a Simple and Variant Product, then Marks Paid, Fulfi
   await expect(page.getByText(body.paymentReference)).toBeVisible();
   await expect(page.locator('.total-line')).toContainText('$59.45');
   await expectNoHorizontalOverflow(page, 1280);
-  await capturePage(page, page.locator('.order-ledger'), 'ui-02-storefront-private-1280.png');
+  await capturePage(page, page.locator('.order-ledger'), testInfo, 'ui-02-storefront-private-1280.png');
   const privateUrl = new URL(page.url());
   const capability = new URLSearchParams(privateUrl.hash.slice(1)).get('capability') ?? '';
   expect(privateUrl.origin).toBe(STOREFRONT_ORIGIN);
@@ -624,7 +605,7 @@ test('places one Order with a Simple and Variant Product, then Marks Paid, Fulfi
   await page.setViewportSize({ width: 375, height: 812 });
   await expect(page.locator('.order-item-list')).toContainText(simpleName);
   await expectNoHorizontalOverflow(page, 375);
-  await capturePage(page, page.locator('.order-ledger'), 'ui-02-storefront-private-375.png');
+  await capturePage(page, page.locator('.order-ledger'), testInfo, 'ui-02-storefront-private-375.png');
 
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${CONSOLE_ORIGIN}/console/orders`);
@@ -634,7 +615,7 @@ test('places one Order with a Simple and Variant Product, then Marks Paid, Fulfi
   await expect(page.getByRole('link', { name: body.reference })).toBeVisible();
   await expect(page.locator('.orders-table, .order-summary-card').first()).toContainText('+ 1 more');
   await expect(page.getByText(body.paymentReference).first()).toBeVisible();
-  await capturePage(page, page.locator('.page-stack'), 'ui-02-console-inbox-1280.png');
+  await capturePage(page, page.locator('.page-stack'), testInfo, 'ui-02-console-inbox-1280.png');
 
   await page.getByRole('link', { name: body.reference }).click();
   await expect(page.getByRole('heading', { name: body.reference })).toBeVisible();
@@ -651,7 +632,7 @@ test('places one Order with a Simple and Variant Product, then Marks Paid, Fulfi
   await tabUntilFocused(page, page.getByLabel('I confirm an external receipt exists for this exact total and currency.'));
   await page.keyboard.press('Space');
   await expectNoHorizontalOverflow(page, 1280);
-  await capturePage(page, page.locator('.page-stack'), 'ui-03-console-detail-1280.png');
+  await capturePage(page, page.locator('.page-stack'), testInfo, 'ui-03-console-detail-1280.png');
   await page.getByRole('button', { name: 'Mark Paid' }).click();
   await expect(page.locator('.status-tag.status-active')).toContainText('Paid');
   await page.getByRole('button', { name: 'Fulfill' }).click();
@@ -659,7 +640,7 @@ test('places one Order with a Simple and Variant Product, then Marks Paid, Fulfi
   await page.getByRole('button', { name: 'Confirm Fulfill' }).click();
   await expect(page.locator('.status-tag.status-active')).toContainText('Fulfilled');
   await expect(page.getByText('This is an operational status change only')).toHaveCount(0);
-  await capturePage(page, page.locator('.page-stack'), 'ui-02-console-fulfilled-1280.png');
+  await capturePage(page, page.locator('.page-stack'), testInfo, 'ui-02-console-fulfilled-1280.png');
 
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto(`${CONSOLE_ORIGIN}/console/orders`);
@@ -667,12 +648,12 @@ test('places one Order with a Simple and Variant Product, then Marks Paid, Fulfi
   await page.getByRole('button', { name: 'Search' }).click();
   await expect(page.getByRole('link', { name: body.reference })).toBeVisible();
   await expectNoHorizontalOverflow(page, 375);
-  await capturePage(page, page.locator('.page-stack'), 'ui-02-console-inbox-375.png');
+  await capturePage(page, page.locator('.page-stack'), testInfo, 'ui-02-console-inbox-375.png');
   await page.getByRole('link', { name: body.reference }).click();
   await expect(page.getByRole('heading', { name: body.reference })).toBeVisible();
   await expectUsableOrderItemSnapshots(page, orderItemLines(body));
   await expectNoHorizontalOverflow(page, 375);
-  await capturePage(page, page.locator('.page-stack'), 'ui-03-console-detail-375.png');
+  await capturePage(page, page.locator('.page-stack'), testInfo, 'ui-03-console-detail-375.png');
 
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${STOREFRONT_ORIGIN}/orders/${encodeURIComponent(body.reference)}#capability=${encodeURIComponent(capability)}`);
@@ -689,7 +670,7 @@ test('places one Order with a Simple and Variant Product, then Marks Paid, Fulfi
   await expect(page.getByRole('heading', { name: 'Refund request pending' })).toBeVisible();
   await expect(page.getByText(refundReason)).toBeVisible();
   await expect(page.getByLabel('Reason for refund request')).toHaveCount(0);
-  await capturePage(page, page.locator('.order-ledger'), 'ui-02-storefront-refund-1280.png');
+  await capturePage(page, page.locator('.order-ledger'), testInfo, 'ui-02-storefront-refund-1280.png');
 
   await page.goto(`${CONSOLE_ORIGIN}/console/orders/${body.reference}`);
   await expect(page.getByRole('heading', { name: body.reference })).toBeVisible();
@@ -697,5 +678,5 @@ test('places one Order with a Simple and Variant Product, then Marks Paid, Fulfi
   await expect(page.getByText('Refund request pending').first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Request refund for Customer' })).toHaveCount(0);
   await expect(page.locator('#console-refund-reason')).toHaveCount(0);
-  await capturePage(page, page.locator('.page-stack'), 'ui-02-console-existing-refund-1280.png');
+  await capturePage(page, page.locator('.page-stack'), testInfo, 'ui-02-console-existing-refund-1280.png');
 });

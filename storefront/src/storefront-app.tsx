@@ -18,6 +18,7 @@ import type {
 type CatalogState = 'loading' | 'ready' | 'empty' | 'error';
 type OrderRoute = { kind: 'catalog' } | { kind: 'order'; reference: string; capability: string | null };
 type FieldErrors = Partial<Record<'variant' | 'quantity' | 'name' | 'email' | 'cart', string>>;
+type CatalogFilter = 'all' | 'simple' | 'variant';
 
 interface CartLine {
   key: string;
@@ -41,6 +42,26 @@ function parseRoute(): OrderRoute {
 
 function money(minor: number, currency: string): string {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(minor / 100);
+}
+
+function readCatalogCriteria(): { query: string; filter: CatalogFilter } {
+  const params = new URLSearchParams(window.location.search);
+  const type = params.get('type');
+  const filter: CatalogFilter = type === 'simple' || type === 'variant' ? type : 'all';
+  return { query: params.get('q') ?? '', filter };
+}
+
+function writeCatalogCriteria(query: string, filter: CatalogFilter): void {
+  const params = new URLSearchParams(window.location.search);
+  const trimmed = query.trim();
+  if (trimmed) params.set('q', trimmed);
+  else params.delete('q');
+  if (filter === 'all') params.delete('type');
+  else params.set('type', filter);
+  const search = params.toString();
+  const next = `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash}`;
+  const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (current !== next) window.history.replaceState(window.history.state, '', next);
 }
 
 const STATUS_LABEL = {
@@ -88,8 +109,9 @@ function CatalogProduct({
   return (
     <article className={`catalog-row${selected ? ' catalog-row-selected' : ''}`}>
       <button className="catalog-choice" type="button" aria-pressed={selected} onClick={onSelect}>
-        <span className="catalog-name">{product.name}</span>
+        <span className="catalog-media" aria-hidden="true">{product.name.slice(0, 1)}</span>
         <span className="catalog-type">{product.optionGroups.length === 0 ? 'Simple Product' : 'Variant Product'}</span>
+        <span className="catalog-name">{product.name}</span>
         <span className="catalog-price numeric">{price}</span>
       </button>
       <p>{product.publicDescription}</p>
@@ -408,7 +430,9 @@ export function StorefrontApp() {
   const [route, setRoute] = useState<OrderRoute>(parseRoute);
   const [capabilityGeneration, setCapabilityGeneration] = useState(0);
   const [catalog, setCatalog] = useState<StorefrontCatalog | null>(null);
-  const [catalogQuery, setCatalogQuery] = useState('');
+  const catalogStart = readCatalogCriteria();
+  const [catalogQuery, setCatalogQuery] = useState(catalogStart.query);
+  const [catalogFilter, setCatalogFilter] = useState<CatalogFilter>(catalogStart.filter);
   const [catalogState, setCatalogState] = useState<CatalogState>('loading');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
@@ -448,6 +472,9 @@ export function StorefrontApp() {
     const updateRoute = () => {
       setCapabilityGeneration((current) => current + 1);
       setRoute(parseRoute());
+      const criteria = readCatalogCriteria();
+      setCatalogQuery(criteria.query);
+      setCatalogFilter(criteria.filter);
     };
     window.addEventListener('popstate', updateRoute);
     window.addEventListener('hashchange', updateRoute);
@@ -466,6 +493,11 @@ export function StorefrontApp() {
   }, [loadCatalog, route.kind]);
 
   useEffect(() => {
+    if (route.kind !== 'catalog') return;
+    writeCatalogCriteria(catalogQuery, catalogFilter);
+  }, [catalogFilter, catalogQuery, route.kind]);
+
+  useEffect(() => {
     if (!lineFocusRef.current) return;
     document.getElementById(lineFocusRef.current)?.focus();
     lineFocusRef.current = null;
@@ -473,10 +505,14 @@ export function StorefrontApp() {
 
   const selectedProduct = catalog?.products.find((product) => product.id === selectedProductId) ?? null;
   const visibleProducts = useMemo(() => {
-    const query = catalogQuery.trim().toLowerCase();
-    if (!catalog || query.length === 0) return catalog?.products ?? [];
-    return catalog.products.filter((product) => product.name.toLowerCase().includes(query));
-  }, [catalog, catalogQuery]);
+    if (!catalog) return [];
+    const needle = catalogQuery.trim().toLowerCase();
+    return catalog.products.filter((product) => {
+      const matchesType = catalogFilter === 'all'
+        || (catalogFilter === 'simple' ? product.optionGroups.length === 0 : product.optionGroups.length > 0);
+      return matchesType && (!needle || product.name.toLowerCase().includes(needle) || product.publicDescription.toLowerCase().includes(needle));
+    });
+  }, [catalog, catalogFilter, catalogQuery]);
   const matchingVariant = useMemo(() => {
     if (!selectedProduct || selectedProduct.optionGroups.length === 0) return null;
     return selectedProduct.variants.find((variant) => selectedProduct.optionGroups.every((group) =>
@@ -487,6 +523,8 @@ export function StorefrontApp() {
   const mixedCurrency = cart.length > 1 && cart.some((line) => line.currency !== cart[0].currency);
   const cartTotalMinor = mixedCurrency ? 0 : cart.reduce((sum, line) => sum + line.unitPriceMinor * line.quantity, 0);
   const cartCurrency = mixedCurrency ? null : cart[0]?.currency ?? selectedProduct?.currency ?? null;
+  const simpleCount = catalog?.products.filter((product) => product.optionGroups.length === 0).length ?? 0;
+  const variantCount = catalog?.products.filter((product) => product.optionGroups.length > 0).length ?? 0;
 
   const resetAttempt = () => {
     if (checkoutLocked) return;
@@ -636,168 +674,214 @@ export function StorefrontApp() {
   return (
     <StorefrontFrame>
       <main id="storefront-content" className="catalog-page" tabIndex={-1}>
-        <header className="catalog-heading">
-          <h1>{catalog?.store.name ?? 'Digital products'}</h1>
-          <p>{selectedProduct && selectedProduct.optionGroups.length > 0
-            ? 'Choose Products, confirm each format, review the Order, then complete checkout.'
-            : 'Choose Products, review the Order, then complete checkout.'}</p>
-          {catalogState === 'ready' && catalog && catalog.products.length > 1 ? (
-            <div className="field catalog-search">
-              <label htmlFor="catalog-search">Search Products</label>
-              <input
-                id="catalog-search"
-                type="search"
-                value={catalogQuery}
-                autoComplete="off"
-                onChange={(event) => setCatalogQuery(event.target.value)}
-              />
-            </div>
+        <header className="catalog-hero">
+          <div className="catalog-heading">
+            <p className="catalog-kicker">Published catalog · Digital products</p>
+            <h1>{catalog?.store.name ?? 'Digital products'}</h1>
+            <p>{selectedProduct && selectedProduct.optionGroups.length > 0
+              ? 'Choose Products, confirm each format, review the Order, then complete checkout.'
+              : 'Choose Products, review the Order, then complete checkout.'}</p>
+            <a className="hero-cta" href="#featured-products">Explore Catalog</a>
+          </div>
+          {catalog ? (
+            <aside className="catalog-benchmark">
+              <div className="catalog-benchmark-head">
+                <span>Catalog snapshot</span>
+                <span className="order-status">{catalog.store.name}</span>
+              </div>
+              <dl>
+                <div><dt>Published Products</dt><dd className="numeric">{catalog.products.length}</dd></div>
+                <div><dt>Simple</dt><dd className="numeric">{simpleCount}</dd></div>
+                <div><dt>Variant</dt><dd className="numeric">{variantCount}</dd></div>
+              </dl>
+            </aside>
           ) : null}
         </header>
         {catalogState === 'loading' ? <div className="catalog-loading" aria-label="Loading catalog" aria-busy="true"><span /><span /><span /></div> : null}
         {catalogState === 'error' ? <div className="storefront-notice storefront-error" role="alert"><h2>Catalog could not be loaded</h2><p>Check your connection and try again.</p><button className="secondary-action" type="button" onClick={loadCatalog}>Retry catalog</button></div> : null}
         {catalogState === 'empty' ? <div className="storefront-notice"><h2>No Products are available</h2><p>Return later. Published Products will appear here.</p></div> : null}
         {catalogState === 'ready' && catalog ? (
-          <div className="storefront-workspace">
-            <section className="catalog-list" aria-label="Available Products">
-              {visibleProducts.length === 0 ? <p>No Products match this search.</p> : null}
-              {visibleProducts.map((product) => (
-                <CatalogProduct
-                  key={product.id}
-                  product={product}
-                  selected={product.id === selectedProductId}
-                  onSelect={() => {
-                    if (checkoutLocked) return;
-                    setSelectedProductId(product.id);
-                    setSelectedOptions({});
-                    setFieldErrors((current) => ({ ...current, variant: undefined, quantity: undefined }));
-                  }}
-                />
-              ))}
-            </section>
-            {selectedProduct ? <form className="purchase-ledger" onSubmit={submit} noValidate>
-              <header><p className="ledger-label">Purchase ledger</p><h2>{selectedProduct.name}</h2><p>{selectedProduct.publicDescription}</p></header>
-              {Object.values(fieldErrors).some(Boolean) ? <div ref={errorSummaryRef} className="error-summary" role="alert" tabIndex={-1}><strong>Review checkout details</strong><ul>{Object.entries(fieldErrors).filter((entry): entry is [string, string] => Boolean(entry[1])).map(([field, message]) => <li key={field}><a href={`#checkout-${field === 'cart' ? 'cart' : field}`}>{message}</a></li>)}</ul></div> : null}
-              {selectedProduct.optionGroups.length === 0 ? (
-                <p className="simple-selection">Simple Product. No format selection is required.</p>
-              ) : (
-                <fieldset id="checkout-variant" className="option-selector" aria-describedby={fieldErrors.variant ? 'variant-error' : undefined}>
-                  <legend>Choose a format</legend>
-                  {selectedProduct.optionGroups.map((group) => (
-                    <div className="field" key={group.id}>
-                      <label htmlFor={`option-${group.id}`}>{group.name}</label>
-                      <select
-                        id={`option-${group.id}`}
-                        value={selectedOptions[group.id] ?? ''}
-                        disabled={checkoutLocked}
-                        aria-invalid={Boolean(fieldErrors.variant)}
-                        aria-describedby={fieldErrors.variant ? 'variant-error' : undefined}
-                        onBlur={() => setFieldErrors((current) => ({ ...current, variant: matchingVariant ? undefined : 'Select one available value in every option group.' }))}
-                        onChange={(event) => {
-                          if (checkoutLocked) return;
-                          setSelectedOptions((current) => ({ ...current, [group.id]: event.target.value }));
-                        }}
-                      >
-                        <option value="">Select {group.name}</option>
-                        {group.values.map((value) => <option key={value.id} value={value.id}>{value.label}</option>)}
-                      </select>
-                    </div>
-                  ))}
-                  {fieldErrors.variant ? <p id="variant-error" className="field-error">{fieldErrors.variant}</p> : null}
-                </fieldset>
-              )}
-              <div className="checkout-fields">
-                <div className="field">
-                  <label htmlFor="checkout-quantity">Quantity</label>
+          <>
+            {catalog.products.length > 1 || catalogQuery.trim().length > 0 || catalogFilter !== 'all' ? (
+              <section className="catalog-toolbar" aria-label="Catalog filters">
+                <div className="status-pills">
+                  <button className={catalogFilter === 'all' ? 'is-active' : undefined} type="button" onClick={() => setCatalogFilter('all')}>All Products</button>
+                  <button className={catalogFilter === 'simple' ? 'is-active' : undefined} type="button" onClick={() => setCatalogFilter('simple')}>Simple</button>
+                  <button className={catalogFilter === 'variant' ? 'is-active' : undefined} type="button" onClick={() => setCatalogFilter('variant')}>Variant</button>
+                </div>
+                <div className="field catalog-search">
+                  <label htmlFor="catalog-search">Search Products</label>
                   <input
-                    id="checkout-quantity"
-                    type="number"
-                    inputMode="numeric"
-                    min="1"
-                    max="99"
-                    step="1"
-                    value={quantity}
-                    disabled={checkoutLocked}
-                    aria-invalid={Boolean(fieldErrors.quantity)}
-                    aria-describedby={fieldErrors.quantity ? 'quantity-error' : undefined}
-                    onBlur={() => setFieldErrors((current) => ({ ...current, quantity: Number.isInteger(Number(quantity)) && Number(quantity) >= 1 && Number(quantity) <= 99 ? undefined : 'Enter a whole number from 1 to 99.' }))}
-                    onChange={(event) => {
+                    id="catalog-search"
+                    type="search"
+                    name="q"
+                    autoComplete="off"
+                    value={catalogQuery}
+                    onChange={(event) => setCatalogQuery(event.target.value)}
+                  />
+                </div>
+              </section>
+            ) : null}
+            <div className="storefront-workspace">
+              <div className="catalog-featured" id="featured-products">
+                <div>
+                  <h2>Published Products</h2>
+                  <p>Active catalog from this Store.</p>
+                </div>
+                <p>Showing {visibleProducts.length} Products</p>
+              </div>
+              <section className="catalog-list" aria-label="Available Products">
+                {visibleProducts.length === 0 ? (
+                  <div>
+                    <p>No Products match this search.</p>
+                    <button className="secondary-action" type="button" onClick={() => { setCatalogQuery(''); setCatalogFilter('all'); }}>Clear filters</button>
+                  </div>
+                ) : null}
+                {visibleProducts.map((product) => (
+                  <CatalogProduct
+                    key={product.id}
+                    product={product}
+                    selected={product.id === selectedProductId}
+                    onSelect={() => {
                       if (checkoutLocked) return;
-                      setQuantity(event.target.value);
+                      setSelectedProductId(product.id);
+                      setSelectedOptions({});
+                      setFieldErrors((current) => ({ ...current, variant: undefined, quantity: undefined }));
                     }}
                   />
-                  {fieldErrors.quantity ? <span id="quantity-error" className="field-error">{fieldErrors.quantity}</span> : null}
-                </div>
-                <div className="field"><label htmlFor="checkout-name">Name</label><input id="checkout-name" autoComplete="name" value={name} disabled={checkoutLocked} aria-invalid={Boolean(fieldErrors.name)} aria-describedby={fieldErrors.name ? 'name-error' : undefined} onBlur={() => setFieldErrors((current) => ({ ...current, name: name.trim() && name.trim().length <= 120 ? undefined : 'Enter your name using 1 to 120 characters.' }))} onChange={(event) => { if (checkoutLocked) return; setName(event.target.value); }} />{fieldErrors.name ? <span id="name-error" className="field-error">{fieldErrors.name}</span> : null}</div>
-                <div className="field"><label htmlFor="checkout-email">Email</label><input id="checkout-email" type="email" autoComplete="email" value={email} disabled={checkoutLocked} aria-invalid={Boolean(fieldErrors.email)} aria-describedby={fieldErrors.email ? 'email-error' : undefined} onBlur={() => setFieldErrors((current) => ({ ...current, email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ? undefined : 'Enter a valid email address.' }))} onChange={(event) => { if (checkoutLocked) return; setEmail(event.target.value); }} />{fieldErrors.email ? <span id="email-error" className="field-error">{fieldErrors.email}</span> : null}</div>
-              </div>
-              <div className="inline-actions">
-                <button
-                  className="secondary-action"
-                  type="button"
-                  disabled={checkoutLocked || (selectedProduct.optionGroups.length > 0 && !matchingVariant)}
-                  onClick={addCurrentSelection}
-                >
-                  Add to Order
-                </button>
-              </div>
-              <section id="checkout-cart" className="cart-review" aria-labelledby="cart-title">
-                <h3 id="cart-title">Order review</h3>
-                {cart.length === 0 ? <p>No Products have been added yet.</p> : (
-                  <ul className="cart-lines">
-                    {cart.map((line) => (
-                      <li key={line.key}>
-                        <div>
-                          <strong>{line.productName}</strong>
-                          <p>{line.variantLabel}</p>
-                          <p className="numeric">{money(line.unitPriceMinor * line.quantity, line.currency)} {line.currency}</p>
-                        </div>
-                        <div className="field">
-                          <label htmlFor={`cart-qty-${line.key}`}>Quantity</label>
-                          <input
-                            id={`cart-qty-${line.key}`}
-                            type="number"
-                            min="1"
-                            max="99"
-                            step="1"
-                            value={line.quantity}
-                            disabled={checkoutLocked}
-                            onChange={(event) => {
-                              if (checkoutLocked) return;
-                              const nextQuantity = Number(event.target.value);
-                              setCart((current) => current.map((entry) => entry.key === line.key ? { ...entry, quantity: nextQuantity } : entry));
-                              resetAttempt();
-                            }}
-                          />
-                        </div>
-                        <button
-                          className="text-action"
-                          type="button"
+                ))}
+              </section>
+              {selectedProduct ? <form className="purchase-ledger" onSubmit={submit} noValidate>
+                <header><p className="ledger-label">Purchase ledger</p><h2>{selectedProduct.name}</h2><p>{selectedProduct.publicDescription}</p></header>
+                {Object.values(fieldErrors).some(Boolean) ? <div ref={errorSummaryRef} className="error-summary" role="alert" tabIndex={-1}><strong>Review checkout details</strong><ul>{Object.entries(fieldErrors).filter((entry): entry is [string, string] => Boolean(entry[1])).map(([field, message]) => <li key={field}><a href={`#checkout-${field === 'cart' ? 'cart' : field}`}>{message}</a></li>)}</ul></div> : null}
+                {selectedProduct.optionGroups.length === 0 ? (
+                  <p className="simple-selection">Simple Product. No format selection is required.</p>
+                ) : (
+                  <fieldset id="checkout-variant" className="option-selector" aria-describedby={fieldErrors.variant ? 'variant-error' : undefined}>
+                    <legend>Choose a format</legend>
+                    {selectedProduct.optionGroups.map((group) => (
+                      <div className="field" key={group.id}>
+                        <label htmlFor={`option-${group.id}`}>{group.name}</label>
+                        <select
+                          id={`option-${group.id}`}
+                          value={selectedOptions[group.id] ?? ''}
                           disabled={checkoutLocked}
-                          onClick={() => {
+                          aria-invalid={Boolean(fieldErrors.variant)}
+                          aria-describedby={fieldErrors.variant ? 'variant-error' : undefined}
+                          onBlur={() => setFieldErrors((current) => ({ ...current, variant: matchingVariant ? undefined : 'Select one available value in every option group.' }))}
+                          onChange={(event) => {
                             if (checkoutLocked) return;
-                            setCart((current) => current.filter((entry) => entry.key !== line.key));
-                            resetAttempt();
+                            setSelectedOptions((current) => ({ ...current, [group.id]: event.target.value }));
                           }}
                         >
-                          Remove
-                        </button>
-                      </li>
+                          <option value="">Select {group.name}</option>
+                          {group.values.map((value) => <option key={value.id} value={value.id}>{value.label}</option>)}
+                        </select>
+                      </div>
                     ))}
-                  </ul>
+                    {fieldErrors.variant ? <p id="variant-error" className="field-error">{fieldErrors.variant}</p> : null}
+                  </fieldset>
                 )}
-                {mixedCurrency ? <p className="field-error" role="alert">{MIXED_CURRENCY}</p> : null}
-                {fieldErrors.cart ? <p id="cart-error" className="field-error">{fieldErrors.cart}</p> : null}
-              </section>
-              <div className="purchase-total">
-                <span>Order total</span>
-                <strong className="numeric">{cartCurrency ? money(cartTotalMinor, cartCurrency) : '—'}</strong>
+                <div className="checkout-fields">
+                  <div className="field">
+                    <label htmlFor="checkout-quantity">Quantity</label>
+                    <input
+                      id="checkout-quantity"
+                      type="number"
+                      inputMode="numeric"
+                      min="1"
+                      max="99"
+                      step="1"
+                      value={quantity}
+                      disabled={checkoutLocked}
+                      aria-invalid={Boolean(fieldErrors.quantity)}
+                      aria-describedby={fieldErrors.quantity ? 'quantity-error' : undefined}
+                      onBlur={() => setFieldErrors((current) => ({ ...current, quantity: Number.isInteger(Number(quantity)) && Number(quantity) >= 1 && Number(quantity) <= 99 ? undefined : 'Enter a whole number from 1 to 99.' }))}
+                      onChange={(event) => {
+                        if (checkoutLocked) return;
+                        setQuantity(event.target.value);
+                      }}
+                    />
+                    {fieldErrors.quantity ? <span id="quantity-error" className="field-error">{fieldErrors.quantity}</span> : null}
+                  </div>
+                  <div className="field"><label htmlFor="checkout-name">Name</label><input id="checkout-name" autoComplete="name" value={name} disabled={checkoutLocked} aria-invalid={Boolean(fieldErrors.name)} aria-describedby={fieldErrors.name ? 'name-error' : undefined} onBlur={() => setFieldErrors((current) => ({ ...current, name: name.trim() && name.trim().length <= 120 ? undefined : 'Enter your name using 1 to 120 characters.' }))} onChange={(event) => { if (checkoutLocked) return; setName(event.target.value); }} />{fieldErrors.name ? <span id="name-error" className="field-error">{fieldErrors.name}</span> : null}</div>
+                  <div className="field"><label htmlFor="checkout-email">Email</label><input id="checkout-email" type="email" autoComplete="email" value={email} disabled={checkoutLocked} aria-invalid={Boolean(fieldErrors.email)} aria-describedby={fieldErrors.email ? 'email-error' : undefined} onBlur={() => setFieldErrors((current) => ({ ...current, email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ? undefined : 'Enter a valid email address.' }))} onChange={(event) => { if (checkoutLocked) return; setEmail(event.target.value); }} />{fieldErrors.email ? <span id="email-error" className="field-error">{fieldErrors.email}</span> : null}</div>
+                </div>
+                <div className="inline-actions">
+                  <button
+                    className="secondary-action"
+                    type="button"
+                    disabled={checkoutLocked || (selectedProduct.optionGroups.length > 0 && !matchingVariant)}
+                    onClick={addCurrentSelection}
+                  >
+                    Add to Order
+                  </button>
+                </div>
+                <section id="checkout-cart" className="cart-review" aria-labelledby="cart-title">
+                  <h3 id="cart-title">Order review</h3>
+                  {cart.length === 0 ? <p>No Products have been added yet.</p> : (
+                    <ul className="cart-lines">
+                      {cart.map((line) => (
+                        <li key={line.key}>
+                          <div>
+                            <strong>{line.productName}</strong>
+                            <p>{line.variantLabel}</p>
+                            <p className="numeric">{money(line.unitPriceMinor * line.quantity, line.currency)} {line.currency}</p>
+                          </div>
+                          <div className="field">
+                            <label htmlFor={`cart-qty-${line.key}`}>Quantity</label>
+                            <input
+                              id={`cart-qty-${line.key}`}
+                              type="number"
+                              min="1"
+                              max="99"
+                              step="1"
+                              value={line.quantity}
+                              disabled={checkoutLocked}
+                              onChange={(event) => {
+                                if (checkoutLocked) return;
+                                const nextQuantity = Number(event.target.value);
+                                setCart((current) => current.map((entry) => entry.key === line.key ? { ...entry, quantity: nextQuantity } : entry));
+                                resetAttempt();
+                              }}
+                            />
+                          </div>
+                          <button
+                            className="text-action"
+                            type="button"
+                            disabled={checkoutLocked}
+                            onClick={() => {
+                              if (checkoutLocked) return;
+                              setCart((current) => current.filter((entry) => entry.key !== line.key));
+                              resetAttempt();
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {mixedCurrency ? <p className="field-error" role="alert">{MIXED_CURRENCY}</p> : null}
+                  {fieldErrors.cart ? <p id="cart-error" className="field-error">{fieldErrors.cart}</p> : null}
+                </section>
+                <div className="purchase-total">
+                  <span>Order total</span>
+                  <strong className="numeric">{cartCurrency ? money(cartTotalMinor, cartCurrency) : '—'}</strong>
+                </div>
+                {submitMessage ? <p className="submit-message" role="alert">{submitMessage}</p> : null}
+                {contractOutdated ? <button className="secondary-action" type="button" onClick={() => { window.location.reload(); }}>Reload Storefront</button> : null}
+                <button className="primary-action" type="submit" disabled={placeLocked || cart.length === 0 || mixedCurrency}>{submitState === 'submitting' ? 'Placing Order' : submitState === 'retry' ? 'Retry checkout' : 'Place Order'}</button>
+              </form> : null}
+            </div>
+            <section className="editorial-band">
+              <div>
+                <p className="catalog-kicker">Private delivery</p>
+                <h2>Checkout creates a private Order link.</h2>
+                <p>Payment instructions stay off this catalog. Open the complete link after placing an Order.</p>
               </div>
-              {submitMessage ? <p className="submit-message" role="alert">{submitMessage}</p> : null}
-              {contractOutdated ? <button className="secondary-action" type="button" onClick={() => { window.location.reload(); }}>Reload Storefront</button> : null}
-              <button className="primary-action" type="submit" disabled={placeLocked || cart.length === 0 || mixedCurrency}>{submitState === 'submitting' ? 'Placing Order' : submitState === 'retry' ? 'Retry checkout' : 'Place Order'}</button>
-            </form> : null}
-          </div>
+            </section>
+          </>
         ) : null}
       </main>
     </StorefrontFrame>
@@ -805,5 +889,45 @@ export function StorefrontApp() {
 }
 
 function StorefrontFrame({ children }: { children: ReactNode }) {
-  return <div className="storefront-shell"><a className="skip-link" href="#storefront-content">Skip to main content</a><header className="storefront-header"><a className="storefront-brand" href="/">Nexus</a><span>Storefront</span></header>{children}</div>;
+  return (
+    <div className="storefront-shell">
+      <a className="skip-link" href="#storefront-content">Skip to main content</a>
+      <p className="storefront-banner">
+        <span className="icon-glyph" aria-hidden="true">verified</span>
+        Shop digital products from this store · Checkout creates an Order link
+      </p>
+      <header className="storefront-header">
+        <div className="storefront-header-row">
+          <a className="storefront-brand" href="/">
+            <span className="storefront-brand-mark">Nexus</span>
+            <span className="storefront-brand-meta">/ STOREFRONT</span>
+          </a>
+          <nav className="storefront-nav" aria-label="Storefront">
+            <a className="storefront-nav-current" href="/" aria-current="page">Catalog</a>
+          </nav>
+        </div>
+      </header>
+      {children}
+      <footer className="storefront-footer">
+        <div className="storefront-footer-inner">
+          <div>
+            <div className="storefront-footer-brand">Nexus</div>
+            <p>Digital products from this Store. Checkout creates an Order link.</p>
+          </div>
+          <div>
+            <p className="footer-heading">Catalog</p>
+            <p>Published Products appear here when Active.</p>
+          </div>
+          <div>
+            <p className="footer-heading">Orders</p>
+            <p>Checkout creates an Order link for the Customer.</p>
+          </div>
+          <div>
+            <p className="footer-heading">Console</p>
+            <p>Operators manage Products and Orders.</p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
 }

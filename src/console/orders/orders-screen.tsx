@@ -123,16 +123,27 @@ function OrderReferenceLink({
 
 function MatchingSummary({ summary }: { summary: ConsoleOrderSummary }) {
   return (
-    <section className="order-matching-summary" aria-label="Matching current filters">
-      <p className="meta-text">Matching current filters</p>
-      <dl>
-        <div><dt>Matching Orders</dt><dd className="numeric">{summary.totalOrders}</dd></div>
-        <div><dt>Pending</dt><dd className="numeric">{summary.byStatus.pending}</dd></div>
-        <div><dt>Paid</dt><dd className="numeric">{summary.byStatus.paid}</dd></div>
-        <div><dt>Fulfilled</dt><dd className="numeric">{summary.byStatus.fulfilled}</dd></div>
-        <div><dt>Canceled</dt><dd className="numeric">{summary.byStatus.canceled}</dd></div>
-        <div><dt>Open refund requests</dt><dd className="numeric">{summary.openRefundRequests}</dd></div>
-      </dl>
+    <section className="metric-strip" aria-label="Matching current filters">
+      <article className="metric-card metric-card-accent">
+        <p className="metric-label">Matching Orders</p>
+        <p className="metric-value numeric">{summary.totalOrders}</p>
+        <p className="metric-meta">Server aggregate for current filters</p>
+      </article>
+      <article className="metric-card">
+        <p className="metric-label">Pending</p>
+        <p className="metric-value numeric">{summary.byStatus.pending}</p>
+        <p className="metric-meta">Paid {summary.byStatus.paid}</p>
+      </article>
+      <article className="metric-card">
+        <p className="metric-label">Fulfilled</p>
+        <p className="metric-value numeric">{summary.byStatus.fulfilled}</p>
+        <p className="metric-meta">Canceled {summary.byStatus.canceled}</p>
+      </article>
+      <article className="metric-card">
+        <p className="metric-label">Open refund requests</p>
+        <p className="metric-value numeric">{summary.openRefundRequests}</p>
+        <p className="metric-meta">Pending refund requests on matching Orders</p>
+      </article>
     </section>
   );
 }
@@ -175,10 +186,12 @@ export function OrdersScreen({
     filterRefs.current[nextIndex]?.focus();
   };
 
+
   return (
     <div className="page-stack">
       <header className="page-header">
         <div className="page-header-copy">
+          <p className="page-kicker">Order operations · Nexus</p>
           <h1>Orders</h1>
           <p>Review Customer purchases from the Storefront.</p>
         </div>
