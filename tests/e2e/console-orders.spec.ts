@@ -154,6 +154,21 @@ async function searchAndOpenOrder(page: Page, reference: string) {
   await expect(page.getByRole('heading', { name: reference })).toBeVisible();
 }
 
+function confirmDialogName(actionLabel: 'Mark paid' | 'Mark fulfilled' | 'Cancel'): string {
+  if (actionLabel === 'Mark paid') return 'Confirm payment';
+  if (actionLabel === 'Mark fulfilled') return 'Confirm fulfillment';
+  return 'Confirm cancellation';
+}
+
+async function confirmConsoleOrderAction(page: Page, actionLabel: 'Mark paid' | 'Mark fulfilled' | 'Cancel'): Promise<void> {
+  const confirmName = confirmDialogName(actionLabel);
+  await page.getByRole('button', { name: actionLabel, exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: confirmName });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: confirmName, exact: true }).click();
+}
+
+
 async function catalogProductId(request: APIRequestContext, productName: string): Promise<string> {
   const response = await request.get(`${CONSOLE_ORIGIN}/api/storefront/products`, {
     headers: { Accept: 'application/json' },
@@ -384,7 +399,7 @@ test('ST01 search to detail Paid then Fulfilled is visible on both origins after
     expect(key).toBe(paidKey);
     await route.continue();
   });
-  await page.getByRole('button', { name: 'Mark paid' }).click();
+  await confirmConsoleOrderAction(page, 'Mark paid');
   await expect(page.getByText('The Order could not be updated')).toBeVisible();
   await page.getByRole('button', { name: 'Retry Mark paid' }).click();
   await expect(page.locator('.status-tag')).toHaveText('Paid');
@@ -403,7 +418,7 @@ test('ST01 search to detail Paid then Fulfilled is visible on both origins after
   await expect(customerPage.locator('.order-status')).toHaveText('Paid');
   await expect(customerPage.getByRole('heading', { name: 'Payment next step' })).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Mark fulfilled' }).click();
+  await confirmConsoleOrderAction(page, 'Mark fulfilled');
   await expect(page.locator('.status-tag')).toHaveText('Fulfilled');
   const fulfilledConsole = await readConsoleDetail(request, placed.body.reference);
   const fulfilledPrivate = await readPrivateOrder(request, placed.body.reference, placed.capability);
@@ -465,7 +480,7 @@ test('ST05 stale Cancel conflicts and IT02 delayed pending GET cannot roll Paid 
     window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }));
   });
   await staleCaptured;
-  await page.getByRole('button', { name: 'Mark paid' }).click();
+  await confirmConsoleOrderAction(page, 'Mark paid');
   await expect(page.locator('.status-tag')).toHaveText('Paid');
   const paidAfterB = await readConsoleDetail(request, placed.body.reference);
   expect(paidAfterB.status).toBe('paid');
@@ -477,7 +492,7 @@ test('ST05 stale Cancel conflicts and IT02 delayed pending GET cannot roll Paid 
   await expect(page.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Mark fulfilled' })).toBeVisible();
 
-  await staleTab.getByRole('button', { name: 'Cancel' }).click();
+  await confirmConsoleOrderAction(staleTab, 'Cancel');
   await expect(staleTab.getByText('The Order could not be updated')).toBeVisible();
   await expect(staleTab.locator('.status-tag')).toHaveText('Paid');
   await expect(staleTab.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
@@ -497,7 +512,7 @@ test('BL02 EN01 unconfirmed Fulfill is blocked at 375px keyboard then confirm ke
   await page.goto(STOREFRONT_ORIGIN);
   const placed = await placeOrder(page, productName);
   await searchAndOpenOrder(page, placed.body.reference);
-  await page.getByRole('button', { name: 'Mark paid' }).click();
+  await confirmConsoleOrderAction(page, 'Mark paid');
   await expect(page.locator('.status-tag')).toHaveText('Paid');
 
   const refund = await page.request.post(`${CONSOLE_ORIGIN}/api/storefront/orders/${placed.body.reference}/refund-requests`, {
@@ -667,7 +682,7 @@ for (const scenario of [
     const placed = await placeOrder(page, productName);
     await searchAndOpenOrder(page, placed.body.reference);
     if (scenario.action === 'mark_fulfilled') {
-      await page.getByRole('button', { name: 'Mark paid', exact: true }).click();
+      await confirmConsoleOrderAction(page, 'Mark paid');
       await expect(page.locator('.status-tag')).toHaveText('Paid');
     }
     const before = await readConsoleDetail(request, placed.body.reference);
@@ -683,7 +698,11 @@ for (const scenario of [
       await route.fulfill({ response });
     });
     try {
-      await page.getByRole('button', { name: scenario.label, exact: true }).dblclick();
+      const confirmName = confirmDialogName(scenario.label);
+      await page.getByRole('button', { name: scenario.label, exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: confirmName });
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole('button', { name: confirmName, exact: true }).dblclick();
       await expect(page.getByRole('button', { name: `Saving ${scenario.label}`, exact: true })).toBeDisabled();
       await expect.poll(() => posts).toBe(1);
     } finally {

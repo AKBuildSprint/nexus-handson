@@ -81,6 +81,18 @@ function actionButton(label: string): HTMLButtonElement | undefined {
   return Array.from(container.querySelectorAll<HTMLButtonElement>('[aria-label="Order actions"] button')).find((button) => button.textContent === label);
 }
 
+function dialogButton(label: string): HTMLButtonElement | undefined {
+  return Array.from(container.querySelectorAll<HTMLButtonElement>('dialog button')).find((button) => button.textContent === label);
+}
+
+async function confirmOpenDialog(label: string): Promise<void> {
+  await flush();
+  expect(container.querySelector('dialog')?.open).toBe(true);
+  await act(async () => { dialogButton(label)?.click(); });
+  await flush();
+}
+
+
 function linkNamed(label: string): HTMLAnchorElement | undefined {
   return Array.from(container.querySelectorAll('a')).find((anchor) => anchor.textContent?.includes(label));
 }
@@ -402,7 +414,7 @@ describe('Console Order contracts', () => {
     });
     await flush();
     await act(async () => { actionButton('Mark paid')?.click(); });
-    await flush();
+    await confirmOpenDialog('Confirm payment');
     releaseStale();
     await flush();
     expect(container.textContent).toContain('Paid');
@@ -433,7 +445,7 @@ describe('Console Order contracts', () => {
     window.history.replaceState({}, '', `/console/orders/${safeOrder.reference}`);
     await renderApp();
     await act(async () => { actionButton('Mark paid')?.click(); });
-    await flush();
+    await confirmOpenDialog('Confirm payment');
     await act(async () => { buttonNamed('Retry Mark paid')?.click(); });
     await flush();
     expect(keys).toHaveLength(2);
@@ -459,7 +471,7 @@ describe('Console Order contracts', () => {
     window.history.replaceState({}, '', `/console/orders/${safeOrder.reference}`);
     await renderApp();
     await act(async () => { actionButton('Cancel')?.click(); });
-    await flush();
+    await confirmOpenDialog('Confirm cancellation');
     expect(posts).toEqual([{ action: 'cancel', acknowledgedRefundRequestId: null }]);
     expect(container.textContent).toContain('Paid');
     expect(actionButton('Mark fulfilled')).toBeTruthy();
@@ -561,6 +573,107 @@ describe('Console Order contracts', () => {
     await flush();
     expect(posts).toEqual([{ action: 'mark_fulfilled', acknowledgedRefundRequestId: refundId }]);
   });
+
+  it('sends no mutation when Mark paid or Cancel confirmation is dismissed', async () => {
+    const posts: unknown[] = [];
+    installConsoleFetch({
+      detail: () => detailFrom(safeOrder),
+      action: ({ body }) => {
+        posts.push(body);
+        return json({
+          order: detailFrom({ ...safeOrder, status: 'paid' }, { status: 'paid', allowedActions: ['mark_fulfilled'] }),
+          command: { outcome: 'applied', replayed: false, resultStatus: 'paid' },
+        });
+      },
+    });
+    window.history.replaceState({}, '', `/console/orders/${safeOrder.reference}`);
+    await renderApp();
+    const paid = actionButton('Mark paid');
+    await act(async () => { paid?.click(); });
+    await flush();
+    expect(container.querySelector('dialog')?.open).toBe(true);
+    expect(container.querySelector('dialog')?.textContent).toContain('Confirm payment');
+    expect(container.querySelector('[data-refund-reason]')).toBeNull();
+    await act(async () => { dialogButton('Cancel')?.click(); });
+    await flush();
+    expect(container.querySelector('dialog')?.open).toBeFalsy();
+    expect(posts).toEqual([]);
+    expect(document.activeElement).toBe(paid);
+
+    const cancel = actionButton('Cancel');
+    await act(async () => { cancel?.click(); });
+    await flush();
+    expect(container.querySelector('dialog')?.open).toBe(true);
+    expect(container.querySelector('dialog')?.textContent).toContain('Confirm cancellation');
+    await act(async () => { dialogButton('Cancel')?.click(); });
+    await flush();
+    expect(posts).toEqual([]);
+    expect(document.activeElement).toBe(cancel);
+
+    await act(async () => { paid?.click(); });
+    await confirmOpenDialog('Confirm payment');
+    expect(posts).toEqual([{ action: 'mark_paid', acknowledgedRefundRequestId: null }]);
+  });
+
+  it('keeps a reopened confirmation when a delayed close from the previous dialog arrives', async () => {
+    const posts: unknown[] = [];
+    installConsoleFetch({
+      detail: () => detailFrom(safeOrder),
+      action: ({ body }) => {
+        posts.push(body);
+        return json({
+          order: detailFrom({ ...safeOrder, status: 'cancelled' }, { status: 'cancelled', allowedActions: [] }),
+          command: { outcome: 'applied', replayed: false, resultStatus: 'cancelled' },
+        });
+      },
+    });
+    window.history.replaceState({}, '', `/console/orders/${safeOrder.reference}`);
+    await renderApp();
+    await act(async () => { actionButton('Mark paid')?.click(); });
+    await flush();
+    const dialog = container.querySelector('dialog');
+    expect(dialog?.open).toBe(true);
+    await act(async () => { dialogButton('Cancel')?.click(); });
+    await flush();
+    expect(dialog?.open).toBeFalsy();
+
+    await act(async () => { actionButton('Cancel')?.click(); });
+    await flush();
+    expect(dialog?.open).toBe(true);
+    expect(dialog?.textContent).toContain('Confirm cancellation');
+
+    await act(async () => {
+      dialog?.dispatchEvent(new Event('close'));
+    });
+    await flush();
+    expect(dialog?.open).toBe(true);
+    expect(dialog?.textContent).toContain('Confirm cancellation');
+    expect(posts).toEqual([]);
+
+    await confirmOpenDialog('Confirm cancellation');
+    expect(posts).toEqual([{ action: 'cancel', acknowledgedRefundRequestId: null }]);
+  });
+
+
+  it('confirms fulfillment without a refund using a null acknowledgement', async () => {
+    const posts: unknown[] = [];
+    installConsoleFetch({
+      detail: () => detailFrom({ ...safeOrder, status: 'paid' }, { status: 'paid', allowedActions: ['mark_fulfilled'] }),
+      action: ({ body }) => {
+        posts.push(body);
+        return json({
+          order: detailFrom({ ...safeOrder, status: 'fulfilled' }, { status: 'fulfilled', allowedActions: [] }),
+          command: { outcome: 'applied', replayed: false, resultStatus: 'fulfilled' },
+        });
+      },
+    });
+    window.history.replaceState({}, '', `/console/orders/${safeOrder.reference}`);
+    await renderApp();
+    await act(async () => { actionButton('Mark fulfilled')?.click(); });
+    await confirmOpenDialog('Confirm fulfillment');
+    expect(posts).toEqual([{ action: 'mark_fulfilled', acknowledgedRefundRequestId: null }]);
+  });
+
 
   it('recovers page 2 ancestry after page 3, detail, remount, Back, then Previous', async () => {
     const seenCursors: Array<string | null> = [];

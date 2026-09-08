@@ -33,6 +33,22 @@ function statusClass(status: ConsoleOrderDetailView['status']): string {
   return 'status-tag status-archived';
 }
 
+function confirmTitle(action: ConsoleOrderAction): string {
+  if (action === 'mark_paid') return 'Confirm payment';
+  if (action === 'mark_fulfilled') return 'Confirm fulfillment';
+  return 'Confirm cancellation';
+}
+
+function confirmExplanation(action: ConsoleOrderAction, hasRefundRequest: boolean): string {
+  if (action === 'mark_paid') return 'Mark paid is a manual confirmation, not a payment-provider receipt.';
+  if (action === 'mark_fulfilled') {
+    return hasRefundRequest
+      ? 'Mark fulfilled records operational confirmation and does not grant delivery. The Refund Request stays received and awaiting response.'
+      : 'Mark fulfilled records operational confirmation and does not grant delivery.';
+  }
+  return 'Cancel records that this Order will not be paid or fulfilled.';
+}
+
 export function OrderDetailScreen({
   state,
   order,
@@ -46,44 +62,45 @@ export function OrderDetailScreen({
 }: OrderDetailScreenProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const acknowledgedIdRef = useRef<string | null>(null);
-  const [fulfillOpen, setFulfillOpen] = useState(false);
+  const confirmingRef = useRef(false);
+  const [confirmationAction, setConfirmationAction] = useState<ConsoleOrderAction | null>(null);
 
   useEffect(() => {
-    setFulfillOpen(false);
-    acknowledgedIdRef.current = null;
+    confirmingRef.current = false;
+    setConfirmationAction(null);
   }, [order?.reference, order?.refundRequest?.id, order?.status]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    if (fulfillOpen && !dialog.open) dialog.showModal();
-    if (!fulfillOpen && dialog.open) dialog.close();
-  }, [fulfillOpen]);
+    if (confirmationAction && !dialog.open) dialog.showModal();
+    if (!confirmationAction && dialog.open) dialog.close();
+  }, [confirmationAction]);
 
-  const closeFulfill = () => {
-    setFulfillOpen(false);
+  const closeConfirmation = () => {
+    setConfirmationAction(null);
     window.setTimeout(() => triggerRef.current?.focus(), 0);
   };
 
-  const requestFulfill = (event: { currentTarget: HTMLButtonElement }) => {
+  const requestAction = (action: ConsoleOrderAction, event: { currentTarget: HTMLButtonElement }) => {
     if (!order) return;
-    if (order.refundRequest) {
-      triggerRef.current = event.currentTarget;
-      acknowledgedIdRef.current = order.refundRequest.id;
-      setFulfillOpen(true);
-      const dialog = dialogRef.current;
-      if (dialog && !dialog.open) dialog.showModal();
-      return;
-    }
-    onAction('mark_fulfilled', null);
+    confirmingRef.current = false;
+    triggerRef.current = event.currentTarget;
+    setConfirmationAction(action);
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.open) dialog.showModal();
   };
 
-  const confirmFulfill = () => {
-    const requestId = acknowledgedIdRef.current;
-    closeFulfill();
-    if (requestId) onAction('mark_fulfilled', requestId);
+  const confirmAction = () => {
+    if (confirmingRef.current) return;
+    const action = confirmationAction;
+    if (!action || !order) return;
+    confirmingRef.current = true;
+    const acknowledgedRefundRequestId = action === 'mark_fulfilled' ? order.refundRequest?.id ?? null : null;
+    setConfirmationAction(null);
+    onAction(action, acknowledgedRefundRequestId);
   };
+
 
   const retryableAction = isRetryableOrderError(actionError);
   const actionMessage = actionError instanceof ConsoleApiError
@@ -210,10 +227,7 @@ export function OrderDetailScreen({
                 className={action === 'cancel' ? 'button button-danger' : 'button button-primary'}
                 type="button"
                 disabled={pendingAction !== null}
-                onClick={(event) => {
-                  if (action === 'mark_fulfilled') requestFulfill(event);
-                  else onAction(action, null);
-                }}
+                onClick={(event) => requestAction(action, event)}
               >
                 {pendingAction === action ? `Saving ${orderActionLabel(action)}` : orderActionLabel(action)}
               </button>
@@ -225,22 +239,31 @@ export function OrderDetailScreen({
       <dialog
         ref={dialogRef}
         className="guard-dialog order-fulfill-dialog"
-        aria-labelledby="fulfill-confirm-title"
+        aria-labelledby="order-action-confirm-title"
         onCancel={(event) => {
           event.preventDefault();
-          closeFulfill();
+          closeConfirmation();
         }}
-        onClose={() => {
-          if (fulfillOpen) closeFulfill();
+        onClose={(event) => {
+          if (event.currentTarget.open) return;
+          if (confirmationAction) closeConfirmation();
         }}
       >
         <div className="guard-content">
-          <h2 id="fulfill-confirm-title">Confirm fulfillment</h2>
-          <p>Mark fulfilled records operational confirmation and does not grant delivery. The Refund Request stays received and awaiting response.</p>
-          {order?.refundRequest ? <p data-refund-reason>{order.refundRequest.reason}</p> : null}
+          <h2 id="order-action-confirm-title">{confirmationAction ? confirmTitle(confirmationAction) : 'Confirm action'}</h2>
+          <p>{confirmationAction ? confirmExplanation(confirmationAction, order?.refundRequest != null) : null}</p>
+          {confirmationAction === 'mark_fulfilled' && order?.refundRequest ? (
+            <p data-refund-reason>{order.refundRequest.reason}</p>
+          ) : null}
           <div className="inline-actions">
-            <button className="button" type="button" onClick={closeFulfill}>Cancel</button>
-            <button className="button button-primary" type="button" onClick={confirmFulfill}>Confirm fulfillment</button>
+            <button className="button" type="button" onClick={closeConfirmation}>Cancel</button>
+            <button
+              className={confirmationAction === 'cancel' ? 'button button-danger' : 'button button-primary'}
+              type="button"
+              onClick={confirmAction}
+            >
+              {confirmationAction ? confirmTitle(confirmationAction) : 'Confirm'}
+            </button>
           </div>
         </div>
       </dialog>

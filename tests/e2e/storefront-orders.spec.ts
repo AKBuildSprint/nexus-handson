@@ -62,6 +62,15 @@ async function searchAndOpenOrder(page: Page, reference: string) {
   await expect(page.getByRole('heading', { name: reference })).toBeVisible();
 }
 
+async function confirmConsoleOrderAction(page: Page, actionLabel: 'Mark paid' | 'Cancel'): Promise<void> {
+  const confirmName = actionLabel === 'Mark paid' ? 'Confirm payment' : 'Confirm cancellation';
+  await page.getByRole('button', { name: actionLabel, exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: confirmName });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: confirmName, exact: true }).click();
+}
+
+
 async function readConsoleDetail(request: APIRequestContext, reference: string): Promise<ConsoleOrderDetail> {
   const response = await request.get(`${CONSOLE_ORIGIN}/api/console/orders/${encodeURIComponent(reference)}`, {
     headers: { Accept: 'application/json' },
@@ -272,7 +281,7 @@ test('ST02 Cancel remains privately readable and exposes no Refund form', async 
 
   const consolePage = await page.context().newPage();
   await searchAndOpenOrder(consolePage, placed.body.reference);
-  await consolePage.getByRole('button', { name: 'Cancel' }).click();
+  await confirmConsoleOrderAction(consolePage, 'Cancel');
   await expect(consolePage.locator('.status-tag')).toHaveText('Cancelled');
   const cancelled = await readConsoleDetail(request, placed.body.reference);
   expect(cancelled.status).toBe('cancelled');
@@ -306,7 +315,7 @@ test('ST03 US02 Customer refund is durable across Console refresh and a new brow
 
   const consolePage = await page.context().newPage();
   await searchAndOpenOrder(consolePage, placed.body.reference);
-  await consolePage.getByRole('button', { name: 'Mark paid' }).click();
+  await confirmConsoleOrderAction(consolePage, 'Mark paid');
   await expect(consolePage.locator('.status-tag')).toHaveText('Paid');
 
   await page.reload({ waitUntil: 'domcontentloaded' });
