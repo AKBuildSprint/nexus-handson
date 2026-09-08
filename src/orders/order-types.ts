@@ -1,6 +1,6 @@
 export type OrderStatus = 'pending' | 'paid' | 'fulfilled' | 'canceled';
 
-export type OrderCommandAction = 'complete' | 'cancel' | 'request_refund' | 'mark_paid' | 'fulfill';
+export type OrderCommandAction = 'cancel' | 'request_refund' | 'mark_paid' | 'fulfill';
 
 export type OrderHistoryAction =
   | 'order_created'
@@ -163,6 +163,9 @@ export interface ConsoleOrderProjection extends OrderProjection {
 export interface ConsoleOrderHistoryEntry {
   action: OrderHistoryAction;
   source: OrderAuditSource;
+  actorId: string | null;
+  actorLabel: string;
+  contractVersion: 1 | 2;
   fromStatus: OrderStatus | null;
   toStatus: OrderStatus;
   createdAt: string;
@@ -170,8 +173,10 @@ export interface ConsoleOrderHistoryEntry {
 
 export interface ConsoleOrderDetailProjection extends ConsoleOrderProjection {
   refundRequest: RefundRequestProjection | null;
-  allowedActions: Array<'complete' | 'cancel' | 'mark_paid' | 'fulfill' | 'request_refund'>;
+  allowedActions: Array<'cancel' | 'mark_paid' | 'fulfill' | 'request_refund'>;
   history: ConsoleOrderHistoryEntry[];
+  payment: PaymentLedgerProjection | null;
+  paymentRecordState: PaymentRecordState;
 }
 
 export interface ConsoleOrderListQuery {
@@ -184,6 +189,7 @@ export interface ConsoleOrderListQuery {
 
 export interface ConsoleOrderListResponse {
   orders: ConsoleOrderProjection[];
+  summary: ConsoleOrderSummary;
   nextCursor: string | null;
   hasOrders: boolean;
 }

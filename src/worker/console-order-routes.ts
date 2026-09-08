@@ -1,13 +1,24 @@
 import { BOOTSTRAP_STORE_ID } from '../catalog/catalog-read';
-import { cancelOrder } from '../orders/order-commands';
+import {
+  cancelOrder,
+  createRefundRequest,
+  fulfillOrder,
+  markPaid,
+} from '../orders/order-commands';
 import { listConsoleOrders, readConsoleOrderByReference } from '../orders/order-read';
 import {
   OrderPersistenceError,
   OrderValidationError,
   type ConsoleOrderListQuery,
+  type OrderContext,
   type OrderStatus,
 } from '../orders/order-types';
-import { jsonError, jsonResponse } from './http-response';
+import {
+  jsonError,
+  jsonResponse,
+  orderContractAccepted,
+  orderContractOutdatedResponse,
+} from './http-response';
 
 const ORDER_STATUS: Record<OrderStatus, true> = {
   pending: true,
@@ -19,14 +30,18 @@ const ORDER_STATUS: Record<OrderStatus, true> = {
 const QUERY_KEYS: Record<string, true> = {
   q: true,
   status: true,
-  refund: true,
   limit: true,
   cursor: true,
+  refund: true,
 };
+
+function bootstrapOwnerContext(): OrderContext {
+  return { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'bootstrap_owner', id: null } };
+}
 
 function unexpectedConsoleError(
   error: unknown,
-  operation: 'list' | 'read' | 'cancel',
+  operation: 'list' | 'read' | 'pay' | 'fulfill' | 'cancel' | 'refund',
 ): Response {
   if (error instanceof OrderValidationError) {
     return jsonError(error.status, error.code, error.message, error.fields);
@@ -76,7 +91,7 @@ function parseConsoleOrderListQuery(searchParams: URLSearchParams): ConsoleOrder
   }
 
   const rawQ = searchParams.get('q');
-  const q = rawQ === null ? '' : rawQ.normalize('NFKC').trim();
+  const q = rawQ === null ? '' : rawQ.trim();
   if (Array.from(q).length > 254) {
     throw new OrderValidationError('invalid_query', 'The Order query is invalid.', [], 400);
   }
@@ -109,16 +124,28 @@ function parseConsoleOrderListQuery(searchParams: URLSearchParams): ConsoleOrder
   };
 }
 
+async function lookupBootstrapOrderId(
+  database: D1Database,
+  reference: string,
+): Promise<string | null> {
+  const order = await database.prepare(
+    'SELECT id FROM orders WHERE store_id = ? AND reference = ?',
+  ).bind(BOOTSTRAP_STORE_ID, reference).first<{ id: string }>();
+  return order?.id ?? null;
+}
+
 export async function routeConsoleOrderRequest(
   request: Request,
   database: D1Database,
 ): Promise<Response | null> {
   const url = new URL(request.url);
   const pathname = url.pathname;
+  const context = bootstrapOwnerContext();
 
   if (request.method === 'GET' && pathname === '/api/console/orders') {
+    if (!orderContractAccepted(request)) return orderContractOutdatedResponse();
     try {
-      return jsonResponse(await listConsoleOrders(database, parseConsoleOrderListQuery(url.searchParams)));
+      return jsonResponse(await listConsoleOrders(database, context, parseConsoleOrderListQuery(url.searchParams)));
     } catch (error) {
       return unexpectedConsoleError(error, 'list');
     }
@@ -128,8 +155,9 @@ export async function routeConsoleOrderRequest(
   if (detail !== null && request.method === 'GET') {
     const reference = decodeReference(detail[1]);
     if (reference === null) return jsonError(404, 'not_found', 'Order not found.');
+    if (!orderContractAccepted(request)) return orderContractOutdatedResponse();
     try {
-      const order = await readConsoleOrderByReference(database, reference);
+      const order = await readConsoleOrderByReference(database, context, reference);
       return order === null
         ? jsonError(404, 'not_found', 'Order not found.')
         : jsonResponse({ order });
@@ -138,28 +166,83 @@ export async function routeConsoleOrderRequest(
     }
   }
 
-  if (/^\/api\/console\/orders\/([^/]+)\/complete$/.test(pathname) && request.method === 'POST') {
-    return jsonError(404, 'not_found', 'Order not found.');
+  const payment = /^\/api\/console\/orders\/([^/]+)\/payments\/manual$/.exec(pathname);
+  if (payment !== null && request.method === 'POST') {
+    const reference = decodeReference(payment[1]);
+    if (reference === null) return jsonError(404, 'not_found', 'Order not found.');
+    if (!orderContractAccepted(request)) return orderContractOutdatedResponse();
+    try {
+      const orderId = await lookupBootstrapOrderId(database, reference);
+      if (orderId === null) return jsonError(404, 'not_found', 'Order not found.');
+      return jsonResponse(await markPaid({
+        database,
+        context,
+        orderId,
+        body: await parseJson(request),
+        idempotencyKey: request.headers.get('Idempotency-Key'),
+      }));
+    } catch (error) {
+      return unexpectedConsoleError(error, 'pay');
+    }
+  }
+
+  const fulfill = /^\/api\/console\/orders\/([^/]+)\/fulfill$/.exec(pathname);
+  if (fulfill !== null && request.method === 'POST') {
+    const reference = decodeReference(fulfill[1]);
+    if (reference === null) return jsonError(404, 'not_found', 'Order not found.');
+    if (!orderContractAccepted(request)) return orderContractOutdatedResponse();
+    try {
+      const orderId = await lookupBootstrapOrderId(database, reference);
+      if (orderId === null) return jsonError(404, 'not_found', 'Order not found.');
+      return jsonResponse(await fulfillOrder({
+        database,
+        context,
+        orderId,
+        body: await parseJson(request),
+        idempotencyKey: request.headers.get('Idempotency-Key'),
+      }));
+    } catch (error) {
+      return unexpectedConsoleError(error, 'fulfill');
+    }
   }
 
   const cancel = /^\/api\/console\/orders\/([^/]+)\/cancel$/.exec(pathname);
   if (cancel !== null && request.method === 'POST') {
     const reference = decodeReference(cancel[1]);
     if (reference === null) return jsonError(404, 'not_found', 'Order not found.');
+    if (!orderContractAccepted(request)) return orderContractOutdatedResponse();
     try {
-      const order = await database.prepare(
-        'SELECT id FROM orders WHERE store_id = ? AND reference = ?',
-      ).bind(BOOTSTRAP_STORE_ID, reference).first<{ id: string }>();
-      if (order === null) return jsonError(404, 'not_found', 'Order not found.');
+      const orderId = await lookupBootstrapOrderId(database, reference);
+      if (orderId === null) return jsonError(404, 'not_found', 'Order not found.');
       return jsonResponse(await cancelOrder({
         database,
-        context: { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'bootstrap_owner', id: null } },
-        orderId: order.id,
+        context,
+        orderId,
         body: await parseJson(request),
         idempotencyKey: request.headers.get('Idempotency-Key'),
       }));
     } catch (error) {
       return unexpectedConsoleError(error, 'cancel');
+    }
+  }
+
+  const refund = /^\/api\/console\/orders\/([^/]+)\/refund-requests$/.exec(pathname);
+  if (refund !== null && request.method === 'POST') {
+    const reference = decodeReference(refund[1]);
+    if (reference === null) return jsonError(404, 'not_found', 'Order not found.');
+    if (!orderContractAccepted(request)) return orderContractOutdatedResponse();
+    try {
+      const orderId = await lookupBootstrapOrderId(database, reference);
+      if (orderId === null) return jsonError(404, 'not_found', 'Order not found.');
+      return jsonResponse(await createRefundRequest({
+        database,
+        context,
+        orderId,
+        body: await parseJson(request),
+        idempotencyKey: request.headers.get('Idempotency-Key'),
+      }));
+    } catch (error) {
+      return unexpectedConsoleError(error, 'refund');
     }
   }
 

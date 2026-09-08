@@ -17,6 +17,21 @@ const JSON_HEADERS = {
   'Cache-Control': 'no-store',
   'Content-Type': 'application/json; charset=utf-8',
 } as const;
+
+export const ORDER_CONTRACT_HEADER = 'X-Nexus-Order-Contract';
+export const ORDER_CONTRACT_VERSION = '2';
+
+export function orderContractAccepted(request: Request): boolean {
+  return request.headers.get(ORDER_CONTRACT_HEADER) === ORDER_CONTRACT_VERSION;
+}
+
+export function orderContractOutdatedResponse(): Response {
+  return jsonError(
+    409,
+    'client_contract_outdated',
+    'This client is out of date. Reload the page and try again.',
+  );
+}
 export function jsonResponse(
   body: unknown,
   init: { status?: number; headers?: HeadersInit } = {},

@@ -1,14 +1,21 @@
 import { BOOTSTRAP_STORE_ID } from '../catalog/catalog-read';
 import { createRefundRequest } from '../orders/order-commands';
+import { readCustomerOrderById } from '../orders/order-read';
 import { createOrder } from '../orders/order-write';
-import { findOrderIdByCapability, readPrivateOrder } from '../orders/private-access';
+import { findOrderIdByCapability } from '../orders/private-access';
 import {
   OrderPersistenceError,
   OrderValidationError,
   type CustomerOrderProjection,
+  type OrderCommandResult,
   type OrderContext,
 } from '../orders/order-types';
-import { jsonError, jsonResponse } from './http-response';
+import {
+  jsonError,
+  jsonResponse,
+  orderContractAccepted,
+  orderContractOutdatedResponse,
+} from './http-response';
 import { withStorefrontCors } from './storefront-cors';
 
 export const PAYMENT_NEXT_STEP = 'Payment instructions will be provided separately.';
@@ -25,6 +32,16 @@ function customerResponse(order: CustomerOrderProjection): CustomerOrderResponse
   return {
     ...order,
     paymentNextStep: order.status === 'pending' ? PAYMENT_NEXT_STEP : null,
+  };
+}
+
+function storefrontCommandResult(result: OrderCommandResult) {
+  return {
+    reference: result.reference,
+    action: result.action,
+    status: result.status,
+    occurredAt: result.occurredAt,
+    refundRequest: result.refundRequest,
   };
 }
 
@@ -74,6 +91,9 @@ export async function routeStorefrontOrderRequest(
   let response: Response | null = null;
 
   if (request.method === 'POST' && pathname === '/api/storefront/orders') {
+    if (!orderContractAccepted(request)) {
+      return withStorefrontCors(request, storefrontOrigin, orderContractOutdatedResponse());
+    }
     try {
       const order = await createOrder({
         database,
@@ -118,6 +138,9 @@ export async function routeStorefrontOrderRequest(
     if (orderId === null) {
       return withStorefrontCors(request, storefrontOrigin, privateNotFound());
     }
+    if (!orderContractAccepted(request)) {
+      return withStorefrontCors(request, storefrontOrigin, orderContractOutdatedResponse());
+    }
     try {
       const customerId = await database.prepare(
         'SELECT customer_id FROM orders WHERE store_id = ? AND id = ?',
@@ -125,13 +148,13 @@ export async function routeStorefrontOrderRequest(
       if (customerId === null) {
         response = privateNotFound();
       } else {
-        response = jsonResponse(await createRefundRequest({
+        response = jsonResponse(storefrontCommandResult(await createRefundRequest({
           database,
           context: storefrontContext(customerId),
           orderId,
           body: await parseJson(request),
           idempotencyKey: request.headers.get('Idempotency-Key'),
-        }));
+        })));
       }
     } catch (error) {
       response = error instanceof OrderValidationError
@@ -148,15 +171,26 @@ export async function routeStorefrontOrderRequest(
     response = privateNotFound();
   } else {
     try {
-      const order = await readPrivateOrder({
+      const orderId = await findOrderIdByCapability({
         database,
         storeId: BOOTSTRAP_STORE_ID,
         reference,
         capability: request.headers.get('X-Nexus-Order-Capability'),
       });
-      response = order === null
-        ? privateNotFound()
-        : jsonResponse(customerResponse(order));
+      if (orderId === null) {
+        response = privateNotFound();
+      } else if (!orderContractAccepted(request)) {
+        response = orderContractOutdatedResponse();
+      } else {
+        const order = await readCustomerOrderById({
+          database,
+          storeId: BOOTSTRAP_STORE_ID,
+          orderId,
+        });
+        response = order === null
+          ? privateNotFound()
+          : jsonResponse(customerResponse(order));
+      }
     } catch (error) {
       response = error instanceof OrderValidationError
         ? privateNotFound()

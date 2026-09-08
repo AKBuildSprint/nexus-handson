@@ -180,6 +180,9 @@ describe('Order aggregate persistence', () => {
       capability: CAPABILITY_B,
     })).toBeNull();
     const consoleOrders = await listConsoleOrders(env.DB, {
+      storeId: BOOTSTRAP_STORE_ID,
+      actor: { source: 'bootstrap_owner', id: null },
+    }, {
       q: '',
       status: null,
       refund: null,

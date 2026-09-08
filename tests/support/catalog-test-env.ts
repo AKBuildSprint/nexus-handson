@@ -118,7 +118,15 @@ export async function resetCatalog(): Promise<void> {
 export const TEST_STOREFRONT_ORIGIN = 'https://storefront.test';
 
 export function workerRequest(path: string, init?: RequestInit): Promise<Response> {
-  return worker.fetch(new Request(`https://local.invalid${path}`, init), {
+  const headers = new Headers(init?.headers);
+  const pathname = path.split('?')[0] ?? path;
+  if (
+    !headers.has('X-Nexus-Order-Contract')
+    && (pathname.startsWith('/api/console/orders') || pathname.startsWith('/api/storefront/orders'))
+  ) {
+    headers.set('X-Nexus-Order-Contract', '2');
+  }
+  return worker.fetch(new Request(`https://local.invalid${path}`, { ...init, headers }), {
     DB: env.DB,
     FILES: env.FILES,
     STOREFRONT_ORIGIN: TEST_STOREFRONT_ORIGIN,
