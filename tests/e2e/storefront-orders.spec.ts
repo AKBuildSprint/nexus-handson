@@ -1,3 +1,6 @@
+import { execFileSync } from 'node:child_process';
+import { mkdirSync } from 'node:fs';
+import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 
 const CONSOLE_ORIGIN = process.env.PLAYWRIGHT_API_CONSOLE_BASE_URL ?? 'http://127.0.0.1:5173';
@@ -122,6 +125,36 @@ async function expectNoHorizontalOverflow(page: Page, width: number) {
   expect(dimensions.bodyScroll).toBeLessThanOrEqual(dimensions.client);
 }
 
+function queryLocalOrderGraph(reference: string): {
+  status: string;
+  history_count: number;
+  refund_events: number;
+  command_count: number;
+  refund_count: number;
+} {
+  expect(reference).toMatch(/^NX-[A-F0-9]{16}$/);
+  const sql = `SELECT o.status AS status,
+    (SELECT count(*) FROM order_history h WHERE h.order_id = o.id AND h.store_id = o.store_id) AS history_count,
+    (SELECT count(*) FROM order_history h WHERE h.order_id = o.id AND h.action = 'refund_requested') AS refund_events,
+    (SELECT count(*) FROM order_commands c WHERE c.order_id = o.id) AS command_count,
+    (SELECT count(*) FROM order_refund_requests r WHERE r.order_id = o.id) AS refund_count
+    FROM orders o WHERE o.reference = '${reference}'`;
+  const output = execFileSync('npx', [
+    'wrangler', 'd1', 'execute', 'nexus-s1-468cba-db',
+    '--local', '--config', 'wrangler.jsonc', '--json', '--command', sql,
+  ], { encoding: 'utf8' });
+  const parsed = JSON.parse(output.slice(output.indexOf('['))) as Array<{ results: Array<Record<string, unknown>> }>;
+  const row = parsed[0]?.results[0];
+  expect(row).toBeTruthy();
+  return {
+    status: String(row.status),
+    history_count: Number(row.history_count),
+    refund_events: Number(row.refund_events),
+    command_count: Number(row.command_count),
+    refund_count: Number(row.refund_count),
+  };
+}
+
 async function placeOrder(
   page: Page,
   input: { productName: string; quantity: string; variantLabel?: string },
@@ -207,7 +240,20 @@ test('creates a Simple Order with server authority, fragment-only private reload
   expect(order.body.unitPriceMinor).toBe(1995);
   expect(order.body.totalMinor).toBe(3990);
   expect(order.body.currency).toBe('USD');
+
+  const driftedName = `${editedName} Drift`;
+  await page.goto(`${CONSOLE_ORIGIN}${editorPath}`);
+  await expect(page.getByLabel('Product name')).toHaveValue(editedName);
+  await page.getByLabel('Product name').fill(driftedName);
+  await visibleSave(page).click();
+  await expect(page.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
+  await page.goto(`${CONSOLE_ORIGIN}/console/orders/${order.body.reference}`);
+  await expect(page.getByRole('heading', { name: order.body.reference })).toBeVisible();
+  const snapshot = page.locator('.order-detail-fields');
+  await expect(snapshot).toContainText(editedName);
+  await expect(snapshot).not.toContainText(driftedName);
 });
+
 
 test('creates an enabled Variant Order and keeps the 375px catalog and private Order within the viewport', async ({ page }) => {
   const token = uniqueToken();
@@ -231,17 +277,32 @@ test('creates an enabled Variant Order and keeps the 375px catalog and private O
 });
 
 test('does not show a refund form on pending or cancelled private Orders', async ({ page }) => {
-  const productName = `Verify E2E Pending ${uniqueToken()}`;
-  await createSimpleProduct(page, productName);
-  await page.goto(STOREFRONT_ORIGIN);
-  const pending = await placeOrder(page, { productName, quantity: '1' });
-  await expect(page.getByLabel('Reason for refund request')).toHaveCount(0);
+  const paidName = `Verify E2E Pending ${uniqueToken()}`;
+  const zeroName = `Verify E2E Pending Zero ${uniqueToken()}`;
+  await createSimpleProduct(page, paidName);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${CONSOLE_ORIGIN}/console/products/new`);
+  await fillRequiredProduct(page, zeroName, '0.00');
+  await visibleSave(page).click();
+  await expect(page.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
 
-  await cancelOrder(page, pending.body.reference);
+  await page.goto(STOREFRONT_ORIGIN);
+  const pendingPaid = await placeOrder(page, { productName: paidName, quantity: '1' });
+  expect(pendingPaid.body.totalMinor).toBeGreaterThan(0);
+  await expect(page.getByLabel('Reason for refund request')).toHaveCount(0);
+  await cancelOrder(page, pendingPaid.body.reference);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.getByText('This Order has been cancelled.')).toBeVisible();
   await expect(page.getByLabel('Reason for refund request')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Payment next step' })).toHaveCount(0);
+
+  await page.goto(STOREFRONT_ORIGIN);
+  const pendingZero = await placeOrder(page, { productName: zeroName, quantity: '1' });
+  expect(pendingZero.body.totalMinor).toBe(0);
+  await cancelOrder(page, pendingZero.body.reference);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByText('This Order has been cancelled.')).toBeVisible();
+  await expect(page.getByLabel('Reason for refund request')).toHaveCount(0);
 });
 
 test('requests a refund on completed zero and paid Orders without overflowing 375px', async ({ page }) => {
@@ -286,4 +347,107 @@ test('requests a refund on completed zero and paid Orders without overflowing 37
   await page.getByRole('button', { name: 'Send refund request' }).click();
   await expect(page.getByRole('heading', { name: 'Refund request pending' })).toBeVisible();
   await expectNoHorizontalOverflow(page, 375);
+});
+
+test('canonicalizes a two-line refund reason and shows it on the Console pending filter', async ({ page }) => {
+  const name = `Verify E2E Reason ${uniqueToken()}`;
+  await createSimpleProduct(page, name);
+  await page.goto(STOREFRONT_ORIGIN);
+  const placed = await placeOrder(page, { productName: name, quantity: '1' });
+  await completeOrder(page, placed.body.reference);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByLabel('Reason for refund request')).toBeVisible();
+
+  const rawReason = '  Wrong format\nPlease review.  ';
+  const canonical = 'Wrong format\nPlease review.';
+  await page.getByLabel('Reason for refund request').fill(rawReason);
+  await page.getByRole('button', { name: 'Send refund request' }).click();
+  await expect(page.getByRole('heading', { name: 'Refund request pending' })).toBeVisible();
+  await expect(page.getByText(canonical, { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Reason for refund request')).toHaveCount(0);
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'Refund request pending' })).toBeVisible();
+  await expect(page.getByText(canonical, { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Reason for refund request')).toHaveCount(0);
+
+  await page.goto(`${CONSOLE_ORIGIN}/console/orders`);
+  await page.getByLabel('Search Orders').fill(placed.body.reference);
+  await page.getByRole('button', { name: 'Search' }).click();
+  await page.getByLabel('Pending refund requests').check();
+  await expect(page.getByRole('link', { name: placed.body.reference })).toBeVisible();
+  await page.getByRole('link', { name: placed.body.reference }).click();
+  await expect(page.getByRole('heading', { name: placed.body.reference })).toBeVisible();
+  await expect(page.getByText(canonical, { exact: true })).toBeVisible();
+  await expect(page.getByText('Refund request pending').first()).toBeVisible();
+});
+
+test('retries a committed refund after response loss without a second D1 row', async ({ page }) => {
+  const name = `Verify E2E Refund Loss ${uniqueToken()}`;
+  await createSimpleProduct(page, name);
+  await page.goto(STOREFRONT_ORIGIN);
+  const placed = await placeOrder(page, { productName: name, quantity: '1' });
+  await completeOrder(page, placed.body.reference);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+
+  const keys: string[] = [];
+  await page.route(`**/api/storefront/orders/${placed.body.reference}/refund-requests`, async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    keys.push(route.request().headers()['idempotency-key'] ?? '');
+    const committed = await route.fetch();
+    expect(committed.status()).toBe(200);
+    if (keys.length === 1) {
+      await route.abort('failed');
+      return;
+    }
+    await route.fulfill({ response: committed });
+  });
+
+  await page.getByLabel('Reason for refund request').fill('Keep this identity.');
+  await page.getByRole('button', { name: 'Send refund request' }).click();
+  await expect(page.getByText('The outcome is not confirmed. Retry the same request.')).toBeVisible();
+
+  const afterCommit = queryLocalOrderGraph(placed.body.reference);
+  expect(afterCommit).toMatchObject({
+    status: 'completed',
+    refund_events: 1,
+    refund_count: 1,
+  });
+
+  await page.getByRole('button', { name: 'Retry refund request' }).focus();
+  await expect(page.getByRole('button', { name: 'Retry refund request' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Refund request pending' })).toBeVisible();
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toMatch(/^[A-Za-z0-9_-]{16,128}$/);
+  expect(keys[1]).toBe(keys[0]);
+  expect(queryLocalOrderGraph(placed.body.reference)).toEqual(afterCommit);
+});
+
+test('reaches the refund textarea by keyboard on 375px without overflow', async ({ page }) => {
+  const name = `Verify E2E Keys ${uniqueToken()}`;
+  await createSimpleProduct(page, name);
+  await page.goto(STOREFRONT_ORIGIN);
+  const placed = await placeOrder(page, { productName: name, quantity: '1' });
+  await completeOrder(page, placed.body.reference);
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByLabel('Reason for refund request').focus();
+  await expect(page.getByLabel('Reason for refund request')).toBeFocused();
+  await page.keyboard.type('Keyboard path.');
+  await expectNoHorizontalOverflow(page, 375);
+
+  const evidenceDir = path.join('plans', 'reports', 'evidence-session-3');
+  mkdirSync(evidenceDir, { recursive: true });
+  await page.evaluate(() => {
+    for (const node of document.querySelectorAll('body *')) {
+      if (!node.childElementCount && /@/.test(node.textContent ?? '')) {
+        node.textContent = '[redacted-email]';
+      }
+    }
+  });
+  await page.locator('.order-ledger').screenshot({ path: path.join(evidenceDir, 'ui-01-storefront-refund-375.png') });
 });

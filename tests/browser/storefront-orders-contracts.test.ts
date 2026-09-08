@@ -215,11 +215,13 @@ describe('Storefront Order contracts', () => {
     await act(async () => { if (textarea) setTextarea(textarea, `${'n'.repeat(1001)}`); });
     expect(container.textContent).toContain('1001 / 1000');
     const send = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Send refund request');
-    await act(async () => { send?.click(); await Promise.resolve(); });
+    await act(async () => { send?.click(); });
+    await act(async () => { await new Promise<void>((resolve) => { requestAnimationFrame(() => resolve()); }); });
     expect(container.textContent).toContain('Enter a reason using 1 to 1000 characters.');
     expect(fetchMock.mock.calls.some((call) => String(call[0]).includes('refund-requests'))).toBe(false);
+    expect(document.activeElement).toBe(container.querySelector('.error-summary'));
     const summaryLink = container.querySelector<HTMLAnchorElement>('.error-summary a');
-    await act(async () => { summaryLink?.click(); await Promise.resolve(); });
+    await act(async () => { summaryLink?.click(); });
     expect(window.location.hash).toMatch(/^#capability=/);
     expect(container.querySelector('#refund-reason')).not.toBeNull();
     expect(document.activeElement).toBe(container.querySelector('#refund-reason'));

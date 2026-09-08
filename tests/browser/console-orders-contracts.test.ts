@@ -304,6 +304,53 @@ describe('Console Order contracts', () => {
     expect(container.textContent).not.toContain('Ada Rivera');
   });
 
+  it('does not apply a late Complete of Order A onto Order B', async () => {
+    let releaseComplete: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => { releaseComplete = resolve; });
+    stubConsoleFetch(async (url, init) => {
+      if (url.pathname === `/api/console/orders/${pendingDetail.reference}` && (!init || !init.method || init.method === 'GET')) {
+        return response({ order: pendingDetail });
+      }
+      if (url.pathname === `/api/console/orders/${otherOrder.reference}` && (!init || !init.method || init.method === 'GET')) {
+        return response({
+          order: { ...pendingDetail, ...otherOrder, allowedActions: ['complete', 'cancel'], refundRequest: null, history: pendingDetail.history },
+        });
+      }
+      if (url.pathname === `/api/console/orders/${pendingDetail.reference}/complete`) {
+        await gate;
+        return response({
+          reference: pendingDetail.reference,
+          action: 'complete',
+          status: 'completed',
+          occurredAt: '2026-08-27T12:05:00.000Z',
+          refundRequest: null,
+        });
+      }
+      if (url.pathname === '/api/console/orders') {
+        return response({ orders: [safeOrder, otherOrder], nextCursor: null, hasOrders: true });
+      }
+      throw new Error(`Unexpected request ${url.pathname}`);
+    });
+    window.history.replaceState({}, '', `/console/orders/${pendingDetail.reference}`);
+    await renderApp();
+    await openCompletePanel();
+    await confirmComplete();
+    window.history.pushState({}, '', `/console/orders/${otherOrder.reference}`);
+    await act(async () => { window.dispatchEvent(new PopStateEvent('popstate')); });
+    await waitUntil(() => container.querySelector('h1')?.textContent === otherOrder.reference);
+    const headingBeforeRelease = container.querySelector('h1')?.textContent;
+    expect(headingBeforeRelease).toBe(otherOrder.reference);
+    releaseComplete?.();
+    await flush();
+    await flush();
+    expect(container.querySelector('h1')?.textContent).toBe(otherOrder.reference);
+    expect(container.textContent).toContain('Bea Nguyen');
+    expect(container.textContent).not.toContain('Ada Rivera');
+    expect(container.textContent).toContain('Pending payment');
+    expect(container.textContent).not.toContain('The outcome is not confirmed');
+    expect(container.textContent).not.toContain('The action succeeded, but the latest Order could not be loaded.');
+  });
+
   it('retries Complete with the same idempotency key after an unknown outcome', async () => {
     const keys: string[] = [];
     let completes = 0;

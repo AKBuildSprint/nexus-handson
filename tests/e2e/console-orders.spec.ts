@@ -1,4 +1,7 @@
-import { expect, test, type Page } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync } from 'node:fs';
+import path from 'node:path';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 const CONSOLE_ORIGIN = process.env.PLAYWRIGHT_API_CONSOLE_BASE_URL ?? 'http://127.0.0.1:5173';
 const STOREFRONT_ORIGIN = process.env.PLAYWRIGHT_STOREFRONT_BASE_URL ?? 'http://127.0.0.1:5174';
@@ -121,6 +124,207 @@ async function expectNoHorizontalOverflow(page: Page, width: number) {
   expect(dimensions.client).toBe(width);
   expect(dimensions.documentScroll).toBeLessThanOrEqual(dimensions.client);
   expect(dimensions.bodyScroll).toBeLessThanOrEqual(dimensions.client);
+}
+
+async function tabUntilFocused(page: Page, locator: Locator, limit = 40) {
+  for (let index = 0; index < limit; index += 1) {
+    if (await locator.evaluate((element) => element === document.activeElement).catch(() => false)) return;
+    await page.keyboard.press('Tab');
+  }
+  await expect(locator).toBeFocused();
+}
+
+test('keeps Console search, filters, pager, and confirmation reachable by keyboard without overflow', async ({ page }) => {
+  const name = `Verify Console Keys ${uniqueToken()}`;
+  await createSimpleProduct(page, name, '9.50');
+  await page.goto(STOREFRONT_ORIGIN);
+  const order = await placeOrder(page, name);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${CONSOLE_ORIGIN}/console/orders`);
+  await expect(page.getByRole('heading', { name: 'Orders' })).toBeVisible();
+  await page.keyboard.press('Tab');
+  const skip = page.getByRole('link', { name: 'Skip to main content' });
+  if (await skip.evaluate((element) => element === document.activeElement).catch(() => false)) {
+    await page.keyboard.press('Enter');
+  }
+  await tabUntilFocused(page, page.getByLabel('Search Orders'));
+  await tabUntilFocused(page, page.getByRole('tab', { name: 'All' }));
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('tab', { name: 'Pending payment' })).toBeFocused();
+  await tabUntilFocused(page, page.getByLabel('Pending refund requests'));
+  await expect(page.getByLabel('Order pages')).toBeVisible();
+  const nextPage = page.getByRole('button', { name: 'Next' });
+  if (await nextPage.isEnabled()) {
+    await tabUntilFocused(page, nextPage);
+  }
+  await page.getByLabel('Search Orders').fill(order.body.reference);
+  await page.getByRole('button', { name: 'Search' }).focus();
+  await expect(page.getByRole('button', { name: 'Search' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('link', { name: order.body.reference })).toBeVisible();
+  const desktopOverflow = await page.evaluate(() => {
+    const viewport = document.documentElement.clientWidth;
+    return {
+      viewport,
+      overflowing: [...document.querySelectorAll('body *')]
+        .filter((element) => {
+          const box = element.getBoundingClientRect();
+          return box.width > 0 && box.right > viewport + 1;
+        })
+        .slice(0, 5)
+        .map((element) => element.className.toString()),
+    };
+  });
+  expect(desktopOverflow.viewport).toBe(1280);
+  expect(desktopOverflow.overflowing).toEqual([]);
+
+  const evidenceDir = path.join('plans', 'reports', 'evidence-session-3');
+  mkdirSync(evidenceDir, { recursive: true });
+  await redactVisibleEmails(page);
+  await page.locator('.page-stack').screenshot({ path: path.join(evidenceDir, 'ui-01-console-list-1280.png') });
+
+  await page.getByRole('link', { name: order.body.reference }).click();
+  await expect(page.getByRole('heading', { name: order.body.reference })).toBeVisible();
+  await tabUntilFocused(page, page.getByRole('button', { name: 'Complete' }));
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Confirm Complete' })).toBeVisible();
+  await tabUntilFocused(page, page.getByLabel('I confirm the full payment has been received.'));
+  await page.keyboard.press('Space');
+  await expect(page.getByRole('button', { name: 'Confirm Complete' })).toBeEnabled();
+
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(`${CONSOLE_ORIGIN}/console/orders`);
+  await expect(page.getByRole('heading', { name: 'Orders' })).toBeVisible();
+  await expectNoHorizontalOverflow(page, 375);
+  await redactVisibleEmails(page);
+  await page.locator('.page-stack').screenshot({ path: path.join(evidenceDir, 'ui-01-console-list-375.png') });
+});
+
+test('ignores late Order A GET and Complete after opening Order B', async ({ page }) => {
+  test.setTimeout(120_000);
+  const token = uniqueToken();
+  const nameA = `Verify Console A ${token}`;
+  const nameB = `Verify Console B ${token}`;
+  await createSimpleProduct(page, nameA, '11.00');
+  await createSimpleProduct(page, nameB, '12.00');
+  await page.goto(STOREFRONT_ORIGIN);
+  const orderA = await placeOrder(page, nameA);
+  await page.getByRole('button', { name: 'Back to catalog' }).click();
+  const orderB = await placeOrder(page, nameB);
+
+  await page.goto(`${CONSOLE_ORIGIN}/console/orders`);
+  await page.getByLabel('Search Orders').fill(orderA.body.reference);
+  await page.getByRole('button', { name: 'Search' }).click();
+  await expect(page.getByRole('link', { name: orderA.body.reference })).toBeVisible();
+
+  let releaseGet: (() => void) | undefined;
+  const getGate = new Promise<void>((resolve) => { releaseGet = resolve; });
+  await page.route(`**/api/console/orders/${orderA.body.reference}`, async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.continue();
+      return;
+    }
+    await getGate;
+    await route.continue();
+  });
+  const getA = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return request.method() === 'GET' && url.pathname === `/api/console/orders/${orderA.body.reference}`;
+  });
+  await page.getByRole('link', { name: orderA.body.reference }).click();
+  await getA;
+  await page.getByRole('button', { name: 'Back to Orders' }).click();
+  await page.getByLabel('Search Orders').fill(orderB.body.reference);
+  await page.getByRole('button', { name: 'Search' }).click();
+  await expect(page.getByRole('link', { name: orderB.body.reference })).toBeVisible();
+  await page.getByRole('link', { name: orderB.body.reference }).click();
+  await expect(page.getByRole('heading', { name: orderB.body.reference })).toBeVisible();
+  releaseGet?.();
+  await expect(page.getByRole('heading', { name: orderB.body.reference })).toBeVisible();
+  await expect(page.getByRole('heading', { name: orderA.body.reference })).toHaveCount(0);
+  await page.unroute(`**/api/console/orders/${orderA.body.reference}`);
+
+  await page.getByRole('button', { name: 'Back to Orders' }).click();
+  await page.getByLabel('Search Orders').fill(orderA.body.reference);
+  await page.getByRole('button', { name: 'Search' }).click();
+  await expect(page.getByRole('link', { name: orderA.body.reference })).toBeVisible();
+  await page.getByRole('link', { name: orderA.body.reference }).click();
+  await expect(page.getByRole('heading', { name: orderA.body.reference })).toBeVisible();
+
+  let releasePost: (() => void) | undefined;
+  const postGate = new Promise<void>((resolve) => { releasePost = resolve; });
+  let postCommitted = false;
+  let postDelivered: (() => void) | undefined;
+  const postDelivery = new Promise<void>((resolve) => { postDelivered = resolve; });
+  await page.route(`**/api/console/orders/${orderA.body.reference}/complete`, async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    const committed = await route.fetch();
+    expect(committed.status()).toBe(200);
+    postCommitted = true;
+    await postGate;
+    await route.fulfill({ response: committed });
+    postDelivered?.();
+  });
+  await page.getByRole('button', { name: 'Complete' }).click();
+  await page.getByLabel('I confirm the full payment has been received.').check();
+  await page.getByRole('button', { name: 'Confirm Complete' }).click();
+  await expect.poll(() => postCommitted).toBe(true);
+  await page.getByRole('button', { name: 'Back to Orders' }).click();
+  await page.getByLabel('Search Orders').fill(orderB.body.reference);
+  await page.getByRole('button', { name: 'Search' }).click();
+  await expect(page.getByRole('link', { name: orderB.body.reference })).toBeVisible();
+  await page.getByRole('link', { name: orderB.body.reference }).click();
+  await expect(page.getByRole('heading', { name: orderB.body.reference })).toBeVisible();
+  releasePost?.();
+  await postDelivery;
+  await expect(page.getByRole('heading', { name: orderB.body.reference })).toBeVisible();
+  await expect(page.getByText('Pending payment').first()).toBeVisible();
+  await expect(page.getByText('The outcome is not confirmed. Retry the same action.')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: orderA.body.reference })).toHaveCount(0);
+});
+
+function queryLocalOrderGraph(reference: string): {
+  status: string;
+  history_count: number;
+  completed_events: number;
+  command_count: number;
+  refund_count: number;
+} {
+  expect(reference).toMatch(/^NX-[A-F0-9]{16}$/);
+  const sql = `SELECT o.status AS status,
+    (SELECT count(*) FROM order_history h WHERE h.order_id = o.id AND h.store_id = o.store_id) AS history_count,
+    (SELECT count(*) FROM order_history h WHERE h.order_id = o.id AND h.action = 'order_completed') AS completed_events,
+    (SELECT count(*) FROM order_commands c WHERE c.order_id = o.id) AS command_count,
+    (SELECT count(*) FROM order_refund_requests r WHERE r.order_id = o.id) AS refund_count
+    FROM orders o WHERE o.reference = '${reference}'`;
+  const output = execFileSync('npx', [
+    'wrangler', 'd1', 'execute', 'nexus-s1-468cba-db',
+    '--local', '--config', 'wrangler.jsonc', '--json', '--command', sql,
+  ], { encoding: 'utf8' });
+  const parsed = JSON.parse(output.slice(output.indexOf('['))) as Array<{ results: Array<Record<string, unknown>> }>;
+  const row = parsed[0]?.results[0];
+  expect(row).toBeTruthy();
+  return {
+    status: String(row.status),
+    history_count: Number(row.history_count),
+    completed_events: Number(row.completed_events),
+    command_count: Number(row.command_count),
+    refund_count: Number(row.refund_count),
+  };
+}
+
+async function redactVisibleEmails(page: Page) {
+  await page.evaluate(() => {
+    for (const node of document.querySelectorAll('body *')) {
+      if (!node.childElementCount && /@/.test(node.textContent ?? '')) {
+        node.textContent = '[redacted-email]';
+      }
+    }
+  });
 }
 
 test('shows separate Simple and Variant Orders safely through direct, navigation, and 375px Console journeys', async ({ page }) => {
@@ -276,3 +480,59 @@ test('completes zero-total and paid Orders, restores detail via reload and popst
   await expect(page.getByRole('link', { name: paidOrder.body.reference })).toBeVisible();
   await expect(page.getByRole('link', { name: zeroOrder.body.reference })).toBeVisible();
 });
+
+test('retries Complete after a committed response loss using the same key', async ({ page }) => {
+  const name = `Verify Console Loss ${uniqueToken()}`;
+  await createSimpleProduct(page, name, '18.00');
+  await page.goto(STOREFRONT_ORIGIN);
+  const order = await placeOrder(page, name);
+
+  const keys: string[] = [];
+  await page.route('**/api/console/orders/*/complete', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    keys.push(route.request().headers()['idempotency-key'] ?? '');
+    const committed = await route.fetch();
+    expect(committed.status()).toBe(200);
+    if (keys.length === 1) {
+      await route.abort('failed');
+      return;
+    }
+    await route.fulfill({ response: committed });
+  });
+
+  await page.goto(`${CONSOLE_ORIGIN}/console/orders/${order.body.reference}`);
+  await expect(page.getByRole('heading', { name: order.body.reference })).toBeVisible();
+  await page.getByRole('button', { name: 'Complete' }).click();
+  await page.getByLabel('I confirm the full payment has been received.').check();
+  await page.getByRole('button', { name: 'Confirm Complete' }).click();
+  await expect(page.getByText('The outcome is not confirmed. Retry the same action.')).toBeVisible();
+
+  const afterCommit = queryLocalOrderGraph(order.body.reference);
+  expect(afterCommit).toMatchObject({
+    status: 'completed',
+    completed_events: 1,
+    command_count: 1,
+    refund_count: 0,
+  });
+
+  await page.getByRole('button', { name: 'Retry Complete' }).click();
+  await expect(page.locator('.status-tag.status-active')).toContainText('Completed');
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toMatch(/^[A-Za-z0-9_-]{16,128}$/);
+  expect(keys[1]).toBe(keys[0]);
+  expect(queryLocalOrderGraph(order.body.reference)).toEqual(afterCommit);
+
+  const detail = await page.request.get(`${CONSOLE_ORIGIN}/api/console/orders/${order.body.reference}`, {
+    headers: { Accept: 'application/json' },
+  });
+  expect(detail.ok()).toBe(true);
+  const body = await detail.json() as { order: { history: Array<{ action: string }>; refundRequest: null } };
+  expect(body.order.history.filter((event) => event.action === 'order_completed')).toHaveLength(1);
+  expect(body.order.refundRequest).toBeNull();
+  expect(containsPrivateProjectionKey(body)).toBe(false);
+});
+
+

@@ -601,17 +601,17 @@ legend {
 }
 
 .orders-table {
-  table-layout: auto;
+  table-layout: fixed;
 }
 
 .orders-table th,
 .orders-table td {
-  min-width: var(--layout-control-short);
+  min-width: 0;
 }
 
 .orders-table th:nth-child(3),
 .orders-table td:nth-child(3) {
-  min-width: var(--layout-control-wide);
+  width: 22%;
 }
 
 .order-reference,
