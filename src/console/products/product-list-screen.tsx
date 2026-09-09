@@ -13,6 +13,7 @@ interface ProductListScreenProps {
 }
 
 const FILTERS: ReadonlyArray<'All' | ProductStatus> = ['All', 'Draft', 'Active', 'Archived'];
+const PRODUCT_PAGE_SIZE = 25;
 
 function readListCriteria(): { query: string; filter: (typeof FILTERS)[number] } {
   const params = new URLSearchParams(window.location.search);
@@ -38,6 +39,41 @@ function StatusTag({ status }: { status: ProductStatus }) {
   return <span className={`status-tag status-${status.toLowerCase()}`}>{status}</span>;
 }
 
+function ProductListPager({
+  placement,
+  start,
+  end,
+  total,
+  page,
+  totalPages,
+  onPrevious,
+  onNext,
+}: {
+  placement: 'top' | 'bottom';
+  start: number;
+  end: number;
+  total: number;
+  page: number;
+  totalPages: number;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <nav className="product-pager" aria-label={`Product pages ${placement}`}>
+      <p className="pager-range">
+        Showing {start}–{end} of {total}
+        <span aria-hidden="true"> · </span>
+        Page {page} of {totalPages}
+      </p>
+      <div className="pager-actions">
+        <button className="button" type="button" disabled={page <= 1} onClick={onPrevious}>Previous</button>
+        <button className="button" type="button" disabled={page >= totalPages} onClick={onNext}>Next</button>
+      </div>
+    </nav>
+  );
+}
+
+
 export function ProductListScreen({
   state,
   products,
@@ -51,10 +87,24 @@ export function ProductListScreen({
   const initialCriteria = readListCriteria();
   const [query, setQuery] = useState(initialCriteria.query);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>(initialCriteria.filter);
+  const [page, setPage] = useState(1);
   const [templateState, setTemplateState] = useState<'idle' | 'loading' | 'success' | 'error'>(
     state === 'template-error' ? 'error' : 'idle',
   );
+  const resultsRef = useRef<HTMLElement>(null);
   const filterRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const applyQuery = (value: string) => {
+    setQuery(value);
+    setPage(1);
+  };
+  const applyFilter = (next: (typeof FILTERS)[number]) => {
+    setFilter(next);
+    setPage(1);
+  };
+  const goToPage = (nextPage: number, placement: 'top' | 'bottom') => {
+    setPage(nextPage);
+    if (placement === 'bottom') resultsRef.current?.scrollIntoView({ block: 'start' });
+  };
 
   useEffect(() => {
     setTemplateState(state === 'template-error' ? 'error' : 'idle');
@@ -70,6 +120,12 @@ export function ProductListScreen({
       return matchesQuery && matchesFilter;
     });
   }, [filter, products, query]);
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PRODUCT_PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageStartIndex = (currentPage - 1) * PRODUCT_PAGE_SIZE;
+  const pageProducts = filteredProducts.slice(pageStartIndex, pageStartIndex + PRODUCT_PAGE_SIZE);
+  const rangeStart = pageProducts.length === 0 ? 0 : pageStartIndex + 1;
+  const rangeEnd = pageStartIndex + pageProducts.length;
   const catalogCounts = useMemo(() => ({
     total: products.length,
     active: products.filter((product) => product.status === 'Active').length,
@@ -82,6 +138,9 @@ export function ProductListScreen({
   useEffect(() => {
     writeListCriteria(query, filter);
   }, [filter, query]);
+  useEffect(() => {
+    if (page !== currentPage) setPage(currentPage);
+  }, [currentPage, page]);
   const downloadTemplate = async () => {
     setTemplateState('loading');
     try {
@@ -101,7 +160,7 @@ export function ProductListScreen({
     else return;
 
     event.preventDefault();
-    setFilter(FILTERS[nextIndex]);
+    applyFilter(FILTERS[nextIndex]);
     filterRefs.current[nextIndex]?.focus();
   };
 
@@ -179,7 +238,7 @@ export function ProductListScreen({
             placeholder="Field Notes…"
             name="q"
             autoComplete="off"
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => applyQuery(event.target.value)}
           />
         </div>
         <div>
@@ -197,7 +256,7 @@ export function ProductListScreen({
                 role="tab"
                 aria-selected={filter === option}
                 tabIndex={filter === option ? 0 : -1}
-                onClick={() => setFilter(option)}
+                onClick={() => applyFilter(option)}
                 onKeyDown={(event) => handleFilterKeyDown(event, index)}
               >
                 {option}
@@ -208,6 +267,7 @@ export function ProductListScreen({
       </section>
 
       <section
+        ref={resultsRef}
         className="data-region"
         aria-labelledby="product-results-title"
         aria-busy={state === 'loading' || state === 'filtered-loading'}
@@ -216,7 +276,7 @@ export function ProductListScreen({
           Product results
         </h2>
         <p className="sr-only" aria-live="polite">
-          {state === 'populated' ? `${filteredProducts.length} Products shown.` : ''}
+          {state === 'populated' && filteredProducts.length > 0 ? `Showing ${rangeStart}–${rangeEnd} of ${filteredProducts.length} Products.` : ''}
         </p>
 
         {state === 'loading' || state === 'filtered-loading' ? (
@@ -264,8 +324,8 @@ export function ProductListScreen({
               className="button"
               type="button"
               onClick={() => {
-                setQuery('');
-                setFilter('All');
+                applyQuery('');
+                applyFilter('All');
               }}
             >
               Clear filters
@@ -275,6 +335,16 @@ export function ProductListScreen({
 
         {showProducts && filteredProducts.length > 0 ? (
           <>
+            <ProductListPager
+              placement="top"
+              start={rangeStart}
+              end={rangeEnd}
+              total={filteredProducts.length}
+              page={currentPage}
+              totalPages={totalPages}
+              onPrevious={() => goToPage(currentPage - 1, 'top')}
+              onNext={() => goToPage(currentPage + 1, 'top')}
+            />
             <table className="console-table" aria-label="Products in this Store">
               <thead>
                 <tr>
@@ -287,7 +357,7 @@ export function ProductListScreen({
                 </tr>
               </thead>
               <tbody>
-                {filteredProducts.map((product) => (
+                {pageProducts.map((product) => (
                   <tr key={product.id}>
                     <td>
                       {product.id === openingProductId ? (
@@ -319,7 +389,7 @@ export function ProductListScreen({
             </table>
 
             <div className="product-list-mobile" aria-label="Products in this Store">
-              {filteredProducts.map((product) => (
+              {pageProducts.map((product) => (
                 <article className="product-summary-card" key={product.id}>
                   {product.id === openingProductId ? (
                     <button className="text-button" type="button" disabled aria-label={`Opening ${product.name}`}>
@@ -348,6 +418,16 @@ export function ProductListScreen({
                 </article>
               ))}
             </div>
+            <ProductListPager
+              placement="bottom"
+              start={rangeStart}
+              end={rangeEnd}
+              total={filteredProducts.length}
+              page={currentPage}
+              totalPages={totalPages}
+              onPrevious={() => goToPage(currentPage - 1, 'bottom')}
+              onNext={() => goToPage(currentPage + 1, 'bottom')}
+            />
           </>
         ) : null}
       </section>

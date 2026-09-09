@@ -158,8 +158,9 @@ test('keeps Console search, filters, pager, and confirmation reachable by keyboa
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('tab', { name: 'Pending' })).toBeFocused();
   await tabUntilFocused(page, page.getByLabel('Pending refund requests'));
-  await expect(page.getByLabel('Order pages')).toBeVisible();
-  const nextPage = page.getByRole('button', { name: 'Next' });
+  const orderPages = page.getByRole('navigation', { name: 'Order pages top', exact: true });
+  await expect(orderPages).toBeVisible();
+  const nextPage = orderPages.getByRole('button', { name: 'Next', exact: true });
   if (await nextPage.isEnabled()) {
     await tabUntilFocused(page, nextPage);
   }

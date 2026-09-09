@@ -125,6 +125,7 @@ const screenDefaults: Omit<OrdersScreenProps, 'state' | 'orders'> = {
   contractOutdated: false,
   hasPreviousPage: false,
   hasNextPage: false,
+  pageIndex: 0,
   onSearchDraftChange: () => undefined,
   onSearchSubmit: () => undefined,
   onStatusFilterChange: () => undefined,
@@ -476,6 +477,7 @@ describe('Console Order contracts', () => {
     await waitUntil(() => Boolean(buttonByName('Confirm Cancel')));
     await act(async () => { buttonByName('Confirm Cancel')?.click(); });
     await waitUntil(() => (container.textContent ?? '').includes('The action was not applied. The Order has changed.'));
+    await waitUntil(() => Boolean(buttonByName('Fulfill')));
     expect(container.textContent).toContain('Paid');
     expect(buttonByName('Cancel')).toBeUndefined();
     expect(buttonByName('Fulfill')).not.toBeUndefined();
@@ -686,5 +688,47 @@ describe('Console Order contracts', () => {
     expect(buttonByName('Confirm Cancel')).toBeUndefined();
     await act(async () => { buttonByName('Fulfill')?.click(); buttonByName('Cancel')?.click(); });
     expect(posts).toHaveLength(0);
+  });
+
+  it('shows cursor range at top and bottom without numbered random access', async () => {
+    const previous = vi.fn();
+    const next = vi.fn();
+    const orders = Array.from({ length: 5 }, (_, index) => ({
+      ...safeOrder,
+      reference: `NX-260827-PAGE2${index}`,
+      paymentReference: `NPPAGE2${index}00000000`.slice(0, 16),
+    }));
+    await act(async () => root.render(createElement(OrdersScreen, {
+      ...screenDefaults,
+      state: 'ready',
+      orders,
+      summary: { ...emptySummary, totalOrders: 30 },
+      pageIndex: 1,
+      hasPreviousPage: true,
+      hasNextPage: false,
+      onPreviousPage: previous,
+      onNextPage: next,
+    })));
+    const top = container.querySelector('[aria-label="Order pages top"]');
+    const bottom = container.querySelector('[aria-label="Order pages bottom"]');
+    expect(top).not.toBeNull();
+    expect(bottom).not.toBeNull();
+    expect(top?.textContent).toContain('Showing 26–30 of 30');
+    expect(top?.textContent).toContain('Page 2 of 2');
+    expect(bottom?.textContent).toContain('Showing 26–30 of 30');
+    expect(container.querySelector('[aria-label="Order pages"]')).toBeNull();
+    expect(Array.from(container.querySelectorAll('button')).filter((button) => /^\d+$/.test(button.textContent?.trim() ?? ''))).toHaveLength(0);
+    const matching = Array.from(container.querySelectorAll('.metric-card')).find((card) => card.textContent?.includes('Matching Orders'));
+    expect(matching?.textContent).toContain('30');
+    const topPrevious = Array.from(top?.querySelectorAll('button') ?? []).find((button) => button.textContent?.trim() === 'Previous');
+    const topNext = Array.from(top?.querySelectorAll('button') ?? []).find((button) => button.textContent?.trim() === 'Next');
+    expect(topPrevious?.disabled).toBe(false);
+    expect(topNext?.disabled).toBe(true);
+    await act(async () => { topPrevious?.click(); });
+    expect(previous).toHaveBeenCalledOnce();
+    expect(next).not.toHaveBeenCalled();
+    const bottomNext = Array.from(bottom?.querySelectorAll('button') ?? []).find((button) => button.textContent?.trim() === 'Next');
+    await act(async () => { bottomNext?.click(); });
+    expect(next).not.toHaveBeenCalled();
   });
 });

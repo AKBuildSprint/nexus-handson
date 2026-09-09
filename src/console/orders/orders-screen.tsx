@@ -18,6 +18,7 @@ export interface OrdersScreenProps {
   contractOutdated: boolean;
   hasPreviousPage: boolean;
   hasNextPage: boolean;
+  pageIndex: number;
   onSearchDraftChange: (value: string) => void;
   onSearchSubmit: () => void;
   onStatusFilterChange: (status: OrderStatusFilter) => void;
@@ -30,6 +31,8 @@ export interface OrdersScreenProps {
   onNextPage: () => void;
   onOpenOrder: (reference: string) => void;
 }
+
+const ORDER_PAGE_SIZE = 25;
 
 const STATUS_TABS: ReadonlyArray<{ id: OrderStatusFilter; label: string }> = [
   { id: 'all', label: 'All' },
@@ -148,6 +151,45 @@ function MatchingSummary({ summary }: { summary: ConsoleOrderSummary }) {
   );
 }
 
+function OrderListPager({
+  placement,
+  start,
+  end,
+  total,
+  page,
+  totalPages,
+  hasPreviousPage,
+  hasNextPage,
+  onPrevious,
+  onNext,
+}: {
+  placement: 'top' | 'bottom';
+  start: number;
+  end: number;
+  total: number;
+  page: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <nav className="order-pager" aria-label={`Order pages ${placement}`}>
+      <p className="pager-range">
+        Showing {start}–{end} of {total}
+        <span aria-hidden="true"> · </span>
+        Page {page} of {totalPages}
+      </p>
+      <div className="pager-actions">
+        <button className="button" type="button" disabled={!hasPreviousPage} onClick={onPrevious}>Previous</button>
+        <button className="button" type="button" disabled={!hasNextPage} onClick={onNext}>Next</button>
+      </div>
+    </nav>
+  );
+}
+
+
 export function OrdersScreen({
   state,
   orders,
@@ -158,6 +200,7 @@ export function OrdersScreen({
   contractOutdated,
   hasPreviousPage,
   hasNextPage,
+  pageIndex,
   onSearchDraftChange,
   onSearchSubmit,
   onStatusFilterChange,
@@ -171,6 +214,17 @@ export function OrdersScreen({
   onOpenOrder,
 }: OrdersScreenProps) {
   const filterRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const resultsRef = useRef<HTMLElement>(null);
+  const total = summary?.totalOrders ?? 0;
+  const rangeStart = orders.length === 0 ? 0 : pageIndex * ORDER_PAGE_SIZE + 1;
+  const rangeEnd = orders.length === 0 ? 0 : pageIndex * ORDER_PAGE_SIZE + orders.length;
+  const pageNumber = pageIndex + 1;
+  const totalPages = Math.max(1, Math.ceil(total / ORDER_PAGE_SIZE));
+  const goToAdjacent = (direction: 'previous' | 'next', placement: 'top' | 'bottom') => {
+    if (direction === 'previous') onPreviousPage();
+    else onNextPage();
+    if (placement === 'bottom') resultsRef.current?.scrollIntoView({ block: 'start' });
+  };
   const paging = state === 'ready' || state === 'no-results';
   const showSummary = summary !== null && (state === 'ready' || state === 'no-results' || state === 'empty');
 
@@ -250,9 +304,23 @@ export function OrdersScreen({
 
       {showSummary ? <MatchingSummary summary={summary} /> : null}
 
-      <section className="data-region" aria-labelledby="order-results-title" aria-busy={state === 'loading'}>
+      <section ref={resultsRef} className="data-region" aria-labelledby="order-results-title" aria-busy={state === 'loading'}>
         <h2 id="order-results-title" className="sr-only">Order results</h2>
-        <p className="sr-only" aria-live="polite">{state === 'ready' ? `${orders.length} Orders shown.` : ''}</p>
+        <p className="sr-only" aria-live="polite">{state === 'ready' ? `Showing ${rangeStart}–${rangeEnd} of ${total} Orders.` : ''}</p>
+        {paging ? (
+          <OrderListPager
+            placement="top"
+            start={rangeStart}
+            end={rangeEnd}
+            total={total}
+            page={pageNumber}
+            totalPages={totalPages}
+            hasPreviousPage={hasPreviousPage}
+            hasNextPage={hasNextPage}
+            onPrevious={() => goToAdjacent('previous', 'top')}
+            onNext={() => goToAdjacent('next', 'top')}
+          />
+        ) : null}
 
         {state === 'loading' ? (
           <div aria-label="Loading Orders">
@@ -352,10 +420,18 @@ export function OrdersScreen({
         ) : null}
 
         {paging ? (
-          <div className="order-pager" aria-label="Order pages">
-            <button className="button" type="button" disabled={!hasPreviousPage} onClick={onPreviousPage}>Previous</button>
-            <button className="button" type="button" disabled={!hasNextPage} onClick={onNextPage}>Next</button>
-          </div>
+          <OrderListPager
+            placement="bottom"
+            start={rangeStart}
+            end={rangeEnd}
+            total={total}
+            page={pageNumber}
+            totalPages={totalPages}
+            hasPreviousPage={hasPreviousPage}
+            hasNextPage={hasNextPage}
+            onPrevious={() => goToAdjacent('previous', 'bottom')}
+            onNext={() => goToAdjacent('next', 'bottom')}
+          />
         ) : null}
       </section>
     </div>

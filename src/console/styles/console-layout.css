@@ -961,6 +961,7 @@ legend {
 .order-list-mobile,
 .order-items-mobile {
   display: none;
+  min-width: 0;
 }
 
 .order-summary-card {
@@ -1100,11 +1101,30 @@ legend {
   line-height: var(--type-meta-line);
 }
 
-.order-pager {
+.order-pager,
+.product-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4) 0;
+}
+
+.pager-range {
+  min-width: 0;
+  color: var(--color-ink-muted);
+  font-size: var(--type-compact-size);
+  line-height: var(--type-compact-line);
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.pager-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
-  padding: var(--space-4) 0;
 }
 
 .order-detail-section {
@@ -1168,8 +1188,8 @@ legend {
 .product-list-mobile,
 .variant-list-mobile {
   display: none;
+  min-width: 0;
 }
-
 .empty-state {
   justify-items: start;
   gap: var(--space-4);
@@ -1444,6 +1464,7 @@ legend {
 .product-summary-card,
 .variant-summary-card {
   display: grid;
+  min-width: 0;
   gap: var(--space-2);
   padding: var(--space-4) 0;
   border-block-end: var(--border-hairline) solid var(--color-border);

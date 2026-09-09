@@ -233,7 +233,6 @@ function listSummary(item: ProductListItem): ProductSummary {
 
 export function ProductionConsoleApp() {
   const [route, setRoute] = useState<ConsoleRoute>(() => parseRoute(window.location.pathname));
-  const [dirty, setDirty] = useState(false);
   const dirtyRef = useRef(false);
   const routeRef = useRef(route);
   const [listItems, setListItems] = useState<ProductListItem[]>([]);
@@ -263,9 +262,9 @@ export function ProductionConsoleApp() {
   const skipNextDetailLoadRef = useRef(false);
   const detailRequestRef = useRef(0);
   const createdDetailRef = useRef<ProductDetailResponse | null>(null);
-  useEffect(() => {
-    dirtyRef.current = dirty;
-  }, [dirty]);
+  const publishDirty = useCallback((next: boolean) => {
+    dirtyRef.current = next;
+  }, []);
   useEffect(() => {
     routeRef.current = route;
   }, [route]);
@@ -277,7 +276,7 @@ export function ProductionConsoleApp() {
   };
   const navigate = useCallback((target: ConsoleRoute, replace = false) => {
     if (!confirmDiscard()) return false;
-    setDirty(false);
+    dirtyRef.current = false;
     previewHashRef.current = null;
     pendingProductFileRef.current = null;
     pendingVariantFilesRef.current.clear();
@@ -297,7 +296,7 @@ export function ProductionConsoleApp() {
         window.history.pushState({}, '', routePath(routeRef.current));
         return;
       }
-      setDirty(false);
+      dirtyRef.current = false;
       previewHashRef.current = null;
       pendingProductFileRef.current = null;
       pendingVariantFilesRef.current.clear();
@@ -584,6 +583,7 @@ export function ProductionConsoleApp() {
       contractOutdated={ordersContractOutdated}
       hasPreviousPage={orderCursorStack.length > 0}
       hasNextPage={orderNextCursor !== null}
+      pageIndex={orderCursorStack.length}
       onSearchDraftChange={setOrderSearchDraft}
       onSearchSubmit={() => {
         setOrderQuery(orderSearchDraft.trim());
@@ -643,7 +643,7 @@ export function ProductionConsoleApp() {
       scenario={editorScenario}
       onBack={(trigger) => { void trigger; navigate({ kind: 'list' }); }}
       onDiscardRequest={(trigger) => { void trigger; navigate(routeRef.current, true); }}
-      onDirtyChange={setDirty}
+      onDirtyChange={publishDirty}
       onRetry={() => { if (routeRef.current.kind === 'edit') loadDetail(routeRef.current.slug); }}
       onSave={saveProduct}
       onSchemaPreview={previewSchema}
