@@ -23,6 +23,17 @@ const variantProduct = {
   variants: [{ id: 'var_pdf12345678', sku: 'SIGNAL-PDF', status: 'enabled' as const, selectedOptions: [{ groupId: 'group_format', valueId: 'value_pdf' }], effectivePriceMinor: 2800 }],
 };
 
+function numberedCatalogProducts(count: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    ...simpleProduct,
+    id: `prod_page${String(index + 1).padStart(8, '0')}`,
+    slug: `catalog-item-${index + 1}`,
+    name: `Catalog Item ${String(index + 1).padStart(2, '0')}`,
+    publicDescription: `Public description ${index + 1}.`,
+  }));
+}
+
+
 function response(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
@@ -580,5 +591,114 @@ describe('Storefront Order contracts', () => {
     await act(async () => { send?.click(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
     expect(container.textContent).toContain('The request was not applied. The Order has changed.');
     expect(container.textContent).not.toContain('The request succeeded, but the latest Order could not be loaded.');
+  });
+
+  it('paginates the catalog 24 Products per page with distinct top and bottom controls', async () => {
+    const scrollIntoView = vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => undefined);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response({
+      store: { id: 'store_nexus', slug: 'nexus', name: 'Nexus Store' },
+      products: numberedCatalogProducts(30),
+    })));
+    await renderApp();
+    expect(container.querySelectorAll('.catalog-row')).toHaveLength(24);
+    expect(container.querySelector('.catalog-list')?.textContent).toContain('Catalog Item 01');
+    expect(container.querySelector('.catalog-list')?.textContent).toContain('Catalog Item 24');
+    expect(container.querySelector('.catalog-list')?.textContent).not.toContain('Catalog Item 25');
+    expect(container.querySelector('[aria-label="Catalog pages, top"]')?.textContent).toContain('Showing 1–24 of 30');
+    expect(container.querySelector('[aria-label="Catalog pages, top"]')?.textContent).toContain('Page 1 of 2');
+    expect(container.querySelector('[aria-label="Catalog pages, bottom"]')?.textContent).toContain('Showing 1–24 of 30');
+    expect(container.querySelector<HTMLButtonElement>('[aria-label="Previous catalog page, top"]')?.disabled).toBe(true);
+    expect(container.querySelector<HTMLButtonElement>('[aria-label="Next catalog page, top"]')?.disabled).toBe(false);
+    expect(container.querySelector('.catalog-benchmark')?.textContent).toContain('30');
+    const nextBottom = container.querySelector<HTMLButtonElement>('[aria-label="Next catalog page, bottom"]');
+    await act(async () => { nextBottom?.click(); await Promise.resolve(); });
+    expect(container.querySelectorAll('.catalog-row')).toHaveLength(6);
+    expect(container.querySelector('.catalog-list')?.textContent).toContain('Catalog Item 25');
+    expect(container.querySelector('.catalog-list')?.textContent).toContain('Catalog Item 30');
+    expect(container.querySelector('.catalog-list')?.textContent).not.toContain('Catalog Item 24');
+    expect(container.querySelector('[aria-label="Catalog pages, bottom"]')?.textContent).toContain('Showing 25–30 of 30');
+    expect(container.querySelector('[aria-label="Catalog pages, bottom"]')?.textContent).toContain('Page 2 of 2');
+    expect(container.querySelector<HTMLButtonElement>('[aria-label="Next catalog page, bottom"]')?.disabled).toBe(true);
+    expect(container.querySelector<HTMLButtonElement>('[aria-label="Previous catalog page, bottom"]')?.disabled).toBe(false);
+    expect(scrollIntoView).toHaveBeenCalled();
+    const search = container.querySelector<HTMLInputElement>('#catalog-search');
+    await act(async () => { if (search) setInput(search, 'no-such-product'); });
+    expect(container.querySelectorAll('.catalog-row')).toHaveLength(0);
+    expect(container.querySelector('[aria-label="Catalog pages, top"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Catalog pages, bottom"]')).toBeNull();
+    expect(container.textContent).toContain('No Products match this search.');
+  });
+
+  it('keeps checkout selection and cart across catalog pages and resets page on filter changes', async () => {
+    let postCount = 0;
+    const calls: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/api/storefront/products')) {
+        return response({
+          store: { id: 'store_nexus', slug: 'nexus', name: 'Nexus Store' },
+          products: [variantProduct, ...numberedCatalogProducts(30)],
+        });
+      }
+      if (init?.method === 'POST') {
+        postCount += 1;
+        calls.push(String(init.body ?? ''));
+        if (postCount === 1) throw new TypeError('lost response');
+      }
+      return response(customerOrder());
+    }));
+    await renderApp();
+    const name = container.querySelector<HTMLInputElement>('#checkout-name');
+    const email = container.querySelector<HTMLInputElement>('#checkout-email');
+    const quantity = container.querySelector<HTMLInputElement>('#checkout-quantity');
+    const select = container.querySelector('select');
+    await act(async () => {
+      if (name) setInput(name, 'Ada Rivera');
+      if (email) setInput(email, 'ada@example.com');
+      if (quantity) setInput(quantity, '4');
+      if (select) {
+        select.value = 'value_pdf';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+    const add = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Add to Order');
+    await act(async () => { add?.click(); await Promise.resolve(); });
+    const place = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Place Order');
+    await act(async () => { place?.click(); await Promise.resolve(); await Promise.resolve(); });
+    expect(container.textContent).toContain('Retry to safely continue');
+    const nextBottom = container.querySelector<HTMLButtonElement>('[aria-label="Next catalog page, bottom"]');
+    await act(async () => { nextBottom?.click(); await Promise.resolve(); });
+    expect(container.querySelector('.catalog-list')?.textContent).not.toContain('Signal Kit');
+    expect(container.querySelector('.purchase-ledger')?.textContent).toContain('Signal Kit');
+    expect(container.querySelector('select')?.value).toBe('value_pdf');
+    expect(container.querySelector<HTMLInputElement>('#checkout-quantity')?.value).toBe('4');
+    expect(container.querySelector<HTMLInputElement>('#checkout-name')?.value).toBe('Ada Rivera');
+    expect(container.querySelector<HTMLInputElement>('#checkout-email')?.value).toBe('ada@example.com');
+    expect(container.querySelector('#checkout-cart')?.textContent).toContain('Signal Kit');
+    expect(container.querySelector<HTMLInputElement>('#checkout-name')?.disabled).toBe(true);
+    const retry = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Retry checkout');
+    expect(retry).not.toBeUndefined();
+    const search = container.querySelector<HTMLInputElement>('#catalog-search');
+    await act(async () => { if (search) setInput(search, 'Catalog Item 30'); });
+    expect(container.querySelectorAll('.catalog-row')).toHaveLength(1);
+    expect(container.querySelector('[aria-label="Catalog pages, top"]')?.textContent).toContain('Showing 1–1 of 1');
+    expect(container.querySelector('[aria-label="Catalog pages, top"]')?.textContent).toContain('Page 1 of 1');
+    expect(container.querySelector('#checkout-cart')?.textContent).toContain('Signal Kit');
+    await act(async () => { if (search) setInput(search, ''); });
+    const simple = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Simple');
+    await act(async () => { simple?.click(); });
+    expect(container.querySelectorAll('.catalog-row')).toHaveLength(24);
+    expect(container.querySelector('.catalog-list')?.textContent).not.toContain('Signal Kit');
+    expect(container.querySelector('[aria-label="Catalog pages, top"]')?.textContent).toContain('Page 1 of 2');
+    await act(async () => { container.querySelector<HTMLButtonElement>('[aria-label="Next catalog page, top"]')?.click(); });
+    expect(container.querySelector('[aria-label="Catalog pages, top"]')?.textContent).toContain('Page 2 of 2');
+    window.history.replaceState({}, '', '/?q=Catalog%20Item%2001');
+    await act(async () => { window.dispatchEvent(new PopStateEvent('popstate')); });
+    expect(container.querySelectorAll('.catalog-row')).toHaveLength(1);
+    expect(container.querySelector('.catalog-list')?.textContent).toContain('Catalog Item 01');
+    expect(container.querySelector('[aria-label="Catalog pages, top"]')?.textContent).toContain('Page 1 of 1');
+    expect(container.querySelector('#checkout-cart')?.textContent).toContain('Signal Kit');
+    expect(retry?.textContent).toBe('Retry checkout');
+    expect(calls).toHaveLength(1);
   });
 });

@@ -76,6 +76,8 @@ const MIXED_CURRENCY = 'This cart mixes currencies. Remove lines until every Pro
 const PAID_STATUS_COPY = 'This Order is paid. This page does not deliver files or pay out a refund.';
 const FULFILLED_STATUS_COPY = 'This Order is fulfilled. This page does not deliver files or pay out a refund.';
 const REFUND_REQUEST_INTRO = 'You can send one refund request. Sending a request does not issue a refund.';
+const CATALOG_PAGE_SIZE = 24;
+
 
 function validateRefundReason(value: string): string | null {
   const normalized = value.replace(/\r\n|\r/g, '\n').trim();
@@ -118,6 +120,57 @@ function CatalogProduct({
     </article>
   );
 }
+
+function CatalogPager({
+  position,
+  rangeStart,
+  rangeEnd,
+  matchingCount,
+  page,
+  totalPages,
+  onPrevious,
+  onNext,
+}: {
+  position: 'top' | 'bottom';
+  rangeStart: number;
+  rangeEnd: number;
+  matchingCount: number;
+  page: number;
+  totalPages: number;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <nav className="catalog-pager" aria-label={`Catalog pages, ${position}`}>
+      <p>
+        Showing <span className="numeric">{rangeStart}–{rangeEnd}</span> of <span className="numeric">{matchingCount}</span>
+        {' · '}
+        Page <span className="numeric">{page}</span> of <span className="numeric">{totalPages}</span>
+      </p>
+      <div className="inline-actions">
+        <button
+          className="secondary-action"
+          type="button"
+          disabled={page <= 1}
+          aria-label={`Previous catalog page, ${position}`}
+          onClick={onPrevious}
+        >
+          Previous
+        </button>
+        <button
+          className="secondary-action"
+          type="button"
+          disabled={page >= totalPages}
+          aria-label={`Next catalog page, ${position}`}
+          onClick={onNext}
+        >
+          Next
+        </button>
+      </div>
+    </nav>
+  );
+}
+
 
 function PrivateOrderPage({
   route,
@@ -433,6 +486,7 @@ export function StorefrontApp() {
   const catalogStart = readCatalogCriteria();
   const [catalogQuery, setCatalogQuery] = useState(catalogStart.query);
   const [catalogFilter, setCatalogFilter] = useState<CatalogFilter>(catalogStart.filter);
+  const [catalogPage, setCatalogPage] = useState(1);
   const [catalogState, setCatalogState] = useState<CatalogState>('loading');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
@@ -448,6 +502,8 @@ export function StorefrontApp() {
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const catalogRequestRef = useRef<AbortController | null>(null);
   const lineFocusRef = useRef<string | null>(null);
+  const catalogResultsRef = useRef<HTMLDivElement>(null);
+  const scrollCatalogFromBottomRef = useRef(false);
 
   const checkoutLocked = submitState === 'retry' || submitState === 'submitting' || contractOutdated;
   const placeLocked = submitState === 'submitting' || contractOutdated;
@@ -475,6 +531,7 @@ export function StorefrontApp() {
       const criteria = readCatalogCriteria();
       setCatalogQuery(criteria.query);
       setCatalogFilter(criteria.filter);
+      setCatalogPage(1);
     };
     window.addEventListener('popstate', updateRoute);
     window.addEventListener('hashchange', updateRoute);
@@ -503,6 +560,13 @@ export function StorefrontApp() {
     lineFocusRef.current = null;
   }, [fieldErrors]);
 
+  useEffect(() => {
+    if (!scrollCatalogFromBottomRef.current) return;
+    scrollCatalogFromBottomRef.current = false;
+    catalogResultsRef.current?.scrollIntoView?.({ block: 'start' });
+  }, [catalogPage]);
+
+
   const selectedProduct = catalog?.products.find((product) => product.id === selectedProductId) ?? null;
   const visibleProducts = useMemo(() => {
     if (!catalog) return [];
@@ -513,6 +577,29 @@ export function StorefrontApp() {
       return matchesType && (!needle || product.name.toLowerCase().includes(needle) || product.publicDescription.toLowerCase().includes(needle));
     });
   }, [catalog, catalogFilter, catalogQuery]);
+  const matchingCount = visibleProducts.length;
+  const totalCatalogPages = Math.max(1, Math.ceil(matchingCount / CATALOG_PAGE_SIZE));
+  const currentCatalogPage = Math.min(Math.max(1, catalogPage), totalCatalogPages);
+  const catalogPageStart = (currentCatalogPage - 1) * CATALOG_PAGE_SIZE;
+  const pagedProducts = visibleProducts.slice(catalogPageStart, catalogPageStart + CATALOG_PAGE_SIZE);
+  const rangeStart = matchingCount === 0 ? 0 : catalogPageStart + 1;
+  const rangeEnd = matchingCount === 0 ? 0 : catalogPageStart + pagedProducts.length;
+
+  useEffect(() => {
+    setCatalogPage((current) => {
+      const maxPage = Math.max(1, Math.ceil(visibleProducts.length / CATALOG_PAGE_SIZE));
+      const next = Math.min(Math.max(1, current), maxPage);
+      return next === current ? current : next;
+    });
+  }, [visibleProducts.length]);
+
+  const goCatalogPage = (nextPage: number, origin: 'top' | 'bottom') => {
+    const maxPage = Math.max(1, Math.ceil(visibleProducts.length / CATALOG_PAGE_SIZE));
+    const next = Math.min(Math.max(1, nextPage), maxPage);
+    if (origin === 'bottom') scrollCatalogFromBottomRef.current = true;
+    setCatalogPage(next);
+  };
+
   const matchingVariant = useMemo(() => {
     if (!selectedProduct || selectedProduct.optionGroups.length === 0) return null;
     return selectedProduct.variants.find((variant) => selectedProduct.optionGroups.every((group) =>
@@ -705,9 +792,9 @@ export function StorefrontApp() {
             {catalog.products.length > 1 || catalogQuery.trim().length > 0 || catalogFilter !== 'all' ? (
               <section className="catalog-toolbar" aria-label="Catalog filters">
                 <div className="status-pills">
-                  <button className={catalogFilter === 'all' ? 'is-active' : undefined} type="button" onClick={() => setCatalogFilter('all')}>All Products</button>
-                  <button className={catalogFilter === 'simple' ? 'is-active' : undefined} type="button" onClick={() => setCatalogFilter('simple')}>Simple</button>
-                  <button className={catalogFilter === 'variant' ? 'is-active' : undefined} type="button" onClick={() => setCatalogFilter('variant')}>Variant</button>
+                  <button className={catalogFilter === 'all' ? 'is-active' : undefined} type="button" onClick={() => { setCatalogFilter('all'); setCatalogPage(1); }}>All Products</button>
+                  <button className={catalogFilter === 'simple' ? 'is-active' : undefined} type="button" onClick={() => { setCatalogFilter('simple'); setCatalogPage(1); }}>Simple</button>
+                  <button className={catalogFilter === 'variant' ? 'is-active' : undefined} type="button" onClick={() => { setCatalogFilter('variant'); setCatalogPage(1); }}>Variant</button>
                 </div>
                 <div className="field catalog-search">
                   <label htmlFor="catalog-search">Search Products</label>
@@ -717,40 +804,65 @@ export function StorefrontApp() {
                     name="q"
                     autoComplete="off"
                     value={catalogQuery}
-                    onChange={(event) => setCatalogQuery(event.target.value)}
+                    onChange={(event) => { setCatalogQuery(event.target.value); setCatalogPage(1); }}
                   />
                 </div>
               </section>
             ) : null}
             <div className="storefront-workspace">
-              <div className="catalog-featured" id="featured-products">
+              <div className="catalog-featured" id="featured-products" ref={catalogResultsRef}>
                 <div>
                   <h2>Published Products</h2>
                   <p>Active catalog from this Store.</p>
                 </div>
-                <p>Showing {visibleProducts.length} Products</p>
               </div>
-              <section className="catalog-list" aria-label="Available Products">
-                {visibleProducts.length === 0 ? (
-                  <div>
-                    <p>No Products match this search.</p>
-                    <button className="secondary-action" type="button" onClick={() => { setCatalogQuery(''); setCatalogFilter('all'); }}>Clear filters</button>
-                  </div>
-                ) : null}
-                {visibleProducts.map((product) => (
-                  <CatalogProduct
-                    key={product.id}
-                    product={product}
-                    selected={product.id === selectedProductId}
-                    onSelect={() => {
-                      if (checkoutLocked) return;
-                      setSelectedProductId(product.id);
-                      setSelectedOptions({});
-                      setFieldErrors((current) => ({ ...current, variant: undefined, quantity: undefined }));
-                    }}
+              <div className="catalog-column">
+                {matchingCount > 0 ? (
+                  <CatalogPager
+                    position="top"
+                    rangeStart={rangeStart}
+                    rangeEnd={rangeEnd}
+                    matchingCount={matchingCount}
+                    page={currentCatalogPage}
+                    totalPages={totalCatalogPages}
+                    onPrevious={() => goCatalogPage(currentCatalogPage - 1, 'top')}
+                    onNext={() => goCatalogPage(currentCatalogPage + 1, 'top')}
                   />
-                ))}
-              </section>
+                ) : null}
+                <section className="catalog-list" aria-label="Available Products">
+                  {matchingCount === 0 ? (
+                    <div>
+                      <p>No Products match this search.</p>
+                      <button className="secondary-action" type="button" onClick={() => { setCatalogQuery(''); setCatalogFilter('all'); setCatalogPage(1); }}>Clear filters</button>
+                    </div>
+                  ) : null}
+                  {pagedProducts.map((product) => (
+                    <CatalogProduct
+                      key={product.id}
+                      product={product}
+                      selected={product.id === selectedProductId}
+                      onSelect={() => {
+                        if (checkoutLocked) return;
+                        setSelectedProductId(product.id);
+                        setSelectedOptions({});
+                        setFieldErrors((current) => ({ ...current, variant: undefined, quantity: undefined }));
+                      }}
+                    />
+                  ))}
+                </section>
+                {matchingCount > 0 ? (
+                  <CatalogPager
+                    position="bottom"
+                    rangeStart={rangeStart}
+                    rangeEnd={rangeEnd}
+                    matchingCount={matchingCount}
+                    page={currentCatalogPage}
+                    totalPages={totalCatalogPages}
+                    onPrevious={() => goCatalogPage(currentCatalogPage - 1, 'bottom')}
+                    onNext={() => goCatalogPage(currentCatalogPage + 1, 'bottom')}
+                  />
+                ) : null}
+              </div>
               {selectedProduct ? <form className="purchase-ledger" onSubmit={submit} noValidate>
                 <header><p className="ledger-label">Purchase ledger</p><h2>{selectedProduct.name}</h2><p>{selectedProduct.publicDescription}</p></header>
                 {Object.values(fieldErrors).some(Boolean) ? <div ref={errorSummaryRef} className="error-summary" role="alert" tabIndex={-1}><strong>Review checkout details</strong><ul>{Object.entries(fieldErrors).filter((entry): entry is [string, string] => Boolean(entry[1])).map(([field, message]) => <li key={field}><a href={`#checkout-${field === 'cart' ? 'cart' : field}`}>{message}</a></li>)}</ul></div> : null}
