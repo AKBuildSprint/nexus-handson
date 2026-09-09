@@ -4,6 +4,15 @@ Nexus has two independently built and deployed surfaces: the React/Vite Console 
 
 This repository is configured for public `workers.dev` teaching deployments. It has no custom domain and no public R2 route.
 
+## Repository shape
+
+- **Apps** are runnable and deployable: [`apps/console`](./apps/console) (HTML/Vite), [`apps/worker`](./apps/worker) (HTTP adapters), [`apps/storefront`](./apps/storefront) (distinct-origin static app). Console and the API Worker share root [`wrangler.jsonc`](./wrangler.jsonc) and same-origin `/console` plus `/api`; Storefront keeps its own [`apps/storefront/wrangler.jsonc`](./apps/storefront/wrangler.jsonc).
+- **Packages** own business rules. [`packages/catalog`](./packages/catalog) owns products, CSV import, delivery files, and shared catalog contracts. [`packages/orders`](./packages/orders) owns Order reads, commands, command persistence, and transition rules. Worker composes both packages. Console consumes catalog only; Order UI types stay in the Console app. Storefront is HTTP-only. Orders may depend on catalog; catalog never depends on orders or apps; packages never depend on apps.
+- **Tests** (`tests/unit`, `tests/integration`, `tests/browser`, `tests/e2e`) are evidence by risk. `tests/fixtures` and `tests/support` stay helpers, not discovery roots.
+- **Migrations** are append-only D1 history. **Plans** hold decisions and contracts. **Docs** hold durable presentation knowledge. **Scripts** are operational verification tooling.
+
+Root script names stay in [`package.json`](./package.json). Console Vite is [`apps/console/vite.config.ts`](./apps/console/vite.config.ts) and must keep the Cloudflare plugin on root Wrangler with repo-root `.wrangler` state. Storefront Vite is [`apps/storefront/vite.config.ts`](./apps/storefront/vite.config.ts).
+
 ## Current Order scope
 
 Live Order statuses are `pending`, `paid`, `fulfilled`, and `canceled`. Storefront Create records one Order with 1–10 item lines. Console records a **manual Payment** (method plus Owner-supplied external reference, amount and currency from the Order snapshot) and may then **Fulfill**. A **pending** Order may be **Canceled**. There is no live Complete action and no `/complete` route.
@@ -19,7 +28,9 @@ Legacy `completed` rows map to **paid** without invented payments or fulfill eve
 
 Every live Order GET/POST requires `X-Nexus-Order-Contract: 2`. Missing or other values return `409 client_contract_outdated` with no mutation, except private Order routes that fail the capability guard first as indistinguishable `404`. Old `/complete` and approval/execution routes stay `404`.
 
-Console Order actions remain an **anonymous bootstrap demo**: a server-assigned bootstrap actor, not authenticated Owner access. S4 owns membership and the evaluator seam. Do not describe this slice as real authorization. Authoritative S3 decisions and the S4–S6 handoff live in [`plans/260908-1845-s3-brief-reconciliation/contracts.md`](./plans/260908-1845-s3-brief-reconciliation/contracts.md) (C8) and [`acceptance.md`](./plans/260908-1845-s3-brief-reconciliation/acceptance.md). S4 owns refund Approve/Reject; S5 owns verified payment ingress and money return, including no auto-return for `legacy_unrecorded`.
+Order code lives in `packages/orders`: reads in [`queries/order-read.ts`](./packages/orders/src/queries/order-read.ts); create and command orchestration in [`commands/order-write.ts`](./packages/orders/src/commands/order-write.ts) and [`commands/order-commands.ts`](./packages/orders/src/commands/order-commands.ts); D1 ledger, result, batch, and recovery helpers in [`persistence/command-store.ts`](./packages/orders/src/persistence/command-store.ts); pure actor and eligibility rules in [`transitions/order-transitions.ts`](./packages/orders/src/transitions/order-transitions.ts). Types, validation, and [`private-access.ts`](./packages/orders/src/private-access.ts) stay at the package src root. Commands may import persistence and transitions; those two layers must not import each other. Create-time item snapshots come from [`packages/catalog/src/private-order-snapshot.ts`](./packages/catalog/src/private-order-snapshot.ts) so live catalog and delivery identity are not re-read into Customer output. Persist each create/command through one D1 `batch`; do not replace that with sequential independent writes.
+
+Console Order actions remain an **anonymous bootstrap demo**: a server-assigned bootstrap actor, not authenticated Owner access. S4 owns membership and the evaluator seam. Do not describe this slice as real authorization. S3 decisions are recorded in the [reconciliation plan](./plans/260908-1845-s3-brief-reconciliation/plan.md#confirmed-decisions), with continuity and handoff requirements in its [acceptance phase](./plans/260908-1845-s3-brief-reconciliation/phase-06-acceptance-and-deployed-continuity.md). S4 owns refund Approve/Reject; S5 owns verified payment ingress and money return, including no auto-return for `legacy_unrecorded`.
 
 ## Requirements
 
@@ -35,7 +46,7 @@ The pinned verification toolchain is recorded in `package.json`: Cloudflare Vite
 
 ## Local development
 
-Apply all D1 migrations to the local API binding first:
+Apply all D1 migrations to the local API binding first. Run npm and Wrangler from the repository root so migrations and local state resolve through root Wrangler:
 
 ```sh
 npx wrangler d1 migrations apply nexus-s1-468cba-db --local
@@ -65,7 +76,9 @@ npm run build:console
 VITE_STOREFRONT_API_BASE_URL=http://127.0.0.1:5173 npm run build:storefront
 ```
 
-The two production builds are independent. `npm run build` remains the API/Console default; `build:console` is its explicit alias, while `build:storefront` uses [`storefront/vite.config.ts`](./storefront/vite.config.ts). The corresponding artifacts can be inspected independently with `npm run preview:console` and `npm run preview:storefront`; all command ownership remains in [`package.json`](./package.json).
+The two production builds are independent. `npm run build` remains the API/Console default; `build:console` is its explicit alias, while `build:storefront` uses [`apps/storefront/vite.config.ts`](./apps/storefront/vite.config.ts). The corresponding artifacts can be inspected independently with `npm run preview:console` and `npm run preview:storefront`; all command ownership remains in [`package.json`](./package.json).
+
+Console deployment uses the generated `apps/console/dist/nexus_s1_468cba/wrangler.json` after building; root Wrangler remains its source configuration and the migration entrypoint. Do not deploy the relocated Console using a bare root `wrangler deploy`: an old root `.wrangler/deploy` redirect can select a stale bundle. Use `npm run deploy:console` so the build and selected artifact stay paired.
 
 `npm test` runs the workerd and browser Vitest suites. The Console build type-checks, builds the Worker/client bundle, and rejects a production import graph that reaches prototype scenario data.
 
@@ -96,7 +109,7 @@ The persisted API-side identities are:
 - D1 database: `nexus-s1-468cba-db` (`DB`)
 - Private R2 bucket: `nexus-s1-468cba-private` (`FILES`)
 
-The Storefront Worker name is intentionally not embedded in [`storefront/wrangler.jsonc`](./storefront/wrangler.jsonc); its deploy command requires an appended confirmed name. Inspect the authenticated account and exact resources before mutation:
+The Storefront Worker name is intentionally not embedded in [`apps/storefront/wrangler.jsonc`](./apps/storefront/wrangler.jsonc); its deploy command requires an appended confirmed name. Inspect the authenticated account and exact resources before mutation:
 
 ```sh
 npx wrangler whoami
@@ -104,7 +117,7 @@ npx wrangler d1 list
 npx wrangler r2 bucket list
 ```
 
-Do not create replacement resources when an identity is absent or ambiguous. Resolve that condition against [`resource-identities.json`](./resource-identities.json), [`wrangler.jsonc`](./wrangler.jsonc), and [`storefront/wrangler.jsonc`](./storefront/wrangler.jsonc) first.
+Do not create replacement resources when an identity is absent or ambiguous. Resolve that condition against [`resource-identities.json`](./resource-identities.json), [`wrangler.jsonc`](./wrangler.jsonc), and [`apps/storefront/wrangler.jsonc`](./apps/storefront/wrangler.jsonc) first.
 
 Use confirmed values for `$D1_DATABASE_NAME`, `$STOREFRONT_WORKER_NAME`, and the two exact deployed HTTPS origins below; do not construct or guess a Worker origin. Deployment order is dependency-bearing:
 
@@ -123,7 +136,7 @@ npm run deploy:console -- "STOREFRONT_ORIGIN:$EXACT_STOREFRONT_ORIGIN"
 
 Remote Order cutover is a breaking API/body/state change. Do not infer a `workers.dev` hostname from the Worker name. Do not apply 0006/0007 remotely without an observable drain or rehearsed write barrier, an abort deadline, and an authorized checkpoint. If that condition cannot be proven, restore ordinary serving and stop before schema mutation.
 
-There is intentionally no generic deploy wrapper. The two Wrangler configs keep `workers_dev: true` and `preview_urls: false`; only the API Worker binds D1/R2 and routes `/api` Worker-first.
+There is intentionally no generic deploy wrapper. Root [`wrangler.jsonc`](./wrangler.jsonc) and [`apps/storefront/wrangler.jsonc`](./apps/storefront/wrangler.jsonc) keep `workers_dev: true` and `preview_urls: false`; only the API Worker binds D1/R2 and routes `/api` Worker-first.
 
 No deployment is claimed by this README. A controller must capture both returned `*.workers.dev` origins and run the remote gates before reporting deployment success.
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeComparisonKey, slugifyProductName } from '../../src/catalog/slug';
+import { normalizeComparisonKey, slugifyProductName } from '@nexus/catalog/slug';
 
 describe('catalog normalization', () => {
   it('normalizes comparison keys with NFKC, trim, and locale-independent lowercase', () => {

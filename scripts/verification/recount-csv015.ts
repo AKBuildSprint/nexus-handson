@@ -7,7 +7,7 @@ import {
   CSV_HEADER_LINE,
   serializeCsvRow,
   type CsvRow,
-} from '../../src/shared/csv-contract';
+} from '@nexus/catalog/shared/csv-contract';
 
 const prefix = 'verify-260826-csv015';
 const baseUrl = 'https://nexus-s1-468cba.cpp-software-solutions.workers.dev';

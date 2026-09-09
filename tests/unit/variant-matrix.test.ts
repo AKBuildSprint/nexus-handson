@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildDraftMatrix, canonicalCombination, suggestedSku } from '../../src/catalog/variant-matrix';
+import { buildDraftMatrix, canonicalCombination, suggestedSku } from '@nexus/catalog/variant-matrix';
 
 describe('Variant matrix identity', () => {
   it('builds the ordered Cartesian set from participating groups only', () => {

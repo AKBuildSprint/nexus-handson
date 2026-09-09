@@ -2,7 +2,7 @@
 
 ## 1. Purpose and scope
 
-This document freezes the presentation contract for the Nexus Console and Storefront as shipped. Executable token values live in [`src/console/styles/design-tokens.css`](../src/console/styles/design-tokens.css). The Storefront repeats a subset in [`storefront/src/styles.css`](../storefront/src/styles.css) and must stay aligned. Do not introduce a second type pair, color ramp, or shadow scale beside those files.
+This document freezes the presentation contract for the Nexus Console and Storefront as shipped. Executable token values live in [`apps/console/src/styles/design-tokens.css`](../apps/console/src/styles/design-tokens.css). The Storefront repeats a subset in [`apps/storefront/src/styles.css`](../apps/storefront/src/styles.css) and must stay aligned. Do not introduce a second type pair, color ramp, or shadow scale beside those files.
 
 It does not approve backend endpoints, DTOs, database fields, or persistence. Domain language remains:
 

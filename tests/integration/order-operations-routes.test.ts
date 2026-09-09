@@ -1,11 +1,11 @@
 import { env } from 'cloudflare:test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ProductDetailResponse } from '../../src/catalog/catalog-types';
-import { BOOTSTRAP_STORE_ID } from '../../src/catalog/catalog-read';
-import { routeStorefrontOrderRequest } from '../../src/worker/storefront-order-routes';
-import { digestOrderCapability } from '../../src/orders/private-access';
-import { createOrder as persistStorefrontOrder } from '../../src/orders/order-write';
-import worker from '../../src/worker';
+import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
+import { BOOTSTRAP_STORE_ID } from '@nexus/catalog/catalog-read';
+import { routeStorefrontOrderRequest } from '../../apps/worker/src/storefront-order-routes';
+import { digestOrderCapability } from '@nexus/orders/private-access';
+import { createOrder as persistStorefrontOrder } from '@nexus/orders/commands/order-write';
+import worker from '../../apps/worker/src';
 import {
   resetCatalog,
   SIMPLE_CORE,

@@ -24,12 +24,11 @@
     "noUnusedParameters": true
   },
   "include": [
-    "src",
+    "apps",
+    "packages",
     "scripts",
     "tests",
-    "storefront/src",
     "worker-configuration.d.ts",
-    "vite.config.ts",
     "vitest.config.ts",
     "vitest.browser.config.ts",
     "playwright.config.ts"

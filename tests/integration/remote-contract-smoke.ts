@@ -11,7 +11,7 @@ import type {
   ProductListResponse,
   SchemaDraft,
   SchemaPreviewResponse,
-} from '../../src/catalog/catalog-types';
+} from '@nexus/catalog/catalog-types';
 import {
   CSV_CONFIRMATION_HEADER,
   CSV_CONTENT_TYPE,
@@ -22,7 +22,7 @@ import {
   serializeCsvRow,
   type CsvRow,
   type ImportResultResponse,
-} from '../../src/shared/csv-contract';
+} from '@nexus/catalog/shared/csv-contract';
 import { parseCliArguments, requireArgument } from '../../scripts/verification/cli';
 import { parseAcceptanceManifest } from '../../scripts/verification/manifest';
 import { appendFixture, loadFixtureManifest } from '../../scripts/verification/verification-fixtures';

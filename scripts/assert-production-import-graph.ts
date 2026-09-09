@@ -8,7 +8,7 @@ interface ImportGraph {
 const ROOT = process.cwd();
 const METADATA_DIRECTORY = resolve(ROOT, '.nexus-build');
 const METADATA_PATH = resolve(METADATA_DIRECTORY, 'production-import-graph.json');
-const PUBLIC_METADATA_PATH = resolve(ROOT, 'dist/client/production-import-graph.json');
+const PUBLIC_METADATA_PATH = resolve(ROOT, 'apps/console/dist/client/production-import-graph.json');
 const FORBIDDEN_PROJECT_MODULE =
   /(^|\/)design\/|prototype-scenarios|(^|\/)[^/]*prototype[^/]*\.(?:[cm]?[jt]sx?)$|(^|\/)[^/]*scenario[^/]*\.(?:[cm]?[jt]sx?)$|(^|\/)fixtures?\//i;
 
@@ -27,7 +27,7 @@ try {
     throw new Error(`Production import graph reaches forbidden design/prototype modules:\n${forbidden.sort().join('\n')}`);
   }
 
-  if (![...reachableProjectModules].some((moduleId) => moduleId.endsWith('src/console/main.tsx'))) {
+  if (!reachableProjectModules.has('apps/console/src/main.tsx')) {
     throw new Error('Production import graph metadata does not contain the Console entrypoint.');
   }
 

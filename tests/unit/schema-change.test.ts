@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { previewSchemaChange, schemaPreviewHash } from '../../src/catalog/schema-change';
+import { previewSchemaChange, schemaPreviewHash } from '@nexus/catalog/schema-change';
 import { SIMPLE_CORE, oneVariantSchema } from '../support/catalog-test-env';
 
 describe('stateless schema preview', () => {

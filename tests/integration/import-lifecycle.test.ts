@@ -1,10 +1,10 @@
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { preflightExactMatch } from '../../src/import/exact-match';
-import { ImportPersistenceError, executeImportWrite, IMPORT_TOTAL_STATEMENTS } from '../../src/import/import-write';
-import { parseCsvBytes } from '../../src/import/csv-parser';
-import { validateCsvRows } from '../../src/import/csv-validator';
-import { CSV_CONTENT_TYPE, CSV_FILENAME_HEADER, CSV_HEADER, CSV_HEADER_LINE, CSV_TEMPLATE, serializeCsvRow, type CsvRow, type ImportResultResponse } from '../../src/shared/csv-contract';
+import { preflightExactMatch } from '@nexus/catalog/import/exact-match';
+import { ImportPersistenceError, executeImportWrite, IMPORT_TOTAL_STATEMENTS } from '@nexus/catalog/import/import-write';
+import { parseCsvBytes } from '@nexus/catalog/import/csv-parser';
+import { validateCsvRows } from '@nexus/catalog/import/csv-validator';
+import { CSV_CONTENT_TYPE, CSV_FILENAME_HEADER, CSV_HEADER, CSV_HEADER_LINE, CSV_TEMPLATE, serializeCsvRow, type CsvRow, type ImportResultResponse } from '@nexus/catalog/shared/csv-contract';
 import identityConflicts from '../fixtures/import/identity-conflicts.csv?raw';
 import mixedShapes from '../fixtures/import/mixed-shapes.csv?raw';
 import worstCase from '../fixtures/import/worst-case-500-rows.csv?raw';

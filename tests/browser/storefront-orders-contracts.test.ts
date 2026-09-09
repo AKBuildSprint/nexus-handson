@@ -80,7 +80,7 @@ async function renderApp() {
 beforeAll(async () => {
   vi.stubEnv('VITE_STOREFRONT_API_BASE_URL', 'https://store-api.example');
   // The module reads build-time Storefront configuration at evaluation, so this test imports after stubbing that boundary.
-  ({ StorefrontApp } = await import('../../storefront/src/storefront-app'));
+  ({ StorefrontApp } = await import('../../apps/storefront/src/storefront-app'));
 });
 
 beforeEach(() => {

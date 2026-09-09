@@ -1,6 +1,6 @@
 import { applyD1Migrations, env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
-import { digestOrderCapability, findOrderIdByCapability } from '../../src/orders/private-access';
+import { digestOrderCapability, findOrderIdByCapability } from '@nexus/orders/private-access';
 import {
   applyCatalogMigrations,
   catalogMigrations,

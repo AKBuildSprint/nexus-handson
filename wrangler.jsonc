@@ -1,13 +1,13 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "nexus-s1-468cba",
-	"main": "src/worker/index.ts",
+	"main": "apps/worker/src/index.ts",
 	"compatibility_date": "2026-08-22",
 	"workers_dev": true,
 	"preview_urls": false,
 	"assets": {
 		"binding": "ASSETS",
-		"directory": "./dist/client",
+		"directory": "./apps/console/dist/client",
 		"not_found_handling": "single-page-application",
 		"run_worker_first": [
 			"/api",

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { ProductDetailResponse } from '../../src/catalog/catalog-types';
-import { resolveOrderItemCatalogSnapshots } from '../../src/catalog/private-order-snapshot';
-import { BOOTSTRAP_STORE_ID } from '../../src/catalog/catalog-read';
+import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
+import { resolveOrderItemCatalogSnapshots } from '@nexus/catalog/private-order-snapshot';
+import { BOOTSTRAP_STORE_ID } from '@nexus/catalog/catalog-read';
 import { env } from 'cloudflare:test';
 import { resetCatalog, SIMPLE_CORE, VARIANT_CORE, oneVariantSchema, workerRequest } from '../support/catalog-test-env';
 

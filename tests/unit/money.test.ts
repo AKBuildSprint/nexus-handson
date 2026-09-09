@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decimalToMinor, MoneyError } from '../../src/catalog/money';
+import { decimalToMinor, MoneyError } from '@nexus/catalog/money';
 
 describe('decimal money', () => {
   it('uses currency fraction metadata and string arithmetic', () => {
