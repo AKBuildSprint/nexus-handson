@@ -73,14 +73,14 @@ describe('Storefront CORS boundary', () => {
       headers: {
         Origin: TEST_STOREFRONT_ORIGIN,
         'Access-Control-Request-Method': 'POST',
-        'Access-Control-Request-Headers': 'content-type, idempotency-key, x-nexus-order-capability',
+        'Access-Control-Request-Headers': 'content-type, idempotency-key, x-nexus-order-capability, x-nexus-order-contract',
       },
     });
     expect(valid.status).toBe(204);
     expect(valid.headers.get('Access-Control-Allow-Origin')).toBe(TEST_STOREFRONT_ORIGIN);
     expect(valid.headers.get('Access-Control-Allow-Methods')).toBe('GET, POST, OPTIONS');
     expect(valid.headers.get('Access-Control-Allow-Headers')).toBe(
-      'Content-Type, Idempotency-Key, X-Nexus-Order-Capability',
+      'Content-Type, Idempotency-Key, X-Nexus-Order-Capability, X-Nexus-Order-Contract',
     );
     expect(valid.headers.get('Access-Control-Allow-Credentials')).toBeNull();
     expect(corsHeaderNames(valid)).toEqual([
@@ -91,6 +91,17 @@ describe('Storefront CORS boundary', () => {
     expect(valid.headers.get('Vary')).toContain('Origin');
     expect(valid.headers.get('Vary')).toContain('Access-Control-Request-Method');
     expect(valid.headers.get('Vary')).toContain('Access-Control-Request-Headers');
+
+    const catalogContract = await workerRequest('/api/storefront/products', {
+      method: 'OPTIONS',
+      headers: {
+        Origin: TEST_STOREFRONT_ORIGIN,
+        'Access-Control-Request-Method': 'GET',
+        'Access-Control-Request-Headers': 'x-nexus-order-contract',
+      },
+    });
+    expect(catalogContract.status).toBe(404);
+    expect(corsHeaderNames(catalogContract)).toEqual([]);
 
     const invalidRequests = [
       workerRequest('/api/storefront/orders', {
@@ -122,11 +133,47 @@ describe('Storefront CORS boundary', () => {
           'Access-Control-Request-Method': 'GET',
         },
       }),
+      workerRequest('/api/console/orders/NX-0123456789ABCDEF/complete', {
+        method: 'OPTIONS',
+        headers: {
+          Origin: TEST_STOREFRONT_ORIGIN,
+          'Access-Control-Request-Method': 'POST',
+        },
+      }),
+      workerRequest('/api/console/orders/NX-0123456789ABCDEF/payments/manual', {
+        method: 'OPTIONS',
+        headers: {
+          Origin: TEST_STOREFRONT_ORIGIN,
+          'Access-Control-Request-Method': 'POST',
+        },
+      }),
+      workerRequest('/api/storefront/orders/NX-0123456789ABCDEF/fulfill', {
+        method: 'OPTIONS',
+        headers: {
+          Origin: TEST_STOREFRONT_ORIGIN,
+          'Access-Control-Request-Method': 'POST',
+        },
+      }),
     ];
 
     for (const invalid of await Promise.all(invalidRequests)) {
       expect(invalid.status).toBe(404);
       expect(corsHeaderNames(invalid)).toEqual([]);
     }
+
+    const refundPreflight = await workerRequest('/api/storefront/orders/NX-0123456789ABCDEF/refund-requests', {
+      method: 'OPTIONS',
+      headers: {
+        Origin: TEST_STOREFRONT_ORIGIN,
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'content-type, idempotency-key, x-nexus-order-capability, x-nexus-order-contract',
+      },
+    });
+    expect(refundPreflight.status).toBe(204);
+    expect(refundPreflight.headers.get('Access-Control-Allow-Origin')).toBe(TEST_STOREFRONT_ORIGIN);
+    expect(refundPreflight.headers.get('Access-Control-Allow-Methods')).toBe('GET, POST, OPTIONS');
+    expect(refundPreflight.headers.get('Access-Control-Allow-Headers')).toBe(
+      'Content-Type, Idempotency-Key, X-Nexus-Order-Capability, X-Nexus-Order-Contract',
+    );
   });
 });

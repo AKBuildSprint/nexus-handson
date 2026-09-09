@@ -27,9 +27,11 @@ export interface StorefrontProduct {
   }>;
 }
 
-export interface CustomerOrderView {
-  reference: string;
-  status: 'pending_payment';
+export type CustomerOrderStatus = 'pending' | 'paid' | 'fulfilled' | 'canceled';
+
+export interface CustomerOrderItemView {
+  id: string;
+  position: number;
   product: {
     id: string;
     name: string;
@@ -46,20 +48,52 @@ export interface CustomerOrderView {
   };
   quantity: number;
   unitPriceMinor: number;
+  lineTotalMinor: number;
+  currency: string;
+}
+
+export interface CustomerOrderView {
+  reference: string;
+  paymentReference: string;
+  status: CustomerOrderStatus;
+  items: CustomerOrderItemView[];
   totalMinor: number;
   currency: string;
   createdAt: string;
-  paymentNextStep: string;
+  paymentNextStep: string | null;
+  refundRequest: {
+    id: string;
+    status: 'pending';
+    reason: string;
+    createdAt: string;
+  } | null;
 }
 
-export interface CreateStorefrontOrderInput {
-  customer: { name: string; email: string };
+export interface OrderCommandResultView {
+  reference: string;
+  action: 'request_refund';
+  status: CustomerOrderStatus;
+  occurredAt: string;
+  refundRequest: CustomerOrderView['refundRequest'];
+}
+
+export interface CreateStorefrontOrderItemInput {
   productId: string;
   variantId: string | null;
   quantity: number;
 }
 
+export interface CreateStorefrontOrderInput {
+  customer: { name: string; email: string };
+  items: CreateStorefrontOrderItemInput[];
+}
+
 export interface OrderAttemptIdentity {
   capability: string;
   idempotencyKey: string;
+}
+
+export interface FrozenCreateAttempt {
+  identity: OrderAttemptIdentity;
+  input: CreateStorefrontOrderInput;
 }

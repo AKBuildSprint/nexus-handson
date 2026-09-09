@@ -1,121 +1,117 @@
-# Nexus Operations Console design guidelines
+# Nexus design guidelines
 
 ## 1. Purpose and scope
 
-This document freezes the presentation contract for the Nexus S1 Product Catalog Console. It is the design input for the Phase 2 browser prototype.
+This document freezes the presentation contract for the Nexus Console and Storefront as shipped. Executable token values live in [`src/console/styles/design-tokens.css`](../src/console/styles/design-tokens.css). The Storefront repeats a subset in [`storefront/src/styles.css`](../storefront/src/styles.css) and must stay aligned. Do not introduce a second type pair, color ramp, or shadow scale beside those files.
 
-It defines the interface language, interaction conventions, responsive transformations, accessibility behavior, and the use of the reviewed Mobbin references. It does not approve or imply backend endpoints, request or response DTOs, database fields, transaction boundaries, storage keys, or persistence behavior. UI route names in this document are Console information architecture only.
-
-The stable domain language comes from the validated Nexus brainstorm and `session-1-brief.md`:
+It does not approve backend endpoints, DTOs, database fields, or persistence. Domain language remains:
 
 - A **Product** is either simple or has one active **Variant** schema.
 - A Product can have 0 to 5 **option groups**, with at most 10 values per group.
 - Generated combinations are normal from 0 to 10, require confirmation from 11 to 30, and are blocked at 31 or more.
 - Product pricing has one currency and a decimal base price. A Variant may show a decimal price override in the same currency.
-- Product delivery has an access title, access instructions, and an optional private PDF or ZIP file up to 25 MB. A Variant either inherits that complete configuration or replaces it with a complete override.
-- CSV import uses one fixed template, detects simple and Variant Products from data, is additive exact-match rather than upsert, and is limited to 1 MB and 500 data rows.
+- Product delivery has an access title, access instructions, and an optional private PDF or ZIP file up to 25 MB.
+- CSV import uses one fixed template, is additive exact-match, and is limited to 1 MB and 500 data rows.
+
+The product brand is **Nexus**. Do not restyle chrome as Faire, Atelier, or another marketplace identity.
 
 ## 2. Final visual thesis
 
-**Design read:** a product operations dashboard for a Store operator, using an industrial-utilitarian, restrained, data-first language.
+**Design read:** a Store operator Console and Customer Storefront, using an editorial cream-paper language with ink actions and a butter highlight for state.
 
-**Aesthetic thesis:** cool concrete neutrals, one safety-orange operational accent, condensed headings, exposed data structure, and a combination meter that makes catalog complexity visible before generation.
+**Aesthetic thesis:** warm paper canvas, white elevated surfaces, Source Serif 4 page titles, Inter UI, ink-black primary actions, butter `#f1f29f` for status and title rules. The memorable element is the **butter rule under the page title** plus ink-filled primary controls on cream paper.
 
-The memorable element is the **combination meter**. It is not decoration. Its segmented track, count, threshold labels, and adjacent action make the 10, 11, 30, and 31 boundaries understandable without technical documentation.
+Form came from the shipped Console/Storefront chrome, not from a second industrial-orange system.
 
 ### Product design dials
 
 | Dial | Frozen value | Consequence |
 | --- | ---: | --- |
-| Design variance | 3/10 | Stable shell, left-aligned hierarchy, predictable grouped forms, no ornamental asymmetry. |
-| Motion intensity | 2/10 | Immediate state feedback only. No page entrance choreography, parallax, bounce, or perpetual animation. |
-| Visual density | 6/10 | Compact table-first desktop canvas with strong grouping and 44 px interaction targets. Mobile composes into summaries rather than shrinking the desktop table. |
+| Design variance | 4/10 | Stable left rail, split Storefront hero, metric strip from live counts only. |
+| Motion intensity | 2/10 | State feedback only. No page-load choreography. |
+| Visual density | 5/10 | Table-first Console with white cards; Storefront uses a 4-column Product grid. |
 
 ### Physical scene and theme choice
 
-The operator uses the Console for focused catalog maintenance, often for several Products in one session on a laptop under normal office lighting. A light, cool-tinted theme keeps dense forms and row comparisons legible. Dark mode is not part of S1 design scope.
+The operator works on a laptop in office light. The Customer browses the catalog on a cream paper field. Light theme only. Dark mode is out of scope except the Storefront editorial band, which is a single deliberate ink panel.
 
 ### Design principles
 
-1. **Show structure before detail.** Product identity, status, price, option schema, and row outcomes are scannable before advanced delivery fields.
-2. **Keep consequential state durable.** Validation, import results, regeneration effects, and save failures remain in the working surface. They are never toast-only.
-3. **Use accent for action and state.** Safety orange marks the primary action, current selection, focus, or an active threshold. It is not general decoration.
-4. **Flatten hierarchy.** Use spacing, hairlines, section titles, and tinted bands. Do not nest cards or combine borders with wide shadows.
-5. **Disclose complexity on demand.** Desktop exposes the Variant matrix. Advanced per-row delivery editing opens a focused side drawer. At 375 px, summaries lead to focused full-width editing.
-6. **Name the operator's next step.** Empty, warning, and error states explain what is affected and what action resolves it.
+1. **Show structure before detail.** Identity, status, price, and schema remain scannable before delivery fields.
+2. **Keep consequential state durable.** Validation, import results, and save failures stay on the working surface.
+3. **Ink is action.** Primary buttons, active nav, and Storefront Catalog pill use `color-accent`. Butter is status and emphasis, not the primary CTA fill.
+4. **Elevate paper, do not stack chrome.** White surfaces sit on cream canvas with one shadow scale. Do not mix hairline + wide shadow + extra tint on the same card.
+5. **Live counts only.** Metric cards and Storefront snapshot numbers come from loaded Products and Orders. Invented revenue or wholesale terms are rejected.
+6. **Name the next step.** Empty, warning, and error states say what is affected and what resolves it.
 
 ## 3. Token contract
 
-Phase 2 must implement these as named design tokens before styling components. Values may be translated into the chosen CSS architecture, but one-off values must not be introduced beside them.
+Named tokens below are the frozen values. One-off hex, `rem`, or shadow literals beside them are out of contract.
 
 ### 3.1 Typography
 
-Use at most two families:
+Two families:
 
-- **Display:** `Barlow Condensed`, weight 600. Use only for page and section headings. Do not use it for controls, labels, or data.
-- **Body and UI:** `Source Sans 3`, weights 400, 600, and 700. Use for navigation, forms, tables, status labels, help text, and data.
+- **Display:** `Source Serif 4`, weight 400 (600 allowed for Storefront section emphasis). Page titles, Storefront hero, metric values, Product names on the Storefront grid. Not for buttons, labels, or table data.
+- **Body and UI:** `Inter`, weights 400 and 600. Navigation, forms, tables, status, help, data.
 
-Both families must load Latin Extended glyphs. If a font is unavailable during local development, use a metrics-compatible sans fallback without changing layout decisions. The fallback is not the approved display face.
+Icons: `Material Symbols Outlined` at 24 / 400 / FILL 0. Do not mix a second icon family.
 
 | Token | Size / line height | Use |
 | --- | --- | --- |
-| `type-page` | 28 / 32 px, Barlow Condensed 600 | Page title only. |
-| `type-section` | 23 / 28 px, Barlow Condensed 600 | Major editor and workspace sections. |
-| `type-subhead` | 19 / 24 px, Source Sans 3 600 | Subsections, drawer title, grouped result title. |
-| `type-body` | 16 / 24 px, Source Sans 3 400 | Form controls, prose, primary table content. |
-| `type-compact` | 14 / 20 px, Source Sans 3 400 or 600 | Dense metadata and secondary table content on desktop. |
-| `type-meta` | 12 / 16 px, Source Sans 3 600 | Field hints, status labels, counts. Uppercase only for short operational labels, with `0.08em` tracking. |
+| `type-display` | `clamp(2.25rem, 5vw, 3.25rem)` / ~1.15 | Storefront hero only. |
+| `type-page` | 40 / 48 px (`2.5rem` / `3rem`) | Console page title. Storefront section title may use `1.875rem`. |
+| `type-section` | 22 / 32 px | Console brand, metric value, Storefront Product name. |
+| `type-subhead` | 18 / 26 px | Compact topbar title, grouped subsection. |
+| `type-body` | 16 / 24 px | Forms, prose, primary table content. Inputs stay ≥ 16 px. |
+| `type-compact` | 14 / 21 px | Secondary table content, captions, nav items. |
+| `type-meta` | 12 / 16 px, tracking `0.08em` | Kickers, field hints, metric labels. Uppercase only for short labels. |
 
 Rules:
 
-- Use no more than the six type steps above.
-- All text inputs remain at least 16 px at 375 px to prevent browser zoom.
-- Use `font-variant-numeric: tabular-nums` for prices, counts, row numbers, file sizes, and timestamps.
-- Use `text-wrap: balance` on headings and `text-wrap: pretty` on explanatory copy.
+- No more than these steps.
+- `font-variant-numeric: tabular-nums` for money, counts, timestamps, SKUs.
+- `text-wrap: balance` on headings; `text-wrap: pretty` on explanatory copy.
 - Field labels are persistent. Placeholders never substitute for labels.
-- SKU text uses the body family with tabular numerals. Monospace is not used as a technical costume.
+- Do not use Barlow Condensed, Source Sans 3, or Familjen Grotesk. Those faces are retired.
 
 ### 3.2 Color
 
-Color strategy is **restrained**: tinted neutrals carry at least 90 percent of the surface; the accent is reserved for primary action, selection, focus, and meaningful active state. Semantic colors appear only when a warning, error, or success exists.
+Strategy is **restrained**: cream paper and white surfaces carry the field; ink fill is the primary action (≤ 10% of a view); butter marks status, title rules, and selected tags.
 
 | Token | Frozen value | Role |
 | --- | --- | --- |
-| `color-canvas` | `oklch(0.965 0.008 245)` | Console background. |
-| `color-surface` | `oklch(0.985 0.004 245)` | Form and table working surface. Not pure white. |
-| `color-surface-muted` | `oklch(0.925 0.012 245)` | Group bands, selected row support, skeleton base. |
-| `color-surface-strong` | `oklch(0.865 0.016 245)` | Disabled or emphasized structural band. |
-| `color-ink` | `oklch(0.220 0.024 245)` | Primary text. Not pure black. |
-| `color-ink-muted` | `oklch(0.410 0.022 245)` | Secondary text and help copy. |
-| `color-border` | `oklch(0.790 0.016 245)` | Default hairline divider. |
-| `color-border-strong` | `oklch(0.540 0.025 245)` | Active divider and grouped boundary. |
-| `color-accent` | `oklch(0.675 0.180 45)` | Primary action, current selection, threshold marker. |
-| `color-accent-hover` | `oklch(0.615 0.180 45)` | Hover. |
-| `color-accent-active` | `oklch(0.555 0.170 45)` | Pressed state. |
-| `color-accent-soft` | `oklch(0.915 0.045 45)` | Selected or active background. |
-| `color-accent-ink` | `oklch(0.205 0.035 45)` | Text and icon on accent surfaces. |
-| `color-success-surface` | `oklch(0.925 0.045 150)` | Durable success summary. |
-| `color-success-ink` | `oklch(0.300 0.090 150)` | Success text and icon. |
-| `color-warning-surface` | `oklch(0.930 0.070 85)` | Warning and confirmation surface. |
-| `color-warning-ink` | `oklch(0.300 0.085 75)` | Warning text and icon. |
-| `color-error-surface` | `oklch(0.930 0.045 25)` | Validation and request error surface. |
-| `color-error-ink` | `oklch(0.330 0.130 25)` | Error text and icon. |
-| `color-info-surface` | `oklch(0.925 0.035 245)` | Neutral information surface. |
-| `color-info-ink` | `oklch(0.300 0.095 245)` | Information text and icon. |
-| `color-scrim` | `oklch(0.220 0.024 245 / 0.42)` | Drawer or dialog scrim only. |
+| `color-canvas` | `#fbf8f6` | Page background (cream paper). |
+| `color-surface` | `#ffffff` | Cards, tables, inputs, rail pills. |
+| `color-surface-muted` | `#f6f3f1` | Rail, selected row, Storefront media well (`--color-band` on Storefront). |
+| `color-surface-strong` | `#eae8e6` | Hover band, disabled fill (`--color-band-strong` on Storefront). |
+| `color-ink` | `#1b1c1b` | Primary text. |
+| `color-ink-muted` | `#6c6a6a` | Secondary text, kickers, help. |
+| `color-border` | `#8a8182` | Default hairline (3:1 on cream). |
+| `color-border-strong` | `#7e7576` | Strong divider. |
+| `color-accent` | `#000000` | Primary button, active nav, Catalog pill. |
+| `color-accent-hover` | `#1b1b1b` | Hover fill; Storefront editorial band. |
+| `color-accent-active` | `#333333` | Pressed fill and focus ring. |
+| `color-accent-soft` | `#f1f29f` | Butter: Active tags, title rule, metric corner, selected status. |
+| `color-accent-ink` | `#ffffff` | Text on ink fills. |
+| `color-success-surface` | `#f1f29f` | Durable success / Active tag. |
+| `color-success-ink` | `#1b1c1b` | Text on butter. |
+| `color-warning-surface` | `#f1f29f` | Warning and Draft tag. |
+| `color-warning-ink` | `#1b1c1b` | Warning text. |
+| `color-error-surface` | `#ffdad6` | Error notice. |
+| `color-error-ink` | `#93000a` | Error text. |
+| `color-info-surface` | `#f0edeb` | Neutral information. |
+| `color-info-ink` | `#4c4546` | Information text, inactive nav. |
+| `color-scrim` | `rgb(27 28 27 / 0.42)` | Drawer or dialog scrim. |
 
 Rules:
 
-- No raw black, raw white, gradients, glow, glass, or decorative transparency.
-- Do not mix warm and cool gray families.
-- Do not communicate status by color alone. Pair every semantic color with a label, icon, count, or message.
-- Body, help, placeholder, and disabled text must remain legible against their actual surface. Phase 2 must verify at least 4.5:1 for text and 3:1 for meaningful graphics, focus indicators, and large text.
-- Text on a semantic surface uses the matching semantic ink token, not neutral gray or opacity.
-- Accent coverage stays below 10 percent of a view.
+- Ink `#000000` and on-ink `#ffffff` are intentional action pair, not a license for extra raw black/white decoration.
+- Do not revive safety-orange. Do not mix a cool gray ramp with this warm paper ramp.
+- Status is never color alone. Pair butter/error with a label.
+- Text on a semantic surface uses the matching ink token.
 
 ### 3.3 Spacing and density
-
-Use only this spacing scale:
 
 | Token | Value |
 | --- | ---: |
@@ -129,102 +125,73 @@ Use only this spacing scale:
 | `space-16` | 64 px |
 | `space-24` | 96 px |
 
-Density rules:
+- Label to control: 4–8 px. Field groups: 12–16 px. Sections: 32–48 px.
+- Control min-height `target-min` / `target`: 44 px.
+- Desktop Console padding 32 px below the 64 px deskbar. Compact canvas padding 16 px.
 
-- Related label, control, and help text use 4 to 8 px gaps.
-- Related controls in a field group use 12 to 16 px gaps.
-- Visual field groups use 24 px gaps and contain at most four fields before a new heading or divider.
-- Major editor sections use 32 to 48 px separation.
-- Desktop table rows are 48 px minimum. Multi-line or error rows grow vertically instead of clipping.
-- Default control height is 44 px. Compact icon visuals may be smaller only when their interactive hit area remains at least 44 by 44 px.
-- Desktop canvas padding is 32 px. Compact and 375 px canvas padding is 16 px.
-
-### 3.4 Shape, borders, and depth
+### 3.4 Shape, borders, depth
 
 | Token | Value | Use |
 | --- | --- | --- |
-| `radius-control` | 4 px | Inputs, buttons, status selector, dropzone. |
-| `radius-surface` | 8 px | Drawer, durable notice, empty-state boundary. |
-| `border-hairline` | 1 px | Tables, section dividers, grouped rows. |
-| `border-emphasis` | 2 px | Drop target active boundary and validation emphasis only. |
+| `radius-control` | 4 px | Buttons, inputs, cards, metric tiles, drawers. |
+| `radius-surface` | 4 px | Same radius system. Do not use 8 px cards. |
+| `radius-pill` | 40 px | Search fields, status/filter pills, avatars, role chip. |
+| `border-hairline` | 1 px | Table rows, field borders. |
+| `border-emphasis` | 2 px | Drop target, selected catalog card outline, validation. |
+| `shadow-soft` | `0 1px 8px rgb(0 0 0 / 0.04)` | Cards, pills, secondary buttons. |
+| `shadow-panel` | `0 4px 16px rgb(0 0 0 / 0.06)` | Data region, inspection panel, Storefront ledger. |
 
-The depth strategy is fixed to **hairline dividers plus surface tints**.
-
-- Working sections are not floating cards.
-- Tables use exposed rows and dividers, not individual row cards.
-- Drawers use a scrim and one edge divider. They do not need a wide shadow.
-- Do not combine a border, wide shadow, and tinted surface on the same element.
-- Pill shapes are reserved for compact status text only. Buttons, inputs, cards, and notices are not pills.
+Depth strategy is **paper elevation**: cream canvas, white surface, one shadow token per layer. Do not combine a 1 px border with `shadow-panel` on the same card. Pills are for search and filters, not for primary buttons.
 
 ### 3.5 Motion
 
 | Token | Value | Use |
 | --- | --- | --- |
-| `motion-press` | 100 ms | Button press, checkbox, switch. |
-| `motion-state` | 180 ms | Hover, focus support, validation color. |
-| `motion-panel` | 240 ms | Drawer or disclosure open and close. |
+| `motion-press` | 100 ms | Press, checkbox. |
+| `motion-state` | 180 ms | Hover, validation color. |
+| `motion-panel` | 240 ms | Drawer open/close. |
 | `ease-out` | `cubic-bezier(0.25, 1, 0.5, 1)` | All state transitions. |
 
-Rules:
+Animate only opacity, transform, color, box-shadow. Never `transition: all`. Reduced motion collapses durations. No bounce, entrance choreography, or confetti.
 
-- Animate only opacity, transform, color, and bounded panel disclosure. Never use `transition: all`.
-- Product UI content is visible by default. No entrance animation gates content.
-- Skeletons use a static surface contrast by default. If a subtle pulse is used, it stops under `prefers-reduced-motion`.
-- Reduced motion sets transitions to immediate while preserving state change, focus placement, and announcements.
-- No bounce, elastic easing, parallax, row reordering flourish, or success confetti.
-
-### 3.6 Focus, targets, and input behavior
+### 3.6 Focus, targets, and input
 
 | Token | Value |
 | --- | --- |
 | `focus-ring-width` | 2 px |
 | `focus-ring-offset` | 2 px |
-| `target-min` | 44 by 44 px |
+| `target-min` | 44 × 44 px |
 | `input-min-mobile` | 16 px text |
 
-- `:focus-visible` uses `color-accent-active`, a 2 px ring, and a 2 px surface-colored offset. It must not be clipped by sticky bars, table overflow containers, or drawers.
-- Hover, active, focus-visible, disabled, and loading states are distinct. Hover is not the only indication of interactivity.
-- Validate fields on blur and again on submit. Do not validate on every keystroke.
-- Put an error immediately after its field and connect it with `aria-describedby` and `aria-invalid`.
-- When submit finds errors, move focus to the error summary. The summary links to each invalid field. Do not move focus while the operator is typing.
-- Disabled controls keep readable labels and explain the prerequisite in adjacent help text or the disabled action's description.
+`:focus-visible` uses `color-accent-active`. Validate on blur and submit. Errors use `aria-describedby` / `aria-invalid`. Failed submit focuses the error summary.
 
 ### 3.7 Layout and responsive tokens
 
 | Token | Value | Use |
 | --- | ---: | --- |
-| `layout-compact-max` | 719 px | Composed compact layout. |
-| `layout-medium-min` | 720 px | Intermediate layout. |
-| `layout-desktop-min` | 1024 px | Full rail and matrix table. |
-| `layout-rail-width` | 208 px | Desktop Console rail. |
-| `layout-topbar-height` | 56 px | Compact top app bar. |
-| `layout-editor-measure` | 960 px | Maximum width for form sections. |
-| `layout-drawer-width` | 480 px | Desktop focused editor. |
+| `layout-compact-max` | 719 px | Rail collapses to topbar. |
+| `layout-medium-min` | 720 px | Intermediate. |
+| `layout-desktop-min` | 1024 px | Full rail. |
+| `layout-rail-width` | 256 px (`16rem`) | Desktop Console rail. |
+| `layout-topbar-height` | 64 px (`4rem`) | Desktop deskbar and compact topbar. |
+| `layout-editor-measure` | 960 px | Editor form cap. |
+| `layout-drawer-width` | 480 px | Focused editor. |
+| Storefront `--measure` | 1280 px (`80rem`) | Catalog max width. |
 
-Desktop uses the 208 px rail and a flexible working canvas. The Product table can use the full canvas; the editor form is capped at 960 px for reading and field grouping.
-
-At 375 px:
-
-- The rail becomes a 56 px top app bar with the current destination and navigation trigger. Products remains directly identifiable.
-- Page padding becomes 16 px.
-- Header actions do not wrap into an unreadable toolbar. One primary action stays visible; secondary actions move to a labeled overflow menu or an action sheet.
-- Data tables become semantic summary lists. Each item exposes the fields needed to choose it, then opens focused detail. The page itself never scrolls horizontally.
-- Sticky top editor actions become a safe-area-aware bottom action bar with **Save Product** as the primary action and **Discard changes** in the overflow or preceding link position.
-- Multi-column form groups become a single column. Currency remains adjacent to price only when both controls fit without shrinking below their usable width; otherwise they stack with preserved labels.
-- The Variant matrix becomes combination summary rows. Selecting a row opens a full-width focused editor. Advanced fields are never compressed into hidden columns.
-- The CSV preview becomes stacked Product groups and collapsible row details. Counts precede details. There is no horizontally scrolling CSV sheet.
-- Drawers become full-height, full-width dialogs with a visible close control, an accessible title, and focus containment.
-
-Intermediate widths may collapse columns earlier when content would otherwise overflow. Breakpoints are structural, not device labels.
+At 375 px: rail becomes the topbar; tables become summary cards; Storefront grid becomes one column; no horizontal page scroll.
 
 ## 4. Component presentation contract
 
 ### 4.1 Console shell and navigation
 
-- Desktop rail has the Nexus identity at top, a single primary destination **Products**, and no fake analytics destinations.
-- The active destination uses accent-soft background, accent-ink text, and a visible left-aligned label. It does not rely on an unlabeled icon.
-- Compact navigation preserves a skip link and clear page title. The menu returns focus to its trigger when closed.
-- Do not present login, profile, tenant switcher, Store selector, inventory, analytics, or custom-domain controls in S1.
+- Desktop rail: **Nexus** / Operations Console, optional "Viewing as Store operator" chip (not a role switcher), destinations **Products** and **Orders** only.
+- Active destination: ink fill, `color-accent-ink` text. Hover uses `color-surface-strong`.
+- Account chip uses the bootstrap Store name **Nexus**. No Faire, North Studio, or fake tenant switcher.
+- Deskbar kicker: `Nexus Operations Console · {Products\|Orders}`.
+- Compact: skip link, `Nexus · {destination}`, Menu returns focus to its trigger.
+- Do not add Inventory, Analytics, Retailers, login, or custom-domain controls.
+
+Storefront chrome: **Nexus** / STOREFRONT, Catalog pill, cream canvas. Hero snapshot and metric numbers are live catalog counts.
 
 ### 4.2 Page header and actions
 
@@ -234,13 +201,16 @@ Intermediate widths may collapse columns earlier when content would otherwise ov
 - Product editor secondary navigation: **Back to Products**. **Discard changes** appears only after the form becomes dirty.
 - CSV workspace primary action changes by state: **Choose CSV**, then **Import Products** after a valid preview and any required confirmation.
 - A view has one visually primary action. Disabled primary actions preserve the label and expose the reason.
+- Console list pages may show a four-up metric strip. Values must be computed from loaded rows.
 
 ### 4.3 Buttons and links
+
+Primary buttons use `color-accent` fill and `color-accent-ink` text. Secondary buttons use `color-surface` plus `shadow-soft`. Do not fill primary actions with butter or orange.
 
 Every button supports:
 
 - `control-default`: stable label and icon where useful.
-- `control-hover`: accent or surface change plus a one-step icon translation where an icon denotes direction.
+- `control-hover`: surface or ink shift; directional icons may nudge 4 px.
 - `control-focus`: visible focus ring.
 - `control-active`: pressed surface and at most 1 px visual depression without changing layout.
 - `control-disabled`: no action, readable label, reason available.
@@ -275,6 +245,10 @@ Desktop columns are:
 - Loading uses row-shaped skeletons with stable column widths.
 - Request errors replace the affected data region and retain the page header and actions.
 - At 375 px, each summary exposes Product name, status, type, effective price, enabled Variant count where applicable, and updated time in a deliberate reading order.
+- Console Products shows 25 filtered Products per page; Storefront shows 24 filtered catalog cards per page. Keep the complete catalog response for metrics and checkout selection; pagination does not change the API.
+- Place Previous/Next controls above and below each list, with distinct navigation labels, the visible result range, and current/total pages. Disable controls at boundaries; reset to the first page when search or filters change and clamp after catalog shrink.
+- Console Orders retains server cursor pagination at 25 Orders per page. Its range uses cursor depth; totals come from the server summary for the active filters, never the current page length.
+- Storefront page changes preserve the selected Product, option values, Customer fields, cart, and frozen checkout retry identity. Bottom navigation returns the catalog results to view.
 
 ### 4.6 Sticky editor action bar
 
@@ -410,14 +384,14 @@ The canonical flows below were re-opened for this Phase 1 handoff. The observati
 | Evidence or pattern | Rejection | Nexus decision |
 | --- | --- | --- |
 | Shopify inventory, barcode, vendor, shipping, fulfillment, and sales-channel controls | They describe physical commerce and expand S1 beyond digital Product delivery. | Do not render these fields, columns, filters, statuses, or empty-state prompts. |
-| Shopify dark save-bar branding and full visual chrome | Persistent actions are useful, but the visual treatment conflicts with Nexus's light, cool, industrial token system. | Retain persistence and hierarchy; restyle entirely with Nexus surface, divider, type, and focus tokens. |
-| Shopify analytics and sales summaries | Nexus S1 owns no analytics acceptance criterion or trustworthy aggregate data. | Product list is table-first with no metric cards. |
+| Shopify dark save-bar branding and full visual chrome | Persistent actions are useful, but Shopify's dark chrome is not Nexus. | Retain persistence; restyle with cream paper, ink actions, and butter status. |
+| Shopify analytics and sales summaries | Nexus owns no sales analytics. | Metric strips show live Product/Order counts only. No invented revenue. |
 | Salesforce field-mapping wizard or modal | Nexus owns one exact ordered header and one unified template. Mapping would imply unsupported flexibility. | Show template help and detected fields. Reject invalid structure with precise reasons. |
 | Modal-only import workspace | Preview, confirmations, and row errors need durable space and deep scanning. | Use a dedicated Console route. Dialogs are limited to focused confirmation or compact row editing. |
 | Modal-only error reporting | A transient panel loses row context and is hard to revisit. | Keep aggregate and row-level errors in the workspace after processing. |
-| CSV overwrite or upsert controls | The stable S1 contract is additive exact-match only. | Explain no-update behavior. Offer no overwrite, merge strategy, or update toggle. |
-| Pill-heavy status dashboards and nested cards | They reduce density and create generic admin styling. | Use exposed rows, hairlines, compact status labels, and surface tints. |
-| Copying Shopify, Salesforce, or Squarespace brand color, typography, icons, or layout chrome | Mobbin is interaction evidence, not Nexus branding. | Use the frozen industrial-utilitarian tokens in this document. |
+| CSV overwrite or upsert controls | The stable contract is additive exact-match only. | Explain no-update behavior. Offer no overwrite, merge strategy, or update toggle. |
+| Nested cards and orange industrial chrome | They fight the paper-elevation system. | White surfaces on cream, ink primary, butter status. Filter pills are allowed; primary buttons are not pills. |
+| Copying Shopify, Salesforce, Squarespace, or Faire brand chrome | External mocks are layout evidence, not Nexus branding. | Use the frozen tokens in §3. Brand remains Nexus. |
 
 ## 6. Accessibility and keyboard contract
 
@@ -455,20 +429,21 @@ The canonical flows below were re-opened for this Phase 1 handoff. The observati
 
 ## 7. Explicit exclusions
 
-The Phase 2 prototype must not introduce controls, navigation, empty states, placeholders, or fake data for:
+Do not introduce controls, navigation, empty states, placeholders, or fake data for:
 
 - inventory, stock, warehouses, or quantity fulfillment;
-- sales analytics, revenue metrics, dashboards, or reports;
+- sales analytics, revenue dashboards, or invented wholesale terms (Net-60, MOQ, boutiques);
 - users, login, sessions, profile menus, Owner/Staff roles, or authorization claims;
 - Store switching or multi-Store administration;
 - custom domains or deployment configuration;
 - CSV update, overwrite, upsert, merge strategy, or field mapping;
-- Customer Storefront, Cart, checkout, Orders, Payments, or access grants;
-- public or permanent delivery-file URLs;
+- payments or public delivery-file URLs;
 - configurable option-group, value, or combination limits;
-- import history dashboard or background jobs.
+- import history dashboard or background jobs;
+- Faire, Atelier, or other third-party marketplace branding.
 
-S1 Console and write interactions are public by explicit product decision. The design must not imply that authentication or Owner authorization exists. It also must not add warning furniture that suggests public access is a user-configurable Console feature.
+The Storefront catalog, checkout, and Console Orders list are in scope. Do not imply authentication exists. Metric cards must not invent revenue.
+
 
 ## 8. Phase 2 implementation gate
 

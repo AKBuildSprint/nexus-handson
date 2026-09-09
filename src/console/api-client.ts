@@ -16,7 +16,12 @@ import {
   isImportResultResponse,
   type ImportResultResponse,
 } from '../shared/csv-contract';
-import type { ConsoleOrderListResponse } from './orders/order-ui-types';
+import type {
+  ConsoleOrderDetailView,
+  ConsoleOrderListQuery,
+  ConsoleOrderListResponse,
+  OrderCommandResultView,
+} from './orders/order-ui-types';
 
 interface ErrorEnvelope {
   error: {
@@ -50,8 +55,35 @@ export class ConsoleImportResultError extends Error {
   }
 }
 
-async function decode<T>(response: Response): Promise<T> {
-  const body = await response.json() as T | ErrorEnvelope;
+function abortError(signal?: AbortSignal): DOMException {
+  return signal?.reason instanceof DOMException
+    ? signal.reason
+    : new DOMException('The operation was aborted.', 'AbortError');
+}
+
+async function readJson<T>(response: Response, signal?: AbortSignal): Promise<T> {
+  if (signal?.aborted) throw abortError(signal);
+  if (!signal) return response.json() as Promise<T>;
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(abortError(signal));
+    signal.addEventListener('abort', onAbort, { once: true });
+    void response.json().then(
+      (body) => {
+        signal.removeEventListener('abort', onAbort);
+        if (signal.aborted) reject(abortError(signal));
+        else resolve(body as T);
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
+async function decode<T>(response: Response, signal?: AbortSignal): Promise<T> {
+  const body = await readJson<T | ErrorEnvelope>(response, signal);
+  if (signal?.aborted) throw abortError(signal);
   if (!response.ok) {
     const envelope = body as ErrorEnvelope;
     throw new ConsoleApiError(response.status, envelope.error.code, envelope.error.message, envelope.error.fields, envelope.error.incidentId);
@@ -78,8 +110,99 @@ export async function fetchProducts(
   return decode(await fetch(`/api/console/products${suffix}`, { headers: { Accept: 'application/json' }, signal }));
 }
 
-export async function fetchOrders(signal?: AbortSignal): Promise<ConsoleOrderListResponse> {
-  return decode(await fetch('/api/console/orders', { headers: { Accept: 'application/json' }, signal }));
+const ORDER_CONTRACT_HEADER = { 'X-Nexus-Order-Contract': '2' };
+
+function orderReadHeaders(): HeadersInit {
+  return {
+    Accept: 'application/json',
+    ...ORDER_CONTRACT_HEADER,
+  };
+}
+
+function orderJsonHeaders(idempotencyKey?: string): HeadersInit {
+  return {
+    Accept: 'application/json',
+    'Content-Type': 'application/json; charset=utf-8',
+    ...ORDER_CONTRACT_HEADER,
+    ...(idempotencyKey === undefined ? {} : { 'Idempotency-Key': idempotencyKey }),
+  };
+}
+
+export async function fetchOrders(query: ConsoleOrderListQuery, signal?: AbortSignal): Promise<ConsoleOrderListResponse> {
+  const params = new URLSearchParams();
+  if (query.q) params.set('q', query.q);
+  if (query.status) params.set('status', query.status);
+  if (query.refund) params.set('refund', query.refund);
+  params.set('limit', String(query.limit));
+  if (query.cursor) params.set('cursor', query.cursor);
+  const response = await fetch(`/api/console/orders?${params}`, { headers: orderReadHeaders(), signal });
+  return decode(response, signal);
+}
+
+export async function fetchOrder(reference: string, signal?: AbortSignal): Promise<{ order: ConsoleOrderDetailView }> {
+  const response = await fetch(`/api/console/orders/${encodeURIComponent(reference)}`, {
+    headers: orderReadHeaders(),
+    signal,
+  });
+  return decode(response, signal);
+}
+
+export async function markPaid(
+  reference: string,
+  payment: { method: string; reference: string },
+  idempotencyKey: string,
+  signal?: AbortSignal,
+): Promise<OrderCommandResultView> {
+  const response = await fetch(`/api/console/orders/${encodeURIComponent(reference)}/payments/manual`, {
+    method: 'POST',
+    headers: orderJsonHeaders(idempotencyKey),
+    body: JSON.stringify({ method: payment.method, reference: payment.reference }),
+    signal,
+  });
+  return decode(response, signal);
+}
+
+export async function fulfill(
+  reference: string,
+  idempotencyKey: string,
+  signal?: AbortSignal,
+): Promise<OrderCommandResultView> {
+  const response = await fetch(`/api/console/orders/${encodeURIComponent(reference)}/fulfill`, {
+    method: 'POST',
+    headers: orderJsonHeaders(idempotencyKey),
+    body: JSON.stringify({}),
+    signal,
+  });
+  return decode(response, signal);
+}
+
+export async function cancelConsoleOrder(
+  reference: string,
+  idempotencyKey: string,
+  signal?: AbortSignal,
+): Promise<OrderCommandResultView> {
+  const response = await fetch(`/api/console/orders/${encodeURIComponent(reference)}/cancel`, {
+    method: 'POST',
+    headers: orderJsonHeaders(idempotencyKey),
+    body: JSON.stringify({}),
+    signal,
+  });
+  return decode(response, signal);
+}
+
+export async function createConsoleRefundRequest(
+  reference: string,
+  reason: string,
+  idempotencyKey: string,
+  signal?: AbortSignal,
+): Promise<OrderCommandResultView> {
+  const response = await fetch(`/api/console/orders/${encodeURIComponent(reference)}/refund-requests`, {
+    method: 'POST',
+    headers: orderJsonHeaders(idempotencyKey),
+    body: JSON.stringify({ reason }),
+    signal,
+  });
+  return decode(response, signal);
 }
 
 export async function fetchProductBySlug(slug: string): Promise<{ product: ProductDetailResponse; revision: number }> {

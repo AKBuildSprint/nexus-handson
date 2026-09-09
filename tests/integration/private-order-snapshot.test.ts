@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { ProductDetailResponse } from '../../src/catalog/catalog-types';
-import { createOrderItemCatalogSnapshotResolver } from '../../src/catalog/private-order-snapshot';
+import { resolveOrderItemCatalogSnapshots } from '../../src/catalog/private-order-snapshot';
+import { BOOTSTRAP_STORE_ID } from '../../src/catalog/catalog-read';
 import { env } from 'cloudflare:test';
 import { resetCatalog, SIMPLE_CORE, VARIANT_CORE, oneVariantSchema, workerRequest } from '../support/catalog-test-env';
 
@@ -31,23 +32,37 @@ async function createActiveVariant(): Promise<ProductDetailResponse> {
 
 describe('private Order item snapshot resolver', () => {
   it('resolves simple Product defaults and returns an immutable copied value', async () => {
-    const resolveOrderItemCatalogSnapshot = createOrderItemCatalogSnapshotResolver(env.DB);
     const product = await createSimple();
-    const resolution = await resolveOrderItemCatalogSnapshot({ productId: product.id, variantId: null });
+    const [resolution] = await resolveOrderItemCatalogSnapshots({
+      database: env.DB,
+      storeId: BOOTSTRAP_STORE_ID,
+      items: [{ productId: product.id, variantId: null }],
+    });
     const snapshot = resolution.snapshot;
     expect(resolution.productRevision).toBe(product.revision);
     expect(snapshot).toMatchObject({ productId: product.id, variantId: null, unitPriceMinor: 2400, accessTitle: SIMPLE_CORE.delivery.accessTitle });
     await env.DB.prepare("UPDATE products SET name='Changed', base_price_minor=9999, delivery_access_title='Changed' WHERE id=?").bind(product.id).run();
     expect(snapshot).toMatchObject({ productName: 'Field Notes', unitPriceMinor: 2400, accessTitle: SIMPLE_CORE.delivery.accessTitle });
-    await expect(resolveOrderItemCatalogSnapshot({ productId: product.id, variantId: 'wrong' })).rejects.toMatchObject({ code: 'variant_not_found' });
+    await expect(resolveOrderItemCatalogSnapshots({
+      database: env.DB,
+      storeId: BOOTSTRAP_STORE_ID,
+      items: [{ productId: product.id, variantId: 'wrong' }],
+    })).rejects.toMatchObject({ code: 'variant_not_found' });
   });
 
   it('resolves Variant default and complete override, and rejects missing or disabled selection', async () => {
-    const resolveOrderItemCatalogSnapshot = createOrderItemCatalogSnapshotResolver(env.DB);
     let product = await createActiveVariant();
     const variant = product.variants[0];
-    await expect(resolveOrderItemCatalogSnapshot({ productId: product.id, variantId: null })).rejects.toMatchObject({ code: 'variant_not_found' });
-    const inherited = await resolveOrderItemCatalogSnapshot({ productId: product.id, variantId: variant.id });
+    await expect(resolveOrderItemCatalogSnapshots({
+      database: env.DB,
+      storeId: BOOTSTRAP_STORE_ID,
+      items: [{ productId: product.id, variantId: null }],
+    })).rejects.toMatchObject({ code: 'variant_not_found' });
+    const [inherited] = await resolveOrderItemCatalogSnapshots({
+      database: env.DB,
+      storeId: BOOTSTRAP_STORE_ID,
+      items: [{ productId: product.id, variantId: variant.id }],
+    });
     expect(inherited).toMatchObject({
       productRevision: product.revision,
       snapshot: {
@@ -66,13 +81,39 @@ describe('private Order item snapshot resolver', () => {
       method: 'PUT', headers: { 'Content-Type': 'application/json', 'If-Match': '"1"' }, body: JSON.stringify(update),
     });
     product = (await updated.json() as { product: ProductDetailResponse }).product;
-    const overridden = await resolveOrderItemCatalogSnapshot({ productId: product.id, variantId: variant.id });
+    const [overridden] = await resolveOrderItemCatalogSnapshots({
+      database: env.DB,
+      storeId: BOOTSTRAP_STORE_ID,
+      items: [{ productId: product.id, variantId: variant.id }],
+    });
     expect(overridden).toMatchObject({
       productRevision: product.revision,
       snapshot: { unitPriceMinor: 4000, accessTitle: 'Private Variant', accessInstructions: 'Open Variant' },
     });
 
     await env.DB.prepare("UPDATE product_variants SET current_schema=0, status='disabled' WHERE id=?").bind(variant.id).run();
-    await expect(resolveOrderItemCatalogSnapshot({ productId: product.id, variantId: variant.id })).rejects.toMatchObject({ code: 'variant_not_found' });
+    await expect(resolveOrderItemCatalogSnapshots({
+      database: env.DB,
+      storeId: BOOTSTRAP_STORE_ID,
+      items: [{ productId: product.id, variantId: variant.id }],
+    })).rejects.toMatchObject({ code: 'variant_not_found' });
+  });
+
+  it('batches simple and variant selections in request order', async () => {
+    const simple = await createSimple();
+    const variantProduct = await createActiveVariant();
+    const variant = variantProduct.variants[0];
+    const resolutions = await resolveOrderItemCatalogSnapshots({
+      database: env.DB,
+      storeId: BOOTSTRAP_STORE_ID,
+      items: [
+        { productId: simple.id, variantId: null },
+        { productId: variantProduct.id, variantId: variant.id },
+      ],
+    });
+    expect(resolutions.map((resolution) => resolution.snapshot.productId)).toEqual([simple.id, variantProduct.id]);
+    expect(resolutions[0].snapshot.unitPriceMinor).toBe(2400);
+    expect(resolutions[1].snapshot.variantId).toBe(variant.id);
+    expect(resolutions[1].snapshot.accessTitle).toBe(VARIANT_CORE.delivery.accessTitle);
   });
 });

@@ -11,6 +11,7 @@ import { slugifyProductName } from '../catalog/slug';
 import { CsvImportScreen } from './imports/csv-import-screen';
 import {
   applyProductSchema,
+  ConsoleApiError,
   createProduct,
   downloadCsvTemplate,
   fetchProductBySlug,
@@ -23,8 +24,15 @@ import {
 } from './api-client';
 import { ConsoleShell } from './layout/console-shell';
 import { ProductEditorScreen } from './products/product-editor-screen';
+import { OrderDetailScreen } from './orders/order-detail-screen';
 import { OrdersScreen } from './orders/orders-screen';
-import type { ConsoleOrderView, ConsoleOrdersState } from './orders/order-ui-types';
+import type {
+  ConsoleOrderSummary,
+  ConsoleOrderView,
+  ConsoleOrdersState,
+  OrderStatus,
+  OrderStatusFilter,
+} from './orders/order-ui-types';
 import { ProductListScreen } from './products/product-list-screen';
 import type {
   ProductEditorFixture,
@@ -34,7 +42,13 @@ import type {
   VariantFixture,
 } from './products/product-ui-types';
 
-type ConsoleRoute = { kind: 'list' } | { kind: 'new' } | { kind: 'edit'; slug: string } | { kind: 'import' } | { kind: 'orders' };
+type ConsoleRoute =
+  | { kind: 'list' }
+  | { kind: 'new' }
+  | { kind: 'edit'; slug: string }
+  | { kind: 'import' }
+  | { kind: 'orders' }
+  | { kind: 'order-detail'; reference: string };
 type PendingFile = File | 'remove' | null;
 
 const EMPTY_PRODUCT: ProductEditorFixture = {
@@ -48,8 +62,18 @@ const EMPTY_PRODUCT: ProductEditorFixture = {
   variants: [],
 };
 
+const ORDER_PAGE_SIZE = 25;
+
 function parseRoute(pathname: string): ConsoleRoute {
   if (pathname === '/console/orders') return { kind: 'orders' };
+  const orderMatch = /^\/console\/orders\/([^/]+)$/.exec(pathname);
+  if (orderMatch) {
+    try {
+      return { kind: 'order-detail', reference: decodeURIComponent(orderMatch[1]) };
+    } catch {
+      return { kind: 'order-detail', reference: orderMatch[1] };
+    }
+  }
   if (pathname === '/console/products/new') return { kind: 'new' };
   if (pathname === '/console/products/import') return { kind: 'import' };
   const match = /^\/console\/products\/([^/]+)$/.exec(pathname);
@@ -65,6 +89,7 @@ function parseRoute(pathname: string): ConsoleRoute {
 
 function routePath(route: ConsoleRoute): string {
   if (route.kind === 'orders') return '/console/orders';
+  if (route.kind === 'order-detail') return `/console/orders/${encodeURIComponent(route.reference)}`;
   if (route.kind === 'new') return '/console/products/new';
   if (route.kind === 'import') return '/console/products/import';
   if (route.kind === 'edit') return `/console/products/${encodeURIComponent(route.slug)}`;
@@ -208,15 +233,25 @@ function listSummary(item: ProductListItem): ProductSummary {
 
 export function ProductionConsoleApp() {
   const [route, setRoute] = useState<ConsoleRoute>(() => parseRoute(window.location.pathname));
-  const [dirty, setDirty] = useState(false);
   const dirtyRef = useRef(false);
   const routeRef = useRef(route);
   const [listItems, setListItems] = useState<ProductListItem[]>([]);
   const [listState, setListState] = useState<ProductListState>('loading');
   const [criteria, setCriteria] = useState<{ query: string; status: 'all' | ProductStatus }>({ query: '', status: 'all' });
   const [orders, setOrders] = useState<ConsoleOrderView[]>([]);
+  const [orderSummary, setOrderSummary] = useState<ConsoleOrderSummary | null>(null);
+  const [ordersContractOutdated, setOrdersContractOutdated] = useState(false);
   const [ordersState, setOrdersState] = useState<ConsoleOrdersState>('loading');
   const [ordersRequest, setOrdersRequest] = useState(0);
+  const [orderSearchDraft, setOrderSearchDraft] = useState('');
+  const [orderQuery, setOrderQuery] = useState('');
+  const [orderStatus, setOrderStatus] = useState<OrderStatus | null>(null);
+  const [orderRefund, setOrderRefund] = useState<'pending' | null>(null);
+  const [orderCursorStack, setOrderCursorStack] = useState<string[]>([]);
+  const [orderNextCursor, setOrderNextCursor] = useState<string | null>(null);
+  const [orderRouteGeneration, setOrderRouteGeneration] = useState(0);
+  const orderRouteGenerationRef = useRef(0);
+  const ordersRequestRef = useRef(0);
   const [detail, setDetail] = useState<ProductDetailResponse | null>(null);
   const [detailLifecycle, setDetailLifecycle] = useState<ProductEditorScenario['lifecycle']>('loading');
   const [revision, setRevision] = useState<number | null>(null);
@@ -227,22 +262,27 @@ export function ProductionConsoleApp() {
   const skipNextDetailLoadRef = useRef(false);
   const detailRequestRef = useRef(0);
   const createdDetailRef = useRef<ProductDetailResponse | null>(null);
-  useEffect(() => {
-    dirtyRef.current = dirty;
-  }, [dirty]);
+  const publishDirty = useCallback((next: boolean) => {
+    dirtyRef.current = next;
+  }, []);
   useEffect(() => {
     routeRef.current = route;
   }, [route]);
 
   const confirmDiscard = useCallback(() => !dirtyRef.current || window.confirm('Discard unsaved Product changes?'), []);
+  const bumpOrderGeneration = () => {
+    orderRouteGenerationRef.current += 1;
+    setOrderRouteGeneration(orderRouteGenerationRef.current);
+  };
   const navigate = useCallback((target: ConsoleRoute, replace = false) => {
     if (!confirmDiscard()) return false;
-    setDirty(false);
+    dirtyRef.current = false;
     previewHashRef.current = null;
     pendingProductFileRef.current = null;
     pendingVariantFilesRef.current.clear();
     createdDetailRef.current = null;
     detailRequestRef.current += 1;
+    bumpOrderGeneration();
     const path = routePath(target);
     window.history[replace ? 'replaceState' : 'pushState']({}, '', path);
     setRoute(target);
@@ -256,12 +296,13 @@ export function ProductionConsoleApp() {
         window.history.pushState({}, '', routePath(routeRef.current));
         return;
       }
-      setDirty(false);
+      dirtyRef.current = false;
       previewHashRef.current = null;
       pendingProductFileRef.current = null;
       pendingVariantFilesRef.current.clear();
       createdDetailRef.current = null;
       detailRequestRef.current += 1;
+      bumpOrderGeneration();
       setRoute(next);
     };
     window.addEventListener('popstate', onPopState);
@@ -284,16 +325,48 @@ export function ProductionConsoleApp() {
 
   useEffect(() => {
     if (route.kind !== 'orders') return;
+    const generation = orderRouteGenerationRef.current;
+    const requestId = ordersRequest;
+    ordersRequestRef.current = requestId;
     const controller = new AbortController();
+    const cursor = orderCursorStack[orderCursorStack.length - 1] ?? null;
+    setOrders([]);
+    setOrderSummary(null);
+    setOrdersContractOutdated(false);
     setOrdersState('loading');
-    void fetchOrders(controller.signal).then((response) => {
+    void fetchOrders({
+      q: orderQuery,
+      status: orderStatus,
+      refund: orderRefund,
+      limit: ORDER_PAGE_SIZE,
+      cursor,
+    }, controller.signal).then((response) => {
+      if (orderRouteGenerationRef.current !== generation || ordersRequestRef.current !== requestId) return;
       setOrders(response.orders);
-      setOrdersState(response.orders.length === 0 ? 'empty' : 'ready');
+      setOrderSummary(response.summary);
+      setOrderNextCursor(response.nextCursor);
+      setOrdersState(response.orders.length > 0 ? 'ready' : response.hasOrders ? 'no-results' : 'empty');
     }).catch((error) => {
-      if (!(error instanceof DOMException && error.name === 'AbortError')) setOrdersState('error');
+      if (orderRouteGenerationRef.current !== generation || ordersRequestRef.current !== requestId) return;
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setOrders([]);
+      setOrderSummary(null);
+      setOrdersContractOutdated(error instanceof ConsoleApiError && error.code === 'client_contract_outdated');
+      setOrdersState('error');
     });
     return () => controller.abort();
-  }, [ordersRequest, route.kind]);
+  }, [orderCursorStack, orderQuery, orderRefund, orderStatus, ordersRequest, orderRouteGeneration, route.kind]);
+
+  const resetOrderCursors = () => {
+    setOrderCursorStack([]);
+    setOrderNextCursor(null);
+  };
+
+  const invalidateOrders = useCallback(() => {
+    setOrderCursorStack([]);
+    setOrderNextCursor(null);
+    setOrdersRequest((current) => current + 1);
+  }, []);
 
   const loadDetail = useCallback((slug: string) => {
     const requestSequence = detailRequestRef.current + 1;
@@ -500,7 +573,53 @@ export function ProductionConsoleApp() {
 
   let content;
   if (route.kind === 'orders') {
-    content = <OrdersScreen state={ordersState} orders={orders} onRetry={() => setOrdersRequest((current) => current + 1)} />;
+    content = <OrdersScreen
+      state={ordersState}
+      orders={orders}
+      summary={orderSummary}
+      searchDraft={orderSearchDraft}
+      statusFilter={orderStatus ?? 'all'}
+      refundPendingOnly={orderRefund === 'pending'}
+      contractOutdated={ordersContractOutdated}
+      hasPreviousPage={orderCursorStack.length > 0}
+      hasNextPage={orderNextCursor !== null}
+      pageIndex={orderCursorStack.length}
+      onSearchDraftChange={setOrderSearchDraft}
+      onSearchSubmit={() => {
+        setOrderQuery(orderSearchDraft.trim());
+        resetOrderCursors();
+      }}
+      onStatusFilterChange={(status: OrderStatusFilter) => {
+        setOrderStatus(status === 'all' ? null : status);
+        resetOrderCursors();
+      }}
+      onRefundPendingOnlyChange={(value) => {
+        setOrderRefund(value ? 'pending' : null);
+        resetOrderCursors();
+      }}
+      onRetry={() => setOrdersRequest((current) => current + 1)}
+      onReload={() => { window.location.reload(); }}
+      onClearFilters={() => {
+        setOrderSearchDraft('');
+        setOrderQuery('');
+        setOrderStatus(null);
+        setOrderRefund(null);
+        resetOrderCursors();
+      }}
+      onFirstPage={resetOrderCursors}
+      onPreviousPage={() => setOrderCursorStack((current) => current.slice(0, -1))}
+      onNextPage={() => {
+        if (orderNextCursor) setOrderCursorStack((current) => [...current, orderNextCursor]);
+      }}
+      onOpenOrder={(reference) => { navigate({ kind: 'order-detail', reference }); }}
+    />;
+  } else if (route.kind === 'order-detail') {
+    content = <OrderDetailScreen
+      reference={route.reference}
+      routeGeneration={orderRouteGeneration}
+      onInvalidateList={invalidateOrders}
+      onBack={() => { navigate({ kind: 'orders' }); }}
+    />;
   } else if (route.kind === 'list') {
     content = <ProductListScreen
       state={listState}
@@ -524,7 +643,7 @@ export function ProductionConsoleApp() {
       scenario={editorScenario}
       onBack={(trigger) => { void trigger; navigate({ kind: 'list' }); }}
       onDiscardRequest={(trigger) => { void trigger; navigate(routeRef.current, true); }}
-      onDirtyChange={setDirty}
+      onDirtyChange={publishDirty}
       onRetry={() => { if (routeRef.current.kind === 'edit') loadDetail(routeRef.current.slug); }}
       onSave={saveProduct}
       onSchemaPreview={previewSchema}
@@ -533,9 +652,10 @@ export function ProductionConsoleApp() {
     />;
   }
 
+  const ordersDestination = route.kind === 'orders' || route.kind === 'order-detail';
   return <ConsoleShell
-    activeDestination={route.kind === 'orders' ? 'Orders' : 'Products'}
-    railNote={route.kind === 'orders' ? 'Review safe Customer Order projections.' : 'Manage Product pricing, Variants, and private delivery files.'}
+    activeDestination={ordersDestination ? 'Orders' : 'Products'}
+    railNote={ordersDestination ? 'Review safe Customer Order projections.' : 'Manage Product pricing, Variants, and private delivery files.'}
     onOpenProducts={() => navigate({ kind: 'list' })}
     onOpenOrders={() => navigate({ kind: 'orders' })}
   >{content}</ConsoleShell>;

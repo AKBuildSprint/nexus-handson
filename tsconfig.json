@@ -27,6 +27,7 @@
     "src",
     "scripts",
     "tests",
+    "storefront/src",
     "worker-configuration.d.ts",
     "vite.config.ts",
     "vitest.config.ts",

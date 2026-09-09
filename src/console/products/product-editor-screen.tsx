@@ -108,7 +108,8 @@ export function ProductEditorScreen({
     setProduct(next);
     productRef.current = next;
     schemaStateRef.current = { groups: next.groups, variants: next.variants };
-    setDirty(scenario.lifecycle === 'dirty' || scenario.lifecycle === 'save-error');
+    const nextDirty = scenario.lifecycle === 'dirty' || scenario.lifecycle === 'save-error';
+    setDirty(nextDirty);
     setErrors({});
     setServerFieldErrors([]);
     setSaving(false);
@@ -117,9 +118,10 @@ export function ProductEditorScreen({
     setDeliveryBlockers([]);
     setVariantBlockers([]);
     setTransientVariantDirty(false);
+    onDirtyChange(nextDirty);
     setFileResetKey((current) => current + 1);
     setVariantResetKey((current) => current + 1);
-  }, [scenario]);
+  }, [onDirtyChange, scenario]);
 
   useEffect(() => {
     onDirtyChange(dirty || transientVariantDirty);
@@ -128,8 +130,8 @@ export function ProductEditorScreen({
   const markDirty = () => {
     setDirty(true);
     setSaved(false);
+    onDirtyChange(true);
   };
-
   const updateProduct = <K extends keyof ProductEditorFixture>(field: K, value: ProductEditorFixture[K]) => {
     setProduct((current) => ({ ...current, [field]: value }));
     markDirty();
@@ -190,6 +192,7 @@ export function ProductEditorScreen({
         variants: schemaStateRef.current.variants,
       }));
       setDirty(false);
+      onDirtyChange(transientVariantDirty);
       setSaved(true);
       setFileResetKey((current) => current + 1);
     } catch (error) {

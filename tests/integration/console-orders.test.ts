@@ -9,6 +9,12 @@ import {
 
 beforeEach(resetCatalog);
 
+const EMPTY_SUMMARY = {
+  totalOrders: 0,
+  byStatus: { pending: 0, paid: 0, fulfilled: 0, canceled: 0 },
+  openRefundRequests: 0,
+};
+
 async function createOrder(): Promise<Record<string, unknown>> {
   const productResponse = await workerRequest('/api/console/products', {
     method: 'POST',
@@ -25,9 +31,7 @@ async function createOrder(): Promise<Record<string, unknown>> {
     },
     body: JSON.stringify({
       customer: { name: '  Grace   Hopper  ', email: 'GRACE@Example.COM' },
-      productId: product.id,
-      variantId: null,
-      quantity: 2,
+      items: [{ productId: product.id, variantId: null, quantity: 2 }],
     }),
   });
   expect(orderResponse.status).toBe(201);
@@ -46,23 +50,45 @@ describe('Console Orders route', () => {
     const response = await workerRequest('/api/console/orders', {
       headers: { Origin: TEST_STOREFRONT_ORIGIN },
     });
-    const body = await response.json() as { orders: Array<Record<string, unknown>> };
+    const body = await response.json() as {
+      orders: Array<Record<string, unknown>>;
+      summary: typeof EMPTY_SUMMARY;
+      nextCursor: string | null;
+      hasOrders: boolean;
+    };
 
     expect(response.status).toBe(200);
     expect(response.headers.get('Access-Control-Allow-Origin')).toBeNull();
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
     expect(body.orders).toHaveLength(1);
+    expect(body.nextCursor).toBeNull();
+    expect(body.hasOrders).toBe(true);
+    expect(body.summary).toEqual({
+      totalOrders: 1,
+      byStatus: { pending: 1, paid: 0, fulfilled: 0, canceled: 0 },
+      openRefundRequests: 0,
+    });
     expect(body.orders[0]).toMatchObject({
       reference: created.reference,
-      status: 'pending_payment',
+      status: 'pending',
       customer: { name: 'Grace Hopper', email: 'grace@example.com' },
-      product: { name: SIMPLE_CORE.name, variant: null },
-      quantity: 2,
-      unitPriceMinor: 2400,
+      items: [{
+        position: 0,
+        product: { name: SIMPLE_CORE.name, variant: null },
+        quantity: 2,
+        unitPriceMinor: 2400,
+        lineTotalMinor: 4800,
+        currency: 'USD',
+      }],
       totalMinor: 4800,
       currency: 'USD',
       createdAt: created.createdAt,
+      refundRequestStatus: null,
     });
     expect(body.orders[0]).not.toHaveProperty('paymentNextStep');
+    expect(body.orders[0]).not.toHaveProperty('refundRequest');
+    expect(body.orders[0]).not.toHaveProperty('product');
+    expect(body.orders[0]).not.toHaveProperty('quantity');
     expect(allKeys(body).filter((key) =>
       /(access|capability|delivery|digest|file|idempotency|private)/i.test(key)
     )).toEqual([]);
@@ -72,6 +98,11 @@ describe('Console Orders route', () => {
   it('returns an empty safe envelope when no Orders exist', async () => {
     const response = await workerRequest('/api/console/orders');
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ orders: [] });
+    expect(await response.json()).toEqual({
+      orders: [],
+      summary: EMPTY_SUMMARY,
+      nextCursor: null,
+      hasOrders: false,
+    });
   });
 });

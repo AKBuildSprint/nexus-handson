@@ -97,6 +97,84 @@ describe('Phase 4 Console contracts', () => {
     expect(container.textContent).toContain('CSV template could not be downloaded');
   });
 
+  it('pages filtered Products, resets on search and status, and clamps after shrink', async () => {
+    window.history.replaceState({}, '', '/console/products');
+    const listProps = {
+      state: 'populated' as const,
+      onAddProduct: () => undefined,
+      onEditProduct: () => undefined,
+      onImportCsv: () => undefined,
+      onDownloadTemplate: () => undefined,
+      onRetry: () => undefined,
+    };
+    const catalog = Array.from({ length: 26 }, (_, index) => ({
+      id: `prod-${index + 1}`,
+      slug: `catalog-item-${index + 1}`,
+      name: `Catalog item ${index + 1}`,
+      status: index === 25 ? 'Draft' as const : 'Active' as const,
+      type: 'Simple' as const,
+      effectivePrice: 'USD 1.00',
+      enabledVariants: null,
+      updated: 'now',
+    }));
+    await act(async () => root.render(createElement(ProductListScreen, { ...listProps, products: catalog })));
+    const top = () => container.querySelector('[aria-label="Product pages top"]');
+    const bottom = () => container.querySelector('[aria-label="Product pages bottom"]');
+    const pagerButton = (label: string, name: string) => (
+      Array.from(container.querySelector(`[aria-label="${label}"]`)?.querySelectorAll('button') ?? [])
+        .find((button) => button.textContent?.trim() === name)
+    );
+    expect(container.querySelectorAll('.console-table tbody tr')).toHaveLength(25);
+    expect(container.querySelectorAll('.product-summary-card')).toHaveLength(25);
+    expect(top()?.textContent).toContain('Showing 1–25 of 26');
+    expect(top()?.textContent).toContain('Page 1 of 2');
+    expect(bottom()?.textContent).toContain('Showing 1–25 of 26');
+    expect(pagerButton('Product pages top', 'Previous')?.disabled).toBe(true);
+    expect(pagerButton('Product pages top', 'Next')?.disabled).toBe(false);
+    const productsMetric = Array.from(container.querySelectorAll('.metric-card')).find((card) => card.querySelector('.metric-label')?.textContent === 'Products');
+    expect(productsMetric?.querySelector('.metric-value')?.textContent).toBe('26');
+    expect(Array.from(container.querySelectorAll('button')).filter((button) => /^\d+$/.test(button.textContent?.trim() ?? ''))).toHaveLength(0);
+    await act(async () => { pagerButton('Product pages bottom', 'Next')?.click(); });
+    expect(container.querySelectorAll('.console-table tbody tr')).toHaveLength(1);
+    expect(top()?.textContent).toContain('Showing 26–26 of 26');
+    expect(top()?.textContent).toContain('Page 2 of 2');
+    expect(pagerButton('Product pages bottom', 'Previous')?.disabled).toBe(false);
+    expect(pagerButton('Product pages bottom', 'Next')?.disabled).toBe(true);
+    expect(productsMetric?.querySelector('.metric-value')?.textContent).toBe('26');
+    const search = container.querySelector<HTMLInputElement>('#product-search');
+    if (!search) throw new Error('missing product search');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(search, 'Catalog item 26');
+      search.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(container.querySelectorAll('.console-table tbody tr')).toHaveLength(1);
+    expect(top()?.textContent).toContain('Showing 1–1 of 1');
+    expect(top()?.textContent).toContain('Page 1 of 1');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(search, '');
+      search.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => { pagerButton('Product pages top', 'Next')?.click(); });
+    expect(top()?.textContent).toContain('Page 2 of 2');
+    const draftTab = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="tab"]')).find((button) => button.textContent?.trim() === 'Draft');
+    await act(async () => { draftTab?.click(); });
+    expect(container.querySelectorAll('.console-table tbody tr')).toHaveLength(1);
+    expect(top()?.textContent).toContain('Showing 1–1 of 1');
+    expect(pagerButton('Product pages top', 'Previous')?.disabled).toBe(true);
+    expect(productsMetric?.querySelector('.metric-value')?.textContent).toBe('26');
+    const allTab = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="tab"]')).find((button) => button.textContent?.trim() === 'All');
+    await act(async () => { allTab?.click(); });
+    await act(async () => { pagerButton('Product pages top', 'Next')?.click(); });
+    await act(async () => root.render(createElement(ProductListScreen, { ...listProps, products: catalog.slice(0, 10) })));
+    expect(container.querySelectorAll('.console-table tbody tr')).toHaveLength(10);
+    expect(top()?.textContent).toContain('Showing 1–10 of 10');
+    expect(top()?.textContent).toContain('Page 1 of 1');
+    expect(pagerButton('Product pages top', 'Previous')?.disabled).toBe(true);
+    expect(pagerButton('Product pages top', 'Next')?.disabled).toBe(true);
+    const productsMetricAfterShrink = Array.from(container.querySelectorAll('.metric-card')).find((card) => card.querySelector('.metric-label')?.textContent === 'Products');
+    expect(productsMetricAfterShrink?.querySelector('.metric-value')?.textContent).toBe('10');
+  });
+
   it('keeps existing value renames nonstructural', async () => {
     const variantScenario: ProductEditorScenario = {
       ...validScenario,
