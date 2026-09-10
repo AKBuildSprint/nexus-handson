@@ -5,4 +5,8 @@ dist/
 playwright-report/
 test-results/
 .vitest-attachments/
+.dev.vars
+.dev.vars.*
+.env
+.env.*
 plans/260826-0041-nexus-s1-product-catalog/reports/evidence/private/
