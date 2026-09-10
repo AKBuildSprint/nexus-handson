@@ -1,7 +1,7 @@
 import worstCaseFixture from '../fixtures/import/worst-case-500-rows.csv?raw';
 import unifiedTemplateFixture from '../fixtures/import/unified-template.csv?raw';
-import { CSV_HEADER_LINE } from '../../src/shared/csv-contract';
-import type { ParsedCsv } from '../../src/import/csv-parser';
+import { CSV_HEADER_LINE } from '@nexus/catalog/shared/csv-contract';
+import type { ParsedCsv } from '@nexus/catalog/import/csv-parser';
 
 export interface NormalizedCsvObservation {
   rowCount: number;

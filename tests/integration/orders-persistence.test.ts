@@ -1,12 +1,12 @@
 import { applyD1Migrations, env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { ProductDetailResponse } from '../../src/catalog/catalog-types';
-import { BOOTSTRAP_STORE_ID } from '../../src/catalog/catalog-read';
-import { resolveOrderItemCatalogSnapshots } from '../../src/catalog/private-order-snapshot';
-import { listConsoleOrders } from '../../src/orders/order-read';
-import { createRefundRequest, markPaid } from '../../src/orders/order-commands';
-import { createOrder } from '../../src/orders/order-write';
-import { digestOrderCapability, readPrivateOrder } from '../../src/orders/private-access';
+import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
+import { BOOTSTRAP_STORE_ID } from '@nexus/catalog/catalog-read';
+import { resolveOrderItemCatalogSnapshots } from '@nexus/catalog/private-order-snapshot';
+import { listConsoleOrders } from '@nexus/orders/queries/order-read';
+import { createRefundRequest, markPaid } from '@nexus/orders/commands/order-commands';
+import { createOrder } from '@nexus/orders/commands/order-write';
+import { digestOrderCapability, readPrivateOrder } from '@nexus/orders/private-access';
 import {
   catalogMigrations,
   resetCatalog,

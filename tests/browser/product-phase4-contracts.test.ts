@@ -1,10 +1,10 @@
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ConsoleApiError } from '../../src/console/api-client';
-import { ProductEditorScreen } from '../../src/console/products/product-editor-screen';
-import { ProductListScreen } from '../../src/console/products/product-list-screen';
-import type { ProductEditorScenario } from '../../src/console/products/product-ui-types';
+import { ConsoleApiError } from '../../apps/console/src/api-client';
+import { ProductEditorScreen } from '../../apps/console/src/products/product-editor-screen';
+import { ProductListScreen } from '../../apps/console/src/products/product-list-screen';
+import type { ProductEditorScenario } from '../../apps/console/src/products/product-ui-types';
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 

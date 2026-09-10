@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
 import worstCaseFixture from '../fixtures/import/worst-case-500-rows.csv?raw';
-import { parseCsvBytes } from '../../src/import/csv-parser';
+import { parseCsvBytes } from '@nexus/catalog/import/csv-parser';
 import {
   BulkFeasibilityError,
   resetFeasibilitySchema,

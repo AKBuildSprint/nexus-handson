@@ -1,0 +1,10 @@
+{
+  "name": "@nexus/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@nexus/catalog": "0.0.0",
+    "@nexus/orders": "0.0.0"
+  }
+}

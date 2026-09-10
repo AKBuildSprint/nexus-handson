@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CsvContractError, parseCsvBytes } from '../../src/import/csv-parser';
+import { CsvContractError, parseCsvBytes } from '@nexus/catalog/import/csv-parser';
 import {
   CSV_HEADER,
   CSV_HEADER_LINE,
@@ -8,7 +8,7 @@ import {
   isImportResultResponse,
   serializeCsvRow,
   type CsvRow,
-} from '../../src/shared/csv-contract';
+} from '@nexus/catalog/shared/csv-contract';
 import unifiedTemplateFixture from '../fixtures/import/unified-template.csv?raw';
 
 function simpleRow(slug: string): CsvRow {

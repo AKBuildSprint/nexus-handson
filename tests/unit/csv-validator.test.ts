@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { parseCsvBytes } from '../../src/import/csv-parser';
-import { validateCsvRows } from '../../src/import/csv-validator';
-import { CSV_HEADER, CSV_HEADER_LINE, serializeCsvRow, type CsvRow } from '../../src/shared/csv-contract';
+import { parseCsvBytes } from '@nexus/catalog/import/csv-parser';
+import { validateCsvRows } from '@nexus/catalog/import/csv-validator';
+import { CSV_HEADER, CSV_HEADER_LINE, serializeCsvRow, type CsvRow } from '@nexus/catalog/shared/csv-contract';
 import identityConflicts from '../fixtures/import/identity-conflicts.csv?raw';
 import mixedShapes from '../fixtures/import/mixed-shapes.csv?raw';
 

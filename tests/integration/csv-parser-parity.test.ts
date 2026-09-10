@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { CsvContractError, parseCsvBytes } from '../../src/import/csv-parser';
-import { validateCsvRows } from '../../src/import/csv-validator';
-import { CSV_HEADER_LINE } from '../../src/shared/csv-contract';
+import { CsvContractError, parseCsvBytes } from '@nexus/catalog/import/csv-parser';
+import { validateCsvRows } from '@nexus/catalog/import/csv-validator';
+import { CSV_HEADER_LINE } from '@nexus/catalog/shared/csv-contract';
 import { CSV_PARSER_CORPUS, normalizeCsvObservation } from '../support/csv-parser-corpus';
 
 describe('Papa Parse workerd contract', () => {

@@ -1,23 +1,23 @@
 import { applyD1Migrations, env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { ProductDetailResponse } from '../../src/catalog/catalog-types';
+import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
 import {
   cancelOrder,
   createRefundRequest,
   fulfillOrder,
   markPaid,
-} from '../../src/orders/order-commands';
-import { createOrder } from '../../src/orders/order-write';
-import { routeConsoleOrderRequest } from '../../src/worker/console-order-routes';
-import { digestOrderCapability, findOrderIdByCapability } from '../../src/orders/private-access';
-import { BOOTSTRAP_STORE_ID } from '../../src/catalog/catalog-read';
-import { OrderPersistenceError, OrderValidationError } from '../../src/orders/order-types';
+} from '@nexus/orders/commands/order-commands';
+import { createOrder } from '@nexus/orders/commands/order-write';
+import { routeConsoleOrderRequest } from '../../apps/worker/src/console-order-routes';
+import { digestOrderCapability, findOrderIdByCapability } from '@nexus/orders/private-access';
+import { BOOTSTRAP_STORE_ID } from '@nexus/catalog/catalog-read';
+import { OrderPersistenceError, OrderValidationError } from '@nexus/orders/order-types';
 import {
   parseCancelOrderInput,
   parseFulfillOrderInput,
   parseManualPaymentInput,
   parseRefundRequestInput,
-} from '../../src/orders/order-validation';
+} from '@nexus/orders/order-validation';
 import {
   catalogMigrations,
   resetCatalog,

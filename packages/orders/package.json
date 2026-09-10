@@ -1,0 +1,12 @@
+{
+  "name": "@nexus/orders",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "@nexus/catalog": "0.0.0"
+  }
+}
