@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ProductionConsoleApp } from './production-console-app';
+import { ConsoleAuthBoundary } from './auth/console-auth';
 import './styles/design-tokens.css';
 import './styles/console-layout.css';
 
@@ -12,6 +13,8 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <ProductionConsoleApp />
+    <ConsoleAuthBoundary>
+      <ProductionConsoleApp />
+    </ConsoleAuthBoundary>
   </StrictMode>,
 );

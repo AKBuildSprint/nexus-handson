@@ -22,6 +22,7 @@ import type {
   ConsoleOrderListResponse,
   OrderCommandResultView,
 } from './orders/order-ui-types';
+import { notifySessionRejected } from './auth/session-events';
 
 interface ErrorEnvelope {
   error: {
@@ -82,6 +83,7 @@ async function readJson<T>(response: Response, signal?: AbortSignal): Promise<T>
 }
 
 async function decode<T>(response: Response, signal?: AbortSignal): Promise<T> {
+  if (!signal?.aborted) notifySessionRejected(response.status);
   const body = await readJson<T | ErrorEnvelope>(response, signal);
   if (signal?.aborted) throw abortError(signal);
   if (!response.ok) {

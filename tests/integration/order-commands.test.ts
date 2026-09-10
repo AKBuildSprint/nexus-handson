@@ -1,5 +1,6 @@
 import { applyD1Migrations, env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { defaultTestSession } from '../support/auth-test-env';
 import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
 import {
   cancelOrder,
@@ -510,6 +511,7 @@ describe('order domain commands', () => {
           throw new Error('d1 unavailable');
         },
       }),
+      (await defaultTestSession()).user.id,
     );
     expect(response?.status).toBe(500);
     const body = await response!.json() as { error: { code: string; incidentId: string | null } };
@@ -910,7 +912,7 @@ describe('order domain commands', () => {
     })).rejects.toMatchObject({ code: 'not_found', status: 404 });
     await expect(markPaid({
       database: env.DB,
-      context: { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'user', id: 'usr_forged' } },
+      context: { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'user', id: '' } },
       orderId: pendingId,
       body: payBody('WIRE-USER-1'),
       idempotencyKey: 'command-paid-user00001',

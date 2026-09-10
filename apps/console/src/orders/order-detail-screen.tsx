@@ -776,8 +776,8 @@ export function OrderDetailScreen({
             <section className="notice notice-info" aria-labelledby="console-refund-title">
               <h2 id="console-refund-title" tabIndex={-1} ref={panelHeadingRef}>Request refund for Customer</h2>
               <p>
-                Submit one pending refund request on behalf of the Customer. This anonymous bootstrap Console is a demo,
-                not authenticated Owner access. Manual refunds require confirmation of an external return in a later step.
+                Submit one pending refund request on behalf of the Customer.
+                Manual refunds require confirmation of an external return in a later step.
                 This does not approve, reject, or return money.
               </p>
               <form

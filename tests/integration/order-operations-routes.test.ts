@@ -7,6 +7,12 @@ import { digestOrderCapability } from '@nexus/orders/private-access';
 import { createOrder as persistStorefrontOrder } from '@nexus/orders/commands/order-write';
 import worker from '../../apps/worker/src';
 import {
+  authenticatedConsoleHeaders,
+  defaultTestSession,
+  TEST_AUTH_CONFIGURATION,
+  TEST_CONSOLE_ORIGIN,
+} from '../support/auth-test-env';
+import {
   resetCatalog,
   SIMPLE_CORE,
   TEST_STOREFRONT_ORIGIN,
@@ -130,10 +136,14 @@ function keyFor(label: string): string {
   return `${label}-${'k'.repeat(16)}`.slice(0, 128);
 }
 
-function unversionedRequest(path: string, init?: RequestInit): Promise<Response> {
-  return worker.fetch(new Request(`https://local.invalid${path}`, init), {
+async function unversionedRequest(path: string, init?: RequestInit): Promise<Response> {
+  const headers = path.startsWith('/api/console/')
+    ? await authenticatedConsoleHeaders(init)
+    : new Headers(init?.headers);
+  return worker.fetch(new Request(`https://local.invalid${path}`, { ...init, headers }), {
     DB: env.DB,
     FILES: env.FILES,
+    ...TEST_AUTH_CONFIGURATION,
     STOREFRONT_ORIGIN: TEST_STOREFRONT_ORIGIN,
     ASSETS: { fetch: () => Promise.resolve(new Response('asset')) } as unknown as Fetcher,
   });
@@ -167,14 +177,17 @@ function interceptDatabase(
   });
 }
 
-function racingRequest(path: string, init: RequestInit, database: D1Database): Promise<Response> {
-  const headers = new Headers(init.headers);
+async function racingRequest(path: string, init: RequestInit, database: D1Database): Promise<Response> {
+  const headers = path.startsWith('/api/console/')
+    ? await authenticatedConsoleHeaders(init)
+    : new Headers(init.headers);
   if (!headers.has('X-Nexus-Order-Contract')) {
     headers.set('X-Nexus-Order-Contract', '2');
   }
   return worker.fetch(new Request(`https://local.invalid${path}`, { ...init, headers }), {
     DB: database,
     FILES: env.FILES,
+    ...TEST_AUTH_CONFIGURATION,
     STOREFRONT_ORIGIN: TEST_STOREFRONT_ORIGIN,
     ASSETS: { fetch: () => Promise.resolve(new Response('asset')) } as unknown as Fetcher,
   });
@@ -245,7 +258,7 @@ async function markPaid(reference: string, key: string, paymentRef = 'WIRE-1', m
     headers: {
       'Content-Type': 'application/json',
       'Idempotency-Key': key,
-      Origin: TEST_STOREFRONT_ORIGIN,
+      Origin: TEST_CONSOLE_ORIGIN,
     },
     body: JSON.stringify({ method, reference: paymentRef }),
   });
@@ -257,7 +270,7 @@ async function fulfill(reference: string, key: string): Promise<Response> {
     headers: {
       'Content-Type': 'application/json',
       'Idempotency-Key': key,
-      Origin: TEST_STOREFRONT_ORIGIN,
+      Origin: TEST_CONSOLE_ORIGIN,
     },
     body: JSON.stringify({}),
   });
@@ -269,7 +282,7 @@ async function cancel(reference: string, key: string): Promise<Response> {
     headers: {
       'Content-Type': 'application/json',
       'Idempotency-Key': key,
-      Origin: TEST_STOREFRONT_ORIGIN,
+      Origin: TEST_CONSOLE_ORIGIN,
     },
     body: JSON.stringify({}),
   });
@@ -757,7 +770,9 @@ describe('Order operations HTTP', () => {
     const history = detailBody.order.history as Array<{ action: string; source: string; actorLabel: string }>;
     expect(history.map((event) => event.action)).toEqual(['order_created', 'order_paid', 'order_fulfilled', 'refund_requested']);
     expect(history[3]?.source).toBe('storefront');
-    expect(history[1]?.actorLabel).toBe('Bootstrap Owner (demo)');
+    expect(history[1]).toMatchObject({
+      source: 'user', actorId: (await defaultTestSession()).user.id, actorLabel: 'Console user',
+    });
 
     const privateGet = await workerRequest(`/api/storefront/orders/${created.reference}`, {
       headers: { 'X-Nexus-Order-Capability': CAPABILITY_A },
@@ -918,13 +933,13 @@ describe('Order operations HTTP', () => {
       actor_id: string | null;
     }>();
     expect(stored?.reason).toBe(customerBody.refundRequest.reason);
-    expect(['storefront', 'bootstrap_owner']).toContain(stored?.actor_source);
+    expect(['storefront', 'user']).toContain(stored?.actor_source);
     if (stored?.actor_source === 'storefront') {
       expect(stored.reason).toBe(customerReason);
       expect(stored.actor_id).toBe(orderBefore?.customer_id);
     } else {
       expect(stored?.reason).toBe(ownerReason);
-      expect(stored?.actor_id).toBeNull();
+      expect(stored?.actor_id).toBe((await defaultTestSession()).user.id);
     }
 
     expect(await env.DB.prepare(

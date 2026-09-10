@@ -97,12 +97,17 @@ async function request<T>(context: SmokeContext, input: {
     new Uint8Array(copy).set(body);
     fetchBody = copy;
   }
-  const response = await fetch(new URL(input.route, context.baseUrl), {
+  const target = new URL(input.route, context.baseUrl);
+  const privateRoute = target.origin === new URL(context.baseUrl).origin && target.pathname.startsWith('/api/console/');
+  const consoleCookie = process.env.NEXUS_CONSOLE_COOKIE;
+  if (privateRoute) assert(consoleCookie, 'NEXUS_CONSOLE_COOKIE must contain an authorized Console session cookie.');
+  const response = await fetch(target, {
     method,
     headers: {
       Accept: 'application/json',
       ...(input.requestJson === undefined ? {} : { 'Content-Type': 'application/json; charset=utf-8' }),
       ...input.headers,
+      ...(privateRoute ? { Cookie: consoleCookie!, Origin: target.origin } : {}),
     },
     ...(fetchBody !== undefined && method !== 'GET' && method !== 'HEAD' && method !== 'DELETE' ? { body: fetchBody } : {}),
     redirect: 'manual',

@@ -327,10 +327,10 @@ function queryLocalOrderGraph(reference: string): {
     (SELECT count(*) FROM order_commands c WHERE c.order_id = o.id) AS command_count,
     (SELECT count(*) FROM order_refund_requests r WHERE r.order_id = o.id) AS refund_count
     FROM orders o WHERE o.reference = '${reference}'`;
-  const output = execFileSync('npx', [
-    'wrangler', 'd1', 'execute', 'nexus-s1-468cba-db',
+  const output = execFileSync(process.execPath, [
+    'node_modules/wrangler/bin/wrangler.js', 'd1', 'execute', 'nexus-s1-468cba-db',
     '--local', '--config', 'wrangler.jsonc', '--json', '--command', sql,
-  ], { encoding: 'utf8' });
+  ], { encoding: 'utf8', windowsHide: true });
   const parsed = JSON.parse(output.slice(output.indexOf('['))) as Array<{ results: Array<Record<string, unknown>> }>;
   const row = parsed[0]?.results[0];
   expect(row).toBeTruthy();
