@@ -14,6 +14,7 @@ import type {
   StorefrontCatalog,
   StorefrontProduct,
 } from './storefront-view-types';
+import { formatMoney } from './format-money';
 
 type CatalogState = 'loading' | 'ready' | 'empty' | 'error';
 type OrderRoute = { kind: 'catalog' } | { kind: 'order'; reference: string; capability: string | null };
@@ -38,10 +39,6 @@ function parseRoute(): OrderRoute {
   try { reference = decodeURIComponent(match[1]); } catch { return { kind: 'catalog' }; }
   const fragment = new URLSearchParams(window.location.hash.slice(1));
   return { kind: 'order', reference, capability: fragment.get('capability') };
-}
-
-function money(minor: number, currency: string): string {
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(minor / 100);
 }
 
 function readCatalogCriteria(): { query: string; filter: CatalogFilter } {
@@ -106,8 +103,8 @@ function CatalogProduct({
   onSelect: () => void;
 }) {
   const price = product.minimumEffectivePriceMinor === product.maximumEffectivePriceMinor
-    ? money(product.minimumEffectivePriceMinor, product.currency)
-    : `${money(product.minimumEffectivePriceMinor, product.currency)} to ${money(product.maximumEffectivePriceMinor, product.currency)}`;
+    ? formatMoney(product.minimumEffectivePriceMinor, product.currency)
+    : `${formatMoney(product.minimumEffectivePriceMinor, product.currency)} to ${formatMoney(product.maximumEffectivePriceMinor, product.currency)}`;
   return (
     <article className={`catalog-row${selected ? ' catalog-row-selected' : ''}`}>
       <button className="catalog-choice" type="button" aria-pressed={selected} onClick={onSelect}>
@@ -388,7 +385,7 @@ function PrivateOrderPage({
                 <li key={item.id}>
                   <strong>{item.product.name}</strong>
                   <p>{itemSelection(item)}</p>
-                  <p className="numeric">{item.quantity} × {money(item.unitPriceMinor, item.currency)} = {money(item.lineTotalMinor, item.currency)} {item.currency}</p>
+                  <p className="numeric">{item.quantity} × {formatMoney(item.unitPriceMinor, item.currency)} = {formatMoney(item.lineTotalMinor, item.currency)} {item.currency}</p>
                 </li>
               ))}
             </ul>
@@ -396,7 +393,7 @@ function PrivateOrderPage({
           <section className="amount-ledger">
             <dl>
               <div><dt>Payment reference</dt><dd>{visibleOrder.paymentReference}</dd></div>
-              <div className="total-line"><dt>Total</dt><dd className="numeric">{money(visibleOrder.totalMinor, visibleOrder.currency)} {visibleOrder.currency}</dd></div>
+              <div className="total-line"><dt>Total</dt><dd className="numeric">{formatMoney(visibleOrder.totalMinor, visibleOrder.currency)} {visibleOrder.currency}</dd></div>
             </dl>
           </section>
           {visibleOrder.status === 'paid' ? (
@@ -938,7 +935,7 @@ export function StorefrontApp() {
                           <div>
                             <strong>{line.productName}</strong>
                             <p>{line.variantLabel}</p>
-                            <p className="numeric">{money(line.unitPriceMinor * line.quantity, line.currency)} {line.currency}</p>
+                            <p className="numeric">{formatMoney(line.unitPriceMinor * line.quantity, line.currency)} {line.currency}</p>
                           </div>
                           <div className="field">
                             <label htmlFor={`cart-qty-${line.key}`}>Quantity</label>
@@ -979,7 +976,7 @@ export function StorefrontApp() {
                 </section>
                 <div className="purchase-total">
                   <span>Order total</span>
-                  <strong className="numeric">{cartCurrency ? money(cartTotalMinor, cartCurrency) : '—'}</strong>
+                  <strong className="numeric">{cartCurrency ? formatMoney(cartTotalMinor, cartCurrency) : '—'}</strong>
                 </div>
                 {submitMessage ? <p className="submit-message" role="alert">{submitMessage}</p> : null}
                 {contractOutdated ? <button className="secondary-action" type="button" onClick={() => { window.location.reload(); }}>Reload Storefront</button> : null}

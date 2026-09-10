@@ -7,6 +7,7 @@ import type {
   OrderStatus,
   OrderStatusFilter,
 } from './order-ui-types';
+import { formatMoney } from './format-money';
 
 export interface OrdersScreenProps {
   state: ConsoleOrdersState;
@@ -55,10 +56,6 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   fulfilled: 'Fulfilled',
   canceled: 'Canceled',
 };
-
-function formatMoney(minor: number, currency: string): string {
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(minor / 100);
-}
 
 function itemSelection(item: OrderItemView): string {
   if (!item.product.variant) return 'Simple Product';
