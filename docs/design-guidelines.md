@@ -186,7 +186,7 @@ At 375 px: rail becomes the topbar; tables become summary cards; Storefront grid
 
 - Desktop rail: **Nexus** / Operations Console, optional "Viewing as Store operator" chip (not a role switcher), destinations **Products** and **Orders** only.
 - Active destination: ink fill, `color-accent-ink` text. Hover uses `color-surface-strong`.
-- Account chip uses the bootstrap Store name **Nexus**. No Faire, North Studio, or fake tenant switcher.
+- Account controls show the signed-in Google account and sign-out action. Store branding remains **Nexus**; there is no tenant or role switcher.
 - Deskbar kicker: `Nexus Operations Console · {Products\|Orders}`.
 - Compact: skip link, `Nexus · {destination}`, Menu returns focus to its trigger.
 - Do not add Inventory, Analytics, Retailers, login, or custom-domain controls.
@@ -442,7 +442,7 @@ Do not introduce controls, navigation, empty states, placeholders, or fake data 
 - import history dashboard or background jobs;
 - Faire, Atelier, or other third-party marketplace branding.
 
-The Storefront catalog, checkout, and Console Orders list are in scope. Do not imply authentication exists. Metric cards must not invent revenue.
+The Storefront catalog and checkout remain public; Console requires Google sign-in as described in [Google Console login](./google-console-login.md). Do not imply Owner/Staff permissions exist. Metric cards must not invent revenue.
 
 
 ## 8. Phase 2 implementation gate

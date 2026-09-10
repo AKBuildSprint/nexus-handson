@@ -30,7 +30,7 @@ Every live Order GET/POST requires `X-Nexus-Order-Contract: 2`. Missing or other
 
 Order code lives in `packages/orders`: reads in [`queries/order-read.ts`](./packages/orders/src/queries/order-read.ts); create and command orchestration in [`commands/order-write.ts`](./packages/orders/src/commands/order-write.ts) and [`commands/order-commands.ts`](./packages/orders/src/commands/order-commands.ts); D1 ledger, result, batch, and recovery helpers in [`persistence/command-store.ts`](./packages/orders/src/persistence/command-store.ts); pure actor and eligibility rules in [`transitions/order-transitions.ts`](./packages/orders/src/transitions/order-transitions.ts). Types, validation, and [`private-access.ts`](./packages/orders/src/private-access.ts) stay at the package src root. Commands may import persistence and transitions; those two layers must not import each other. Create-time item snapshots come from [`packages/catalog/src/private-order-snapshot.ts`](./packages/catalog/src/private-order-snapshot.ts) so live catalog and delivery identity are not re-read into Customer output. Persist each create/command through one D1 `batch`; do not replace that with sequential independent writes.
 
-Console Order actions remain an **anonymous bootstrap demo**: a server-assigned bootstrap actor, not authenticated Owner access. S4 owns membership and the evaluator seam. Do not describe this slice as real authorization. S3 decisions are recorded in the [reconciliation plan](./plans/260908-1845-s3-brief-reconciliation/plan.md#confirmed-decisions), with continuity and handoff requirements in its [acceptance phase](./plans/260908-1845-s3-brief-reconciliation/phase-06-acceptance-and-deployed-continuity.md). S4 owns refund Approve/Reject; S5 owns verified payment ingress and money return, including no auto-return for `legacy_unrecorded`.
+Console requires **Google sign-in with an explicitly allowed email**. All allowed accounts operate the existing Nexus store with the same capabilities; Owner/Staff roles, membership, assignment and refund decisions remain outside this login feature. New Order commands record the verified user ID; historical bootstrap actors remain unchanged. See [Google Console login](./docs/google-console-login.md) for OAuth configuration, session behavior and API access requirements. S4 still owns role-based permissions and refund Approve/Reject; S5 owns verified payment ingress and money return, including no auto-return for `legacy_unrecorded`.
 
 ## Requirements
 
@@ -45,6 +45,8 @@ npm ci
 The pinned verification toolchain is recorded in `package.json`: Cloudflare Vite plugin 1.54.0, Wrangler 4.126.0, Workers Vitest pool 0.22.0, Vitest 4.1.11, Playwright 1.62.1, and Papa Parse 5.7.0.
 
 ## Local development
+
+Configure Google OAuth and the allowed email list using [Google Console login](./docs/google-console-login.md) before accessing private Console routes. Missing auth configuration fails closed; public Storefront routes remain available. Back up local D1 before applying migrations.
 
 Apply all D1 migrations to the local API binding first. Run npm and Wrangler from the repository root so migrations and local state resolve through root Wrangler:
 
@@ -190,8 +192,8 @@ Cleanup must never use a broad name or R2 prefix sweep. Preserve non-fixture row
 
 ## Accepted public risk
 
-Console catalog and Order routes remain intentionally anonymous through this teaching slice. Anonymous visitors can mutate catalog state, create Storefront Orders, record manual payments, fulfill, cancel, submit refund requests, view Customer/Order projections, and consume Worker, D1, and R2 quota; input bounds mitigate but do not remove abuse risk. This is not authenticated Owner access.
+Console catalog and Order routes require a verified, allowed Google account and a valid session. Allowed accounts have full existing single-store operator capabilities; there is no Owner/Staff separation. Anonymous visitors can still read public products and create Storefront Orders; a matching private capability permits Customer Order access and refund requests. These public actions consume Worker, D1 and R2 quota; input bounds mitigate but do not remove abuse risk.
 
 The Storefront's private Order capability remains only in the URL fragment and explicit API header. It is still a bearer secret: never log, publish, paste, or share a private Order URL or raw capability. Neither surface may expose delivery configuration, private object identity, the raw capability, or Console-only external payment evidence in public Customer output.
 
-These public `workers.dev` surfaces are anonymous demos, not a custom-domain, business-critical production, payment, or security claim. Real identity and permissions are S4. Automated payment verification and money return are S5. Receipts and MCP are S6.
+These `workers.dev` surfaces remain teaching deployments, not a custom-domain, business-critical production or payment claim. Google identity protects Console access; role permissions and store isolation remain S4. Automated payment verification and money return are S5. Receipts and MCP are S6.
