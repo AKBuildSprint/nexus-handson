@@ -1,0 +1,55 @@
+.console-auth-page {
+  display: flex;
+  min-height: 100dvh;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-8) var(--space-4);
+}
+
+.console-auth-brand {
+  align-self: flex-start;
+}
+
+.console-auth-card {
+  display: grid;
+  width: 100%;
+  max-width: var(--layout-drawer-width);
+  gap: var(--space-6);
+  margin-block: auto;
+  padding: var(--space-6);
+  border-radius: var(--radius-surface);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
+  overflow-wrap: anywhere;
+}
+
+.console-auth-card h1 {
+  border-block-end: var(--border-emphasis) solid var(--color-accent-soft);
+  padding-block-end: var(--space-4);
+}
+
+.console-auth-kicker {
+  color: var(--color-ink-muted);
+  font-size: var(--type-meta-size);
+  line-height: var(--type-meta-line);
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+}
+
+.console-auth-notice {
+  padding: var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--color-error-surface);
+  color: var(--color-error-ink);
+  font-size: var(--type-compact-size);
+  line-height: var(--type-compact-line);
+  overflow-wrap: anywhere;
+}
+
+.console-auth-account {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2);
+  overflow-wrap: anywhere;
+}

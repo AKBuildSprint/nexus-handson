@@ -12,7 +12,7 @@ function actorRejected(): never {
 
 function actorAllowed(action: OrderCommandAction, source: OrderActor['source']): boolean {
   if (source === 'storefront') return action === 'request_refund';
-  return source === 'bootstrap_owner';
+  return source === 'bootstrap_owner' || source === 'user';
 }
 
 export function authorizedActor(
@@ -24,6 +24,11 @@ export function authorizedActor(
   if (context.actor.source === 'storefront') {
     if (context.actor.id !== order.customer_id) actorRejected();
     return { source: 'storefront', id: order.customer_id };
+  }
+  // User identity is supplied by the authenticated server boundary, never a request body.
+  if (context.actor.source === 'user') {
+    if (!context.actor.id || context.actor.id.trim() !== context.actor.id) actorRejected();
+    return { source: 'user', id: context.actor.id };
   }
   if (context.actor.source !== 'bootstrap_owner' || context.actor.id !== null) actorRejected();
   return { source: 'bootstrap_owner', id: null };

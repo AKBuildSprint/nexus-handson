@@ -6,4 +6,4 @@ Vite root is this app. Keep the Cloudflare plugin `configPath` on repo-root `wra
 
 Tokens: [`src/styles/design-tokens.css`](src/styles/design-tokens.css). Destinations remain Products and Orders. Import `@nexus/catalog/*` only — do not depend on `@nexus/orders`. Order UI types stay in this app.
 
-Do not add login, role switching, or custom-domain chrome. Console remains an anonymous bootstrap demo.
+Google-only login protects the Console. Keep role switching and custom-domain chrome out of scope; allowed accounts share single-store operator access. Follow `docs/google-console-login.md` at the repository root for setup and access behavior.

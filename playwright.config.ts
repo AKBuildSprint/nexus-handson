@@ -54,6 +54,7 @@ export default defineConfig({
   },
   use: {
     trace: 'retain-on-failure',
+    storageState: process.env.PLAYWRIGHT_CONSOLE_STORAGE_STATE,
   },
   projects: [
     {

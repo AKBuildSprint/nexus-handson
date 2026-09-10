@@ -24,6 +24,6 @@ Run npm, Wrangler, Vite, and tests from the repository root. Root [`wrangler.jso
 - Rewrite applied files under `migrations/`.
 - One-off hex / `px` / box-shadow beside the token files.
 - Compatibility barrels, old `src/` shims, or a generic shared package.
-- Describe Console Order actions as authenticated Owner access. They remain an anonymous bootstrap demo.
+- Describe Console Order actions as authenticated Owner/Staff access. Google sign-in grants allowed accounts the same single-store operator access; role-based permissions remain out of scope.
 
 Before reporting UI work done: check 375 px for horizontal scroll, and that primary actions still use `color-accent` fill with `color-accent-ink` text.

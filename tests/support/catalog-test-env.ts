@@ -6,7 +6,9 @@ import migrationFour from '../../migrations/0004-orders.sql?raw';
 import migrationFive from '../../migrations/0005-order-operations.sql?raw';
 import migrationSix from '../../migrations/0006-order-brief-contract.sql?raw';
 import migrationSeven from '../../migrations/0007-manual-payments.sql?raw';
+import migrationEight from '../../migrations/0008-console-google-auth.sql?raw';
 import worker from '../../apps/worker/src';
+import { authenticatedConsoleHeaders, resetAuthTestSession, TEST_AUTH_CONFIGURATION } from './auth-test-env';
 
 function splitMigrationSql(sql: string): string[] {
   const queries: string[] = [];
@@ -79,16 +81,23 @@ export const catalogMigrations: D1Migration[] = [
   { name: '0005-order-operations.sql', queries: splitMigrationSql(migrationFive) },
   { name: '0006-order-brief-contract.sql', queries: splitMigrationSql(migrationSix) },
   { name: '0007-manual-payments.sql', queries: splitMigrationSql(migrationSeven) },
+  { name: '0008-console-google-auth.sql', queries: splitMigrationSql(migrationEight) },
 ];
 
-export type CatalogMigrationThrough = 4 | 5 | 6 | 7;
+export type CatalogMigrationThrough = 4 | 5 | 6 | 7 | 8;
 
-export function applyCatalogMigrations(through: CatalogMigrationThrough = 7): Promise<void> {
+export function applyCatalogMigrations(through: CatalogMigrationThrough = 8): Promise<void> {
   return applyD1Migrations(env.DB, catalogMigrations.slice(0, through));
 }
 
 export async function resetCatalogThrough(through: CatalogMigrationThrough): Promise<void> {
+  resetAuthTestSession();
   const tables = [
+    'nexus_auth_session',
+    'nexus_auth_account',
+    'nexus_auth_verification',
+    'nexus_auth_rate_limit',
+    'nexus_auth_user',
     'order_commands',
     'payments',
     'order_history',
@@ -112,13 +121,16 @@ export async function resetCatalogThrough(through: CatalogMigrationThrough): Pro
 }
 
 export async function resetCatalog(): Promise<void> {
-  return resetCatalogThrough(7);
+  return resetCatalogThrough(8);
 }
 
 export const TEST_STOREFRONT_ORIGIN = 'https://storefront.test';
 
-export function workerRequest(path: string, init?: RequestInit): Promise<Response> {
-  const headers = new Headers(init?.headers);
+/** Existing domain HTTP tests run as a signed-in operator; auth boundary tests use authWorkerRequest. */
+export async function workerRequest(path: string, init?: RequestInit): Promise<Response> {
+  const headers = path.startsWith('/api/console/')
+    ? await authenticatedConsoleHeaders(init)
+    : new Headers(init?.headers);
   const pathname = path.split('?')[0] ?? path;
   if (
     !headers.has('X-Nexus-Order-Contract')
@@ -129,6 +141,7 @@ export function workerRequest(path: string, init?: RequestInit): Promise<Respons
   return worker.fetch(new Request(`https://local.invalid${path}`, { ...init, headers }), {
     DB: env.DB,
     FILES: env.FILES,
+    ...TEST_AUTH_CONFIGURATION,
     STOREFRONT_ORIGIN: TEST_STOREFRONT_ORIGIN,
     ASSETS: { fetch: () => Promise.resolve(new Response('asset')) } as unknown as Fetcher,
   });

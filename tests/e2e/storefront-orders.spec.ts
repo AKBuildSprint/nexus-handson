@@ -57,6 +57,7 @@ async function createSimpleProduct(page: Page, name: string): Promise<string> {
 async function completeOrder(page: Page, reference: string) {
   const response = await page.request.post(`${CONSOLE_ORIGIN}/api/console/orders/${encodeURIComponent(reference)}/payments/manual`, {
     headers: {
+      Origin: CONSOLE_ORIGIN,
       Accept: 'application/json',
       'Content-Type': 'application/json',
       'Idempotency-Key': crypto.randomUUID(),
@@ -70,6 +71,7 @@ async function completeOrder(page: Page, reference: string) {
 async function cancelOrder(page: Page, reference: string) {
   const response = await page.request.post(`${CONSOLE_ORIGIN}/api/console/orders/${encodeURIComponent(reference)}/cancel`, {
     headers: {
+      Origin: CONSOLE_ORIGIN,
       Accept: 'application/json',
       'Content-Type': 'application/json',
       'Idempotency-Key': crypto.randomUUID(),
@@ -147,13 +149,19 @@ function orderItemLines(body: CustomerOrderResponse): OrderItemLine[] {
   }));
 }
 
+function expectedMoney(minor: number, currency: string): string {
+  const formatter = new Intl.NumberFormat(undefined, { style: 'currency', currency });
+  const fractionDigits = formatter.resolvedOptions().maximumFractionDigits ?? 0;
+  return formatter.format(minor / (10 ** fractionDigits));
+}
+
 async function expectUsableOrderItemSnapshots(page: Page, items: OrderItemLine[]) {
-  const expected = await page.evaluate((rows) => rows.map((item) => ({
+  const expected = items.map((item) => ({
     name: item.name,
     quantity: String(item.quantity),
-    unitPrice: `${new Intl.NumberFormat(undefined, { style: 'currency', currency: item.currency }).format(item.unitPriceMinor / 100)} ${item.currency}`,
-    lineTotal: `${new Intl.NumberFormat(undefined, { style: 'currency', currency: item.currency }).format(item.lineTotalMinor / 100)} ${item.currency}`,
-  })), items);
+    unitPrice: `${expectedMoney(item.unitPriceMinor, item.currency)} ${item.currency}`,
+    lineTotal: `${expectedMoney(item.lineTotalMinor, item.currency)} ${item.currency}`,
+  }));
   const table = page.locator('.order-items-table');
   const mobile = page.locator('.order-items-mobile');
   const metricsOf = (locator: Locator) => locator.evaluate((el) => {
@@ -234,10 +242,10 @@ function queryLocalOrderGraph(reference: string): {
     (SELECT count(*) FROM order_commands c WHERE c.order_id = o.id) AS command_count,
     (SELECT count(*) FROM order_refund_requests r WHERE r.order_id = o.id) AS refund_count
     FROM orders o WHERE o.reference = '${reference}'`;
-  const output = execFileSync('npx', [
-    'wrangler', 'd1', 'execute', 'nexus-s1-468cba-db',
+  const output = execFileSync(process.execPath, [
+    'node_modules/wrangler/bin/wrangler.js', 'd1', 'execute', 'nexus-s1-468cba-db',
     '--local', '--config', 'wrangler.jsonc', '--json', '--command', sql,
-  ], { encoding: 'utf8' });
+  ], { encoding: 'utf8', windowsHide: true });
   const parsed = JSON.parse(output.slice(output.indexOf('['))) as Array<{ results: Array<Record<string, unknown>> }>;
   const row = parsed[0]?.results[0];
   expect(row).toBeTruthy();

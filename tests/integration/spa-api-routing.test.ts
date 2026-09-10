@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { env } from 'cloudflare:test';
 import worker from '../../apps/worker/src';
 import type { Env } from '../../apps/worker/src/environment';
 
@@ -9,7 +10,7 @@ function testEnvironment(assetFetch: (request: Request) => Promise<Response>): P
 }
 
 describe('local SPA/API dispatch', () => {
-  it.each(['/api', '/api/console/missing', '/api/storefront/products/missing'])(
+  it.each(['/api', '/api/storefront/products/missing'])(
     'returns the stable JSON route_not_found envelope for %s',
     async (pathname) => {
       const assetFetch = vi.fn();
@@ -31,6 +32,17 @@ describe('local SPA/API dispatch', () => {
       expect(assetFetch).not.toHaveBeenCalled();
     },
   );
+
+  it('fails closed for private API routes when auth is not configured', async () => {
+    const assetFetch = vi.fn();
+    const response = await worker.fetch(
+      new Request('https://local.invalid/api/console/missing'),
+      { ...testEnvironment(assetFetch), DB: env.DB, FILES: env.FILES },
+    );
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ error: { code: 'auth_not_configured' } });
+    expect(assetFetch).not.toHaveBeenCalled();
+  });
 
   it.each([
     '/console/products',

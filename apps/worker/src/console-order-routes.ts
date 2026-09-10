@@ -35,8 +35,8 @@ const QUERY_KEYS: Record<string, true> = {
   refund: true,
 };
 
-function bootstrapOwnerContext(): OrderContext {
-  return { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'bootstrap_owner', id: null } };
+function consoleUserContext(userId: string): OrderContext {
+  return { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'user', id: userId } };
 }
 
 function unexpectedConsoleError(
@@ -137,10 +137,11 @@ async function lookupBootstrapOrderId(
 export async function routeConsoleOrderRequest(
   request: Request,
   database: D1Database,
+  authenticatedUserId: string,
 ): Promise<Response | null> {
   const url = new URL(request.url);
   const pathname = url.pathname;
-  const context = bootstrapOwnerContext();
+  const context = consoleUserContext(authenticatedUserId);
 
   if (request.method === 'GET' && pathname === '/api/console/orders') {
     if (!orderContractAccepted(request)) return orderContractOutdatedResponse();

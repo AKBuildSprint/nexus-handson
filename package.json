@@ -39,6 +39,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@nexus/auth": "0.0.0",
     "@nexus/catalog": "0.0.0",
     "@nexus/orders": "0.0.0",
     "@cloudflare/vite-plugin": "1.54.0",
@@ -50,6 +51,7 @@
     "@types/react-dom": "19.2.5",
     "@vitejs/plugin-react": "6.1.0",
     "@vitest/browser-playwright": "4.1.11",
+    "better-call": "1.4.0",
     "tsx": "4.20.6",
     "typescript": "7.0.2",
     "vite": "8.2.2",

@@ -11,6 +11,8 @@ import {
 
 const prefix = 'verify-260826-csv015';
 const baseUrl = 'https://nexus-s1-468cba.cpp-software-solutions.workers.dev';
+const consoleCookie = process.env.NEXUS_CONSOLE_COOKIE;
+if (!consoleCookie) throw new Error('NEXUS_CONSOLE_COOKIE must contain an authorized Console session cookie.');
 const source = readFileSync('tests/fixtures/import/worst-case-500-rows.csv', 'utf8');
 const parsed = Papa.parse<CsvRow>(source, { header: true, skipEmptyLines: true });
 if (parsed.errors.length > 0 || parsed.data.length !== 500) {
@@ -27,6 +29,8 @@ const csv = `${CSV_HEADER_LINE}\n${rows.map(serializeCsvRow).join('\n')}\n`;
 const response = await fetch(`${baseUrl}/api/console/imports`, {
   method: 'POST',
   headers: {
+    Cookie: consoleCookie,
+    Origin: new URL(baseUrl).origin,
     'Content-Type': CSV_CONTENT_TYPE,
     [CSV_FILENAME_HEADER]: encodeURIComponent(`${prefix}-500.csv`),
   },

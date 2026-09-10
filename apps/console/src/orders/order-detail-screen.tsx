@@ -16,6 +16,7 @@ import type {
   OrderItemView,
   OrderStatus,
 } from './order-ui-types';
+import { formatMoney } from './format-money';
 
 interface OrderDetailScreenProps {
   reference: string;
@@ -100,10 +101,6 @@ function detailIntro(order: ConsoleOrderDetailView): string {
     return 'Review the stored Customer Order snapshot. This Order is fulfilled. Fulfillment is an operational status and does not grant Product Access.';
   }
   return 'Review the stored Customer Order snapshot. This Order is paid. Fulfill records an operational status change and does not grant Product Access.';
-}
-
-function formatMoney(minor: number, currency: string): string {
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(minor / 100);
 }
 
 function statusPresentation(status: string): { label: string; className: string } {
@@ -779,8 +776,8 @@ export function OrderDetailScreen({
             <section className="notice notice-info" aria-labelledby="console-refund-title">
               <h2 id="console-refund-title" tabIndex={-1} ref={panelHeadingRef}>Request refund for Customer</h2>
               <p>
-                Submit one pending refund request on behalf of the Customer. This anonymous bootstrap Console is a demo,
-                not authenticated Owner access. Manual refunds require confirmation of an external return in a later step.
+                Submit one pending refund request on behalf of the Customer.
+                Manual refunds require confirmation of an external return in a later step.
                 This does not approve, reject, or return money.
               </p>
               <form

@@ -1,0 +1,10 @@
+{
+  "name": "@nexus/auth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { "./*": "./src/*.ts" },
+  "dependencies": {
+    "better-auth": "1.7.3"
+  }
+}

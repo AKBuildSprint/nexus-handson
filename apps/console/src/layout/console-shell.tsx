@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ConsoleAccountControl, useConsoleSession } from '../auth/console-auth';
 
 interface ConsoleShellProps {
   children: ReactNode;
@@ -18,6 +19,7 @@ export function ConsoleShell({
   onOpenOrders,
 }: ConsoleShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const session = useConsoleSession();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -78,7 +80,7 @@ export function ConsoleShell({
           </nav>
         </div>
         <div className="console-rail-bottom">
-          <div className="console-account">
+          {session ? <ConsoleAccountControl /> : <div className="console-account">
             <span className="console-avatar" aria-hidden="true">
               <span className="icon-glyph">person</span>
             </span>
@@ -86,7 +88,7 @@ export function ConsoleShell({
               <div className="console-account-name">Nexus</div>
               <div className="console-account-meta">Store operator</div>
             </div>
-          </div>
+          </div>}
           {railNote ? <p className="console-rail-note">{railNote}</p> : null}
         </div>
       </aside>
@@ -151,6 +153,7 @@ export function ConsoleShell({
           <button className="button" type="button" onClick={closeMenu}>
             Close menu
           </button>
+          <ConsoleAccountControl />
         </nav>
       ) : null}
 

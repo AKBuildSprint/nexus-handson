@@ -173,6 +173,7 @@ function refundFromRow(row: RefundRow | undefined): RefundRequestProjection | nu
 }
 
 function historyActorLabel(source: ConsoleOrderHistoryEntry['source']): string {
+  if (source === 'user') return 'Console user';
   if (source === 'bootstrap_owner' || source === 'console') return 'Bootstrap Owner (demo)';
   if (source === 'storefront' || source === 'customer_capability') return 'Customer';
   return '';
