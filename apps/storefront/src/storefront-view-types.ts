@@ -63,9 +63,10 @@ export interface CustomerOrderView {
   paymentNextStep: string | null;
   refundRequest: {
     id: string;
-    status: 'pending';
+    status: 'pending' | 'approved' | 'rejected';
     reason: string;
     createdAt: string;
+    decidedAt: string | null;
   } | null;
 }
 

@@ -24,6 +24,6 @@ Run npm, Wrangler, Vite, and tests from the repository root. Root [`wrangler.jso
 - Rewrite applied files under `migrations/`.
 - One-off hex / `px` / box-shadow beside the token files.
 - Compatibility barrels, old `src/` shims, or a generic shared package.
-- Describe Console Order actions as authenticated Owner access. They remain an anonymous bootstrap demo.
+- Claim that the checked-out S4 authentication and Store isolation are deployed without remote migration, provisioning, and smoke evidence.
 
 Before reporting UI work done: check 375 px for horizontal scroll, and that primary actions still use `color-accent` fill with `color-accent-ink` text.

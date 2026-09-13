@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { expect, test } from '../support/console-auth-fixtures';
 
 const viewports = [
   { name: 'desktop', width: 1280, height: 900 },
@@ -37,7 +38,7 @@ async function expectNoHorizontalOverflow(page: Page, width: number) {
 }
 
 for (const viewport of viewports) {
-  test(`creates, edits, lists, reopens, and deep-links a simple Product at ${viewport.name}`, async ({ page }) => {
+  test(`creates, edits, lists, reopens, and deep-links a simple Product at ${viewport.name}`, async ({ consoleOwnerPage: page }) => {
     const name = uniqueName(viewport.name);
     const editedName = `${name} Edited`;
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
@@ -84,7 +85,7 @@ for (const viewport of viewports) {
     await expectNoHorizontalOverflow(page, viewport.width);
   });
 
-  test(`keeps and discards dirty Product navigation and associates field errors at ${viewport.name}`, async ({ page }) => {
+  test(`keeps and discards dirty Product navigation and associates field errors at ${viewport.name}`, async ({ consoleOwnerPage: page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto('/console/products/new');
     const name = uniqueName(`${viewport.name}-dirty`);
@@ -122,10 +123,11 @@ for (const viewport of viewports) {
   });
 }
 
-test('exposes skip navigation, focusable filters, and keyboard-visible Product controls', async ({ page }) => {
+test('exposes skip navigation, focusable filters, and keyboard-visible Product controls', async ({ consoleOwnerPage: page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/console/products');
-  await page.keyboard.press('Tab');
+  await page.locator('.console-nav').getByRole('button', { name: 'Products' }).focus();
+  await page.keyboard.press('Shift+Tab');
   await expect(page.getByRole('link', { name: 'Skip to main content' })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.locator('#console-content')).toBeFocused();

@@ -1,6 +1,7 @@
 import { env } from 'cloudflare:test';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { preflightExactMatch } from '@nexus/catalog/import/exact-match';
+import { executeCsvImport } from '@nexus/catalog/import/import-command';
 import { ImportPersistenceError, executeImportWrite, IMPORT_TOTAL_STATEMENTS } from '@nexus/catalog/import/import-write';
 import { parseCsvBytes } from '@nexus/catalog/import/csv-parser';
 import { validateCsvRows } from '@nexus/catalog/import/csv-validator';
@@ -8,7 +9,7 @@ import { CSV_CONTENT_TYPE, CSV_FILENAME_HEADER, CSV_HEADER, CSV_HEADER_LINE, CSV
 import identityConflicts from '../fixtures/import/identity-conflicts.csv?raw';
 import mixedShapes from '../fixtures/import/mixed-shapes.csv?raw';
 import worstCase from '../fixtures/import/worst-case-500-rows.csv?raw';
-import { resetCatalog, workerRequest } from '../support/catalog-test-env';
+import { consoleRequest, getConsoleIdentity, resetCatalog } from '../support/catalog-test-env';
 
 function simpleRow(slug: string): CsvRow {
   const row = Object.fromEntries(CSV_HEADER.map((column) => [column, ''])) as CsvRow;
@@ -37,7 +38,7 @@ async function postCsv(source: string | Uint8Array, confirm = false) {
     body = new ArrayBuffer(source.byteLength);
     new Uint8Array(body).set(source);
   }
-  const response = await workerRequest('/api/console/imports', {
+  const response = await consoleRequest('/api/console/imports', {
     method: 'POST',
     headers: {
       'Content-Type': CSV_CONTENT_TYPE,
@@ -60,7 +61,7 @@ describe('CSV R2 and D1 lifecycle', () => {
   });
 
   it('serves and imports the exact template, retains the original, then re-imports as Duplicate', async () => {
-    const templateResponse = await workerRequest('/api/console/imports/template');
+    const templateResponse = await consoleRequest('/api/console/imports/template');
     expect(templateResponse.headers.get('Content-Type')).toBe(CSV_CONTENT_TYPE);
     expect(templateResponse.headers.get('Content-Disposition')).toBe('attachment; filename="nexus-product-import-template.csv"');
     const templateBytes = new Uint8Array(await templateResponse.arrayBuffer());
@@ -185,10 +186,11 @@ describe('CSV R2 and D1 lifecycle', () => {
   });
 
   it('imports the all-new 500-row fixture as 8,501 records with the fixed 45-statement architecture', async () => {
-    const plan = await preflightExactMatch(env.DB, parsedValidation(worstCase));
+    const plan = await preflightExactMatch(env.DB, 'store_nexus', parsedValidation(worstCase));
     expect([plan.products.length, plan.groups.length, plan.values.length, plan.variants.length, plan.memberships.length]).toEqual([500, 2500, 2500, 500, 2500]);
     const result = await executeImportWrite({
       database: env.DB,
+      identity: await getConsoleIdentity(),
       plan,
       importId: 'imp_worst_case',
       filename: 'worst-case-500-rows.csv',
@@ -205,11 +207,11 @@ describe('CSV R2 and D1 lifecycle', () => {
     expect((await postCsv(CSV_TEMPLATE)).status).toBe(200);
     const extra = serializeCsvRow(simpleRow('batch-new-peer'));
     const source = `${CSV_TEMPLATE.trimEnd()}\n${extra}\n`;
-    const plan = await preflightExactMatch(env.DB, parsedValidation(source));
+    const plan = await preflightExactMatch(env.DB, 'store_nexus', parsedValidation(source));
     await env.DB.prepare("UPDATE products SET revision=revision+1 WHERE slug='focus-pack'").run();
     let failure: unknown;
     try {
-      await executeImportWrite({ database: env.DB, plan, importId: 'imp_drift', filename: 'drift.csv', sizeBytes: source.length, privateObjectKey: 'imports/drift.csv' });
+      await executeImportWrite({ database: env.DB, identity: await getConsoleIdentity(), plan, importId: 'imp_drift', filename: 'drift.csv', sizeBytes: source.length, privateObjectKey: 'imports/drift.csv' });
     } catch (error) {
       failure = error;
     }
@@ -217,5 +219,103 @@ describe('CSV R2 and D1 lifecycle', () => {
     expect((failure as ImportPersistenceError).statementCount).toBe(45);
     expect(await env.DB.prepare("SELECT count(*) AS count FROM products WHERE slug='batch-new-peer'").first<number>('count')).toBe(0);
     expect(await env.DB.prepare("SELECT count(*) AS count FROM imports WHERE id='imp_drift'").first<number>('count')).toBe(0);
+  });
+
+  it('retains the original and committed rows when D1 commits before its response fails', async () => {
+    const identity = await getConsoleIdentity();
+    const committedThenFailed = {
+      prepare: env.DB.prepare.bind(env.DB),
+      batch: async (statements: D1PreparedStatement[]) => {
+        await env.DB.batch(statements);
+        await env.DB.prepare(
+          "UPDATE store_memberships SET status='revoked', revoked_at=strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id=?",
+        ).bind(identity.membershipId).run();
+        throw new Error('response channel failed after commit');
+      },
+    } as unknown as D1Database;
+
+    await expect(executeCsvImport({
+      database: committedThenFailed,
+      files: env.FILES,
+      identity,
+      filename: 'commit-then-error.csv',
+      bytes: new TextEncoder().encode(CSV_TEMPLATE),
+      confirmedVariants: false,
+    })).rejects.toMatchObject({ code: 'persistence_failed' });
+
+    expect(await env.DB.prepare('SELECT count(*) AS count FROM imports').first<number>('count')).toBe(1);
+    expect(await env.DB.prepare('SELECT count(*) AS count FROM products').first<number>('count')).toBe(2);
+    expect((await env.FILES.list({ prefix: 'imports/' })).objects).toHaveLength(1);
+  });
+
+  it('retains an original when the post-failure ownership read is unavailable', async () => {
+    let batchFailed = false;
+    const unavailableAfterBatch = {
+      prepare: (...args: Parameters<D1Database['prepare']>) => {
+        if (batchFailed) throw new Error('ownership lookup unavailable');
+        return env.DB.prepare(...args);
+      },
+      batch: async () => {
+        batchFailed = true;
+        throw new Error('unknown batch outcome');
+      },
+    } as unknown as D1Database;
+
+    await expect(executeCsvImport({
+      database: unavailableAfterBatch, files: env.FILES, identity: await getConsoleIdentity(),
+      filename: 'unknown.csv', bytes: new TextEncoder().encode(CSV_TEMPLATE), confirmedVariants: false,
+    })).rejects.toMatchObject({ code: 'persistence_failed' });
+    expect((await env.FILES.list({ prefix: 'imports/' })).objects).toHaveLength(1);
+    expect(await env.DB.prepare('SELECT count(*) AS count FROM imports').first<number>('count')).toBe(0);
+  });
+
+  it('returns a sanitized compensation error and retains the original when deletion fails', async () => {
+    const failingDelete = new Proxy(env.FILES, {
+      get(target, property) {
+        if (property === 'delete') return () => Promise.reject(new Error('forced delete failure'));
+        const value = Reflect.get(target, property);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    }) as R2Bucket;
+    const rejectedBatch = {
+      prepare: env.DB.prepare.bind(env.DB),
+      batch: () => Promise.reject(new Error('confirmed failed batch')),
+    } as unknown as D1Database;
+
+    await expect(executeCsvImport({
+      database: rejectedBatch, files: failingDelete, identity: await getConsoleIdentity(),
+      filename: 'compensation.csv', bytes: new TextEncoder().encode(CSV_TEMPLATE), confirmedVariants: false,
+    })).rejects.toMatchObject({ code: 'storage_compensation_failed', incidentId: expect.any(String) });
+    expect((await env.FILES.list({ prefix: 'imports/' })).objects).toHaveLength(1);
+  });
+
+  it('does not write provider exception details to import diagnostics or responses', async () => {
+    const sentinel = 'PRIVATE_IMPORT_PROVIDER_SENTINEL';
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const failedBatch = {
+        prepare: env.DB.prepare.bind(env.DB),
+        batch: () => Promise.reject(new Error(sentinel)),
+      } as unknown as D1Database;
+      let failure: unknown;
+      try {
+        await executeCsvImport({
+          database: failedBatch, files: env.FILES, identity: await getConsoleIdentity(),
+          filename: 'diagnostic.csv', bytes: new TextEncoder().encode(CSV_TEMPLATE), confirmedVariants: false,
+        });
+      } catch (error) {
+        failure = error;
+      }
+      expect(failure).toMatchObject({ code: 'persistence_failed' });
+      expect(failure).toBeInstanceOf(Error);
+      expect((failure as Error).message).not.toContain(sentinel);
+      for (const [message, details] of log.mock.calls) {
+        expect(message).toBe('CSV import persistence failure');
+        expect(Object.keys(details as object).sort()).toEqual(['classification', 'incidentId']);
+        expect(Object.values(details as object).some((value) => value instanceof Error)).toBe(false);
+      }
+    } finally {
+      log.mockRestore();
+    }
   });
 });

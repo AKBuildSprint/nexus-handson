@@ -1,7 +1,18 @@
 import { env } from 'cloudflare:test';
-import { beforeEach, describe, expect, it } from 'vitest';
-import { putDeliveryFile } from '@nexus/catalog/files/delivery-file';
-import { resetCatalog, SIMPLE_CORE, workerRequest } from '../support/catalog-test-env';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
+import { deleteDeliveryFile, putDeliveryFile } from '@nexus/catalog/files/delivery-file';
+import { schemaPreviewHash } from '@nexus/catalog/schema-change';
+import { createConsoleSession, TEST_CONSOLE_ORIGIN } from '../support/identity-test-env';
+import {
+  consoleRequest,
+  getConsoleIdentity,
+  oneVariantSchema,
+  resetCatalog,
+  SIMPLE_CORE,
+  VARIANT_CORE,
+  workerRequest,
+} from '../support/catalog-test-env';
 
 beforeEach(async () => {
   await resetCatalog();
@@ -10,7 +21,7 @@ beforeEach(async () => {
 });
 
 async function createSimple(): Promise<string> {
-  const response = await workerRequest('/api/console/products', {
+  const response = await consoleRequest('/api/console/products', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ product: SIMPLE_CORE, schema: null, previewHash: null }),
   });
@@ -25,11 +36,143 @@ async function sha256Hex(bytes: ArrayBuffer): Promise<string> {
   return Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+async function createPurchasedVariantFixture(): Promise<{
+  orderId: string;
+  productId: string;
+  snapshotBytes: ArrayBuffer;
+  snapshotKey: string;
+  variantId: string;
+}> {
+  const product = { ...VARIANT_CORE, status: 'active' as const };
+  const baseSchema = oneVariantSchema();
+  const schema = {
+    ...baseSchema,
+    rows: baseSchema.rows.map((row) => ({
+      ...row,
+      delivery: {
+        source: 'variant_override' as const,
+        accessTitle: 'Purchased variant file',
+        accessInstructions: 'Open the retained variant file',
+      },
+    })),
+  };
+  const preview = await consoleRequest('/api/console/products/schema/preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ productId: null, productSlug: 'focus-pack', product, schema }),
+  });
+  expect(preview.status).toBe(200);
+  const previewHash = (await preview.json() as { previewHash: string }).previewHash;
+  const created = await consoleRequest('/api/console/products', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ product, schema, previewHash }),
+  });
+  expect(created.status).toBe(201);
+  const detail = (await created.json() as { product: ProductDetailResponse }).product;
+  const variant = detail.variants[0];
+  expect(variant).toBeTruthy();
+
+  const snapshotBytes = pdfBytes('purchased-variant');
+  const uploaded = await consoleRequest(
+    `/api/console/products/${detail.id}/variants/${variant.id}/delivery-file`,
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'If-Match': `"${detail.revision}"`,
+        'X-Nexus-Filename': 'purchased-variant.pdf',
+      },
+      body: snapshotBytes,
+    },
+  );
+  expect(uploaded.status).toBe(200);
+  const snapshotKey = await env.DB.prepare(
+    'SELECT delivery_file_key FROM product_variants WHERE product_id=? AND id=?',
+  ).bind(detail.id, variant.id).first<string>('delivery_file_key');
+  expect(snapshotKey).toBeTruthy();
+
+  const ordered = await workerRequest('/api/storefront/orders', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Idempotency-Key': 'purchased-variant-file-0001',
+      'X-Nexus-Order-Capability': 'V'.repeat(43),
+    },
+    body: JSON.stringify({
+      customer: { name: 'Variant Customer', email: 'variant-customer@example.test' },
+      items: [{ productId: detail.id, variantId: variant.id, quantity: 1 }],
+    }),
+  });
+  expect(ordered.status).toBe(201);
+  const reference = (await ordered.json() as { reference: string }).reference;
+  const orderId = await env.DB.prepare('SELECT id FROM orders WHERE reference=?')
+    .bind(reference).first<string>('id');
+  expect(orderId).toBeTruthy();
+  return {
+    orderId: orderId!,
+    productId: detail.id,
+    snapshotBytes,
+    snapshotKey: snapshotKey!,
+    variantId: variant.id,
+  };
+}
+
+async function expectPurchasedSnapshotRetained(input: {
+  orderId: string;
+  snapshotBytes: ArrayBuffer;
+  snapshotKey: string;
+}): Promise<void> {
+  expect(await env.DB.prepare('SELECT private_file_key FROM order_lines WHERE order_id=?')
+    .bind(input.orderId).first<string>('private_file_key')).toBe(input.snapshotKey);
+  const retained = await env.FILES.get(input.snapshotKey);
+  expect(retained).not.toBeNull();
+  expect(new Uint8Array(await retained!.arrayBuffer())).toEqual(new Uint8Array(input.snapshotBytes));
+}
+
+async function expectEveryDeliveryObjectReadable(): Promise<string[]> {
+  const keys = (await env.FILES.list()).objects.map((object) => object.key).sort();
+  for (const key of keys) {
+    const object = await env.FILES.get(key);
+    expect(object).not.toBeNull();
+    expect((await object!.arrayBuffer()).byteLength).toBeGreaterThan(0);
+  }
+  return keys;
+}
+
 
 describe('delivery replacement and compensation', () => {
+  it('denies Staff indirect removal while permitted Owner removal retains the paid snapshot', async () => {
+    const fixture = await createPurchasedVariantFixture();
+    const reference = await env.DB.prepare('SELECT reference FROM orders WHERE id=?').bind(fixture.orderId).first<string>('reference');
+    expect((await consoleRequest(`/api/console/orders/${reference}/payments/manual`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'retention-owner-payment-0001' }, body: JSON.stringify({ method: 'Bank', reference: 'RETENTION-PAID' }) })).status).toBe(200);
+    const staff = await createConsoleSession({ email: 'retention-staff@example.test', role: 'staff' });
+    const detail = await (await consoleRequest('/api/console/products/by-slug/focus-pack')).json() as ProductDetailResponse;
+    const product = { ...VARIANT_CORE, status: 'active' as const };
+    const schema = { groups: [], rows: [], confirmCombinations: false };
+    const headers = { Cookie: staff.cookie, Origin: TEST_CONSOLE_ORIGIN, 'Content-Type': 'application/json', 'If-Match': '"2"' };
+    const attempts: Array<{ path: string; init: RequestInit; status: number }> = [
+      { path: `/api/console/products/${fixture.productId}/variants/${fixture.variantId}/delivery-file`, init: { method: 'DELETE', headers }, status: 403 },
+      { path: `/api/console/products/${fixture.productId}`, init: { method: 'PUT', headers, body: JSON.stringify({ product, optionLabels: { groups: detail.optionGroups.map(group => ({ id: group.id, name: group.name, values: group.values.map(value => ({ id: value.id, label: value.label })) })) }, variantEdits: detail.variants.map(variant => ({ id: variant.id, sku: variant.sku, status: 'disabled', priceOverride: null, delivery: { source: 'product_default' } })) }) }, status: 403 },
+      { path: `/api/console/products/${fixture.productId}/schema`, init: { method: 'PUT', headers, body: JSON.stringify({ product, schema, previewHash: await schemaPreviewHash(product, schema) }) }, status: 403 },
+      { path: `/api/console/products/${fixture.productId}`, init: { method: 'DELETE', headers }, status: 404 },
+    ];
+    for (const attempt of attempts) {
+      expect((await workerRequest(attempt.path, attempt.init)).status).toBe(attempt.status);
+      expect(await env.DB.prepare('SELECT revision FROM products WHERE id=?').bind(fixture.productId).first<number>('revision')).toBe(2);
+      await expectPurchasedSnapshotRetained(fixture);
+    }
+    const removed = await consoleRequest(`/api/console/products/${fixture.productId}/variants/${fixture.variantId}/delivery-file`, { method: 'DELETE', headers: { 'If-Match': '"2"' } });
+    expect(removed.status).toBe(200);
+    expect(await env.DB.prepare('SELECT delivery_file_key FROM product_variants WHERE id=?').bind(fixture.variantId).first<string | null>('delivery_file_key')).toBeNull();
+    await expectPurchasedSnapshotRetained(fixture);
+    expect(await env.DB.prepare('SELECT status FROM orders WHERE id=?').bind(fixture.orderId).first<string>('status')).toBe('paid');
+    expect(await env.DB.prepare('SELECT external_reference FROM payments WHERE order_id=?').bind(fixture.orderId).first<string>('external_reference')).toBe('RETENTION-PAID');
+  });
+
   it('uses a new key, retains committed history, and DELETE only clears association', async () => {
     const productId = await createSimple();
-    const first = await workerRequest(`/api/console/products/${productId}/delivery-file`, {
+    const first = await consoleRequest(`/api/console/products/${productId}/delivery-file`, {
       method: 'PUT', headers: { 'Content-Type': 'application/octet-stream', 'If-Match': '"1"', 'X-Nexus-Filename': 'first.pdf' }, body: pdfBytes('first'),
     });
     expect(first.status).toBe(200);
@@ -38,7 +181,7 @@ describe('delivery replacement and compensation', () => {
       .bind(productId).first<string>('delivery_file_checksum');
     expect(firstChecksum).toBe(await sha256Hex(pdfBytes('first')));
 
-    const second = await workerRequest(`/api/console/products/${productId}/delivery-file`, {
+    const second = await consoleRequest(`/api/console/products/${productId}/delivery-file`, {
       method: 'PUT', headers: { 'Content-Type': 'application/octet-stream', 'If-Match': '"2"', 'X-Nexus-Filename': 'second.pdf' }, body: pdfBytes('second'),
     });
     const secondKey = await env.DB.prepare('SELECT delivery_file_key FROM products WHERE id=?').bind(productId).first<string>('delivery_file_key');
@@ -46,12 +189,131 @@ describe('delivery replacement and compensation', () => {
     expect(secondKey).not.toBe(firstKey);
     await expect(env.FILES.get(firstKey ?? '')).resolves.not.toBeNull();
 
-    const removed = await workerRequest(`/api/console/products/${productId}/delivery-file`, {
+    const removed = await consoleRequest(`/api/console/products/${productId}/delivery-file`, {
       method: 'DELETE', headers: { 'If-Match': '"3"' },
     });
     expect(await removed.json()).toMatchObject({ file: { present: false }, revision: 4 });
     expect(await env.DB.prepare('SELECT delivery_file_key FROM products WHERE id=?').bind(productId).first<string | null>('delivery_file_key')).toBeNull();
     await expect(env.FILES.get(secondKey ?? '')).resolves.not.toBeNull();
+  });
+
+  it('reports a losing DELETE race as a revision conflict and keeps the association', async () => {
+    const productId = await createSimple();
+    const identity = await getConsoleIdentity();
+    expect((await consoleRequest(`/api/console/products/${productId}/delivery-file`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/octet-stream', 'If-Match': '"1"', 'X-Nexus-Filename': 'raced.pdf' },
+      body: pdfBytes('raced'),
+    })).status).toBe(200);
+    const key = await env.DB.prepare('SELECT delivery_file_key FROM products WHERE id=?')
+      .bind(productId).first<string>('delivery_file_key');
+    let raced = false;
+    const racing = {
+      prepare: env.DB.prepare.bind(env.DB),
+      batch: async (statements: D1PreparedStatement[]) => {
+        if (!raced) {
+          raced = true;
+          await env.DB.prepare('UPDATE products SET revision=revision+1 WHERE store_id=? AND id=?')
+            .bind(identity.storeId, productId).run();
+        }
+        return env.DB.batch(statements);
+      },
+    } as unknown as D1Database;
+
+    await expect(deleteDeliveryFile({
+      db: racing, identity, productId, variantId: null, expectedRevision: 2,
+    })).rejects.toMatchObject({ code: 'revision_conflict', status: 409 });
+    expect(raced).toBe(true);
+    expect(await env.DB.prepare('SELECT delivery_file_key FROM products WHERE id=?')
+      .bind(productId).first<string>('delivery_file_key')).toBe(key);
+    expect(await env.DB.prepare('SELECT revision FROM products WHERE id=?')
+      .bind(productId).first<number>('revision')).toBe(3);
+    await expect(env.FILES.get(key ?? '')).resolves.not.toBeNull();
+  });
+
+  it('reports a losing DELETE race on an already empty slot as a revision conflict', async () => {
+    const productId = await createSimple();
+    const identity = await getConsoleIdentity();
+    let raced = false;
+    const racing = {
+      prepare: env.DB.prepare.bind(env.DB),
+      batch: async (statements: D1PreparedStatement[]) => {
+        if (!raced) {
+          raced = true;
+          await env.DB.prepare('UPDATE products SET revision=revision+1 WHERE store_id=? AND id=?')
+            .bind(identity.storeId, productId).run();
+        }
+        return env.DB.batch(statements);
+      },
+    } as unknown as D1Database;
+
+    await expect(deleteDeliveryFile({
+      db: racing, identity, productId, variantId: null, expectedRevision: 1,
+    })).rejects.toMatchObject({ code: 'revision_conflict', status: 409 });
+    expect(raced).toBe(true);
+    expect(await env.DB.prepare('SELECT revision FROM products WHERE id=?')
+      .bind(productId).first<number>('revision')).toBe(2);
+  });
+
+  it('reports a DELETE that loses to a competing removal as a revision conflict', async () => {
+    const productId = await createSimple();
+    const identity = await getConsoleIdentity();
+    expect((await consoleRequest(`/api/console/products/${productId}/delivery-file`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/octet-stream', 'If-Match': '"1"', 'X-Nexus-Filename': 'contended.pdf' },
+      body: pdfBytes('contended'),
+    })).status).toBe(200);
+    const key = await env.DB.prepare('SELECT delivery_file_key FROM products WHERE id=?')
+      .bind(productId).first<string>('delivery_file_key');
+    let raced = false;
+    const racing = {
+      prepare: env.DB.prepare.bind(env.DB),
+      batch: async (statements: D1PreparedStatement[]) => {
+        if (!raced) {
+          raced = true;
+          await deleteDeliveryFile({ db: env.DB, identity, productId, variantId: null, expectedRevision: 2 });
+        }
+        return env.DB.batch(statements);
+      },
+    } as unknown as D1Database;
+
+    await expect(deleteDeliveryFile({
+      db: racing, identity, productId, variantId: null, expectedRevision: 2,
+    })).rejects.toMatchObject({ code: 'revision_conflict', status: 409 });
+    expect(raced).toBe(true);
+    expect(await env.DB.prepare('SELECT revision FROM products WHERE id=?')
+      .bind(productId).first<number>('revision')).toBe(3);
+    expect(await env.DB.prepare('SELECT delivery_file_key FROM products WHERE id=?')
+      .bind(productId).first<string | null>('delivery_file_key')).toBeNull();
+    await expect(env.FILES.get(key ?? '')).resolves.not.toBeNull();
+  });
+
+  it('reports an unconfirmed DELETE commit as reconciliation and retains the stored object', async () => {
+    const productId = await createSimple();
+    const identity = await getConsoleIdentity();
+    expect((await consoleRequest(`/api/console/products/${productId}/delivery-file`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/octet-stream', 'If-Match': '"1"', 'X-Nexus-Filename': 'unconfirmed.pdf' },
+      body: pdfBytes('unconfirmed'),
+    })).status).toBe(200);
+    const key = await env.DB.prepare('SELECT delivery_file_key FROM products WHERE id=?')
+      .bind(productId).first<string>('delivery_file_key');
+    const committedThenFailed = {
+      prepare: env.DB.prepare.bind(env.DB),
+      batch: async (statements: D1PreparedStatement[]) => {
+        await env.DB.batch(statements);
+        throw new Error('response channel failed after commit');
+      },
+    } as unknown as D1Database;
+
+    await expect(deleteDeliveryFile({
+      db: committedThenFailed, identity, productId, variantId: null, expectedRevision: 2,
+    })).rejects.toMatchObject({ code: 'persistence_failed', status: 500, incidentId: expect.any(String) });
+    expect(await env.DB.prepare('SELECT delivery_file_key FROM products WHERE id=?')
+      .bind(productId).first<string | null>('delivery_file_key')).toBeNull();
+    expect(await env.DB.prepare('SELECT revision FROM products WHERE id=?')
+      .bind(productId).first<number>('revision')).toBe(3);
+    await expect(env.FILES.get(key ?? '')).resolves.not.toBeNull();
   });
 
   it('deletes only the new object when D1 association fails', async () => {
@@ -63,6 +325,7 @@ describe('delivery replacement and compensation', () => {
     await expect(putDeliveryFile({
       db: failingDb,
       files: env.FILES,
+      identity: await getConsoleIdentity(),
       productId,
       variantId: null,
       expectedRevision: 1,
@@ -71,5 +334,218 @@ describe('delivery replacement and compensation', () => {
       declaredLength: null,
     })).rejects.toMatchObject({ code: 'persistence_failed' });
     expect((await env.FILES.list()).objects).toHaveLength(0);
+  });
+
+  it('retains the uploaded object when D1 commits before its response fails', async () => {
+    const productId = await createSimple();
+    const committedThenFailed = {
+      prepare: env.DB.prepare.bind(env.DB),
+      batch: async (statements: D1PreparedStatement[]) => {
+        await env.DB.batch(statements);
+        throw new Error('response channel failed after commit');
+      },
+    } as unknown as D1Database;
+
+    await expect(putDeliveryFile({
+      db: committedThenFailed,
+      files: env.FILES,
+      identity: await getConsoleIdentity(),
+      productId,
+      variantId: null,
+      expectedRevision: 1,
+      filename: 'committed.pdf',
+      body: new Blob([pdfBytes('committed')]).stream(),
+      declaredLength: null,
+    })).rejects.toMatchObject({ code: 'persistence_failed' });
+
+    const key = await env.DB.prepare(
+      'SELECT delivery_file_key FROM products WHERE id=? AND revision=2',
+    ).bind(productId).first<string>('delivery_file_key');
+    expect(key).toBeTruthy();
+    await expect(env.FILES.get(key ?? '')).resolves.not.toBeNull();
+  });
+
+  it('keeps a purchased Variant snapshot when replacement commits before its response fails', async () => {
+    const fixture = await createPurchasedVariantFixture();
+    const committedThenFailed = {
+      prepare: env.DB.prepare.bind(env.DB),
+      batch: async (statements: D1PreparedStatement[]) => {
+        await env.DB.batch(statements);
+        throw new Error('response channel failed after commit');
+      },
+    } as unknown as D1Database;
+
+    await expect(putDeliveryFile({
+      db: committedThenFailed,
+      files: env.FILES,
+      identity: await getConsoleIdentity(),
+      productId: fixture.productId,
+      variantId: fixture.variantId,
+      expectedRevision: 2,
+      filename: 'replacement-committed.pdf',
+      body: new Blob([pdfBytes('replacement-committed')]).stream(),
+      declaredLength: null,
+    })).rejects.toMatchObject({ code: 'persistence_failed' });
+
+    const currentKey = await env.DB.prepare(
+      'SELECT delivery_file_key FROM product_variants WHERE product_id=? AND id=?',
+    ).bind(fixture.productId, fixture.variantId).first<string>('delivery_file_key');
+    expect(currentKey).toBeTruthy();
+    expect(currentKey).not.toBe(fixture.snapshotKey);
+    expect(await expectEveryDeliveryObjectReadable()).toEqual([currentKey!, fixture.snapshotKey].sort());
+    await expectPurchasedSnapshotRetained(fixture);
+  });
+
+  it('retains the upload when the post-failure reference check is unavailable', async () => {
+    const productId = await createSimple();
+    let batchFailed = false;
+    const unavailableAfterBatch = {
+      prepare: (...args: Parameters<D1Database['prepare']>) => {
+        if (batchFailed) throw new Error('reference lookup unavailable');
+        return env.DB.prepare(...args);
+      },
+      batch: async () => {
+        batchFailed = true;
+        throw new Error('unknown batch outcome');
+      },
+    } as unknown as D1Database;
+
+    await expect(putDeliveryFile({
+      db: unavailableAfterBatch, files: env.FILES, identity: await getConsoleIdentity(),
+      productId, variantId: null, expectedRevision: 1, filename: 'unknown.pdf',
+      body: new Blob([pdfBytes('unknown')]).stream(), declaredLength: null,
+    })).rejects.toMatchObject({ code: 'persistence_failed' });
+    expect((await env.FILES.list()).objects).toHaveLength(1);
+    expect(await env.DB.prepare('SELECT revision FROM products WHERE id=?').bind(productId).first<number>('revision')).toBe(1);
+  });
+
+  it('keeps a purchased Variant snapshot when replacement reference lookup is unavailable', async () => {
+    const fixture = await createPurchasedVariantFixture();
+    let batchFailed = false;
+    const unavailableAfterBatch = {
+      prepare: (...args: Parameters<D1Database['prepare']>) => {
+        if (batchFailed) throw new Error('reference lookup unavailable');
+        return env.DB.prepare(...args);
+      },
+      batch: async () => {
+        batchFailed = true;
+        throw new Error('unknown batch outcome');
+      },
+    } as unknown as D1Database;
+
+    await expect(putDeliveryFile({
+      db: unavailableAfterBatch,
+      files: env.FILES,
+      identity: await getConsoleIdentity(),
+      productId: fixture.productId,
+      variantId: fixture.variantId,
+      expectedRevision: 2,
+      filename: 'replacement-unknown.pdf',
+      body: new Blob([pdfBytes('replacement-unknown')]).stream(),
+      declaredLength: null,
+    })).rejects.toMatchObject({ code: 'persistence_failed' });
+
+    expect(await env.DB.prepare(
+      'SELECT delivery_file_key FROM product_variants WHERE product_id=? AND id=?',
+    ).bind(fixture.productId, fixture.variantId).first<string>('delivery_file_key')).toBe(fixture.snapshotKey);
+    const retainedKeys = await expectEveryDeliveryObjectReadable();
+    expect(retainedKeys).toHaveLength(2);
+    expect(retainedKeys).toContain(fixture.snapshotKey);
+    await expectPurchasedSnapshotRetained(fixture);
+  });
+
+  it('returns a sanitized error and retains the upload when compensation fails', async () => {
+    const productId = await createSimple();
+    const failingDelete = new Proxy(env.FILES, {
+      get(target, property) {
+        if (property === 'delete') return () => Promise.reject(new Error('forced delete failure'));
+        const value = Reflect.get(target, property);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    }) as R2Bucket;
+    const failedBatch = {
+      prepare: env.DB.prepare.bind(env.DB),
+      batch: () => Promise.reject(new Error('confirmed failed batch')),
+    } as unknown as D1Database;
+
+    await expect(putDeliveryFile({
+      db: failedBatch, files: failingDelete, identity: await getConsoleIdentity(),
+      productId, variantId: null, expectedRevision: 1, filename: 'compensation.pdf',
+      body: new Blob([pdfBytes('compensation')]).stream(), declaredLength: null,
+    })).rejects.toMatchObject({ code: 'storage_compensation_failed', incidentId: expect.any(String) });
+    expect((await env.FILES.list()).objects).toHaveLength(1);
+  });
+
+  it('keeps a purchased Variant snapshot when replacement compensation fails', async () => {
+    const fixture = await createPurchasedVariantFixture();
+    const failingDelete = new Proxy(env.FILES, {
+      get(target, property) {
+        if (property === 'delete') return () => Promise.reject(new Error('forced delete failure'));
+        const value = Reflect.get(target, property);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    }) as R2Bucket;
+    const failedBatch = {
+      prepare: env.DB.prepare.bind(env.DB),
+      batch: () => Promise.reject(new Error('confirmed failed batch')),
+    } as unknown as D1Database;
+
+    await expect(putDeliveryFile({
+      db: failedBatch,
+      files: failingDelete,
+      identity: await getConsoleIdentity(),
+      productId: fixture.productId,
+      variantId: fixture.variantId,
+      expectedRevision: 2,
+      filename: 'replacement-compensation.pdf',
+      body: new Blob([pdfBytes('replacement-compensation')]).stream(),
+      declaredLength: null,
+    })).rejects.toMatchObject({
+      code: 'storage_compensation_failed',
+      incidentId: expect.any(String),
+    });
+
+    expect(await env.DB.prepare(
+      'SELECT delivery_file_key FROM product_variants WHERE product_id=? AND id=?',
+    ).bind(fixture.productId, fixture.variantId).first<string>('delivery_file_key')).toBe(fixture.snapshotKey);
+    const retainedKeys = await expectEveryDeliveryObjectReadable();
+    expect(retainedKeys).toHaveLength(2);
+    expect(retainedKeys).toContain(fixture.snapshotKey);
+    await expectPurchasedSnapshotRetained(fixture);
+  });
+
+  it('does not write provider exception details to delivery diagnostics or responses', async () => {
+    const productId = await createSimple();
+    const sentinel = 'PRIVATE_DELIVERY_PROVIDER_SENTINEL';
+    const failedStorage = new Proxy(env.FILES, {
+      get(target, property) {
+        if (property === 'createMultipartUpload') return () => Promise.reject(new Error(sentinel));
+        const value = Reflect.get(target, property);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    }) as R2Bucket;
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      let failure: unknown;
+      try {
+        await putDeliveryFile({
+          db: env.DB, files: failedStorage, identity: await getConsoleIdentity(),
+          productId, variantId: null, expectedRevision: 1, filename: 'diagnostic.pdf',
+          body: new Blob([pdfBytes('diagnostic')]).stream(), declaredLength: null,
+        });
+      } catch (error) {
+        failure = error;
+      }
+      expect(failure).toMatchObject({ code: 'storage_write_failed' });
+      expect(failure).toBeInstanceOf(Error);
+      expect((failure as Error).message).not.toContain(sentinel);
+      for (const [message, details] of log.mock.calls) {
+        expect(message).toBe('Delivery storage write failure');
+        expect(Object.keys(details as object).sort()).toEqual(['classification', 'incidentId']);
+        expect(Object.values(details as object).some((value) => value instanceof Error)).toBe(false);
+      }
+    } finally {
+      log.mockRestore();
+    }
   });
 });

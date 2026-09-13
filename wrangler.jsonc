@@ -15,6 +15,7 @@
 		]
 	},
 	"vars": {
+		"CONSOLE_ORIGIN": "http://127.0.0.1:5173",
 		"STOREFRONT_ORIGIN": "http://127.0.0.1:5174"
 	},
 	"r2_buckets": [
@@ -29,5 +30,28 @@
 			"database_name": "nexus-s1-468cba-db",
 			"database_id": "7424d853-fa0b-4e6c-b341-eca85b82e4bd"
 		}
-	]
+	],
+	"env": {
+		"s4-provisioning": {
+			"vars": {
+				"CONSOLE_ORIGIN": "https://s4-provisioning.invalid",
+				"STOREFRONT_ORIGIN": "https://s4-provisioning.invalid"
+			},
+			"r2_buckets": [
+				{
+					"binding": "FILES",
+					"bucket_name": "nexus-s1-468cba-private",
+					"remote": true
+				}
+			],
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "nexus-s1-468cba-db",
+					"database_id": "7424d853-fa0b-4e6c-b341-eca85b82e4bd",
+					"remote": true
+				}
+			]
+		}
+	}
 }

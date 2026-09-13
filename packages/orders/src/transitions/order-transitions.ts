@@ -1,4 +1,5 @@
 import { OrderValidationError } from '../order-types';
+import { evaluatePermission } from '@nexus/identity/permissions';
 import type {
   OrderActor,
   OrderCommandAction,
@@ -12,12 +13,12 @@ function actorRejected(): never {
 
 function actorAllowed(action: OrderCommandAction, source: OrderActor['source']): boolean {
   if (source === 'storefront') return action === 'request_refund';
-  return source === 'bootstrap_owner';
+  return source === 'user';
 }
 
 export function authorizedActor(
   context: OrderContext,
-  order: { customer_id: string },
+  order: { customer_id: string; assignee_user_id: string | null },
   action: OrderCommandAction,
 ): OrderActor {
   if (!actorAllowed(action, context.actor.source)) actorRejected();
@@ -25,8 +26,20 @@ export function authorizedActor(
     if (context.actor.id !== order.customer_id) actorRejected();
     return { source: 'storefront', id: order.customer_id };
   }
-  if (context.actor.source !== 'bootstrap_owner' || context.actor.id !== null) actorRejected();
-  return { source: 'bootstrap_owner', id: null };
+  if (context.actor.source === 'user') {
+    if (context.identity?.kind !== 'console' || context.actor.id !== context.identity.userId) actorRejected();
+    const permission = action === 'request_refund'
+      ? 'refund:request'
+      : action === 'approve_refund' || action === 'reject_refund'
+        ? 'refund:decide'
+        : 'order:process';
+    if (!evaluatePermission(context.identity, permission, {
+      storeId: context.storeId,
+      assignedUserId: order.assignee_user_id,
+    })) actorRejected();
+    return { source: 'user', id: context.identity.userId };
+  }
+  actorRejected();
 }
 
 export function markPaidEligible(status: OrderStatus): boolean {

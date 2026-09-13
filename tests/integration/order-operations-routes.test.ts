@@ -1,12 +1,14 @@
 import { env } from 'cloudflare:test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
-import { BOOTSTRAP_STORE_ID } from '@nexus/catalog/catalog-read';
+import { PUBLIC_STORE_ID as BOOTSTRAP_STORE_ID } from '@nexus/catalog/public-store';
 import { routeStorefrontOrderRequest } from '../../apps/worker/src/storefront-order-routes';
 import { digestOrderCapability } from '@nexus/orders/private-access';
 import { createOrder as persistStorefrontOrder } from '@nexus/orders/commands/order-write';
 import worker from '../../apps/worker/src';
 import {
+  consoleRequest,
+  getConsoleSession,
   resetCatalog,
   SIMPLE_CORE,
   TEST_STOREFRONT_ORIGIN,
@@ -14,6 +16,11 @@ import {
   oneVariantSchema,
   workerRequest,
 } from '../support/catalog-test-env';
+import {
+  createConsoleSession,
+  TEST_BETTER_AUTH_SECRET,
+  TEST_CONSOLE_ORIGIN,
+} from '../support/identity-test-env';
 
 const CAPABILITY_A = 'A'.repeat(43);
 const CAPABILITY_B = 'B'.repeat(43);
@@ -44,12 +51,16 @@ const ALLOWED_KEYS: Record<string, true> = {
   actorId: true,
   actorLabel: true,
   allowedActions: true,
+  assignment: true,
+  assigneeUserId: true,
   amountMinor: true,
   byStatus: true,
   canceled: true,
   code: true,
   contractVersion: true,
   createdAt: true,
+  decidedAt: true,
+  decidedByUserId: true,
   currency: true,
   customer: true,
   email: true,
@@ -135,8 +146,19 @@ function unversionedRequest(path: string, init?: RequestInit): Promise<Response>
     DB: env.DB,
     FILES: env.FILES,
     STOREFRONT_ORIGIN: TEST_STOREFRONT_ORIGIN,
+    CONSOLE_ORIGIN: TEST_CONSOLE_ORIGIN,
+    BETTER_AUTH_SECRET: TEST_BETTER_AUTH_SECRET,
     ASSETS: { fetch: () => Promise.resolve(new Response('asset')) } as unknown as Fetcher,
   });
+}
+
+async function unversionedConsoleRequest(path: string, init?: RequestInit): Promise<Response> {
+  const session = await getConsoleSession();
+  const headers = new Headers(init?.headers);
+  headers.set('Cookie', session.cookie);
+  headers.set('Origin', TEST_CONSOLE_ORIGIN);
+  headers.set('Sec-Fetch-Site', 'same-origin');
+  return unversionedRequest(path, { ...init, headers });
 }
 
 function deferred() {
@@ -176,13 +198,15 @@ function racingRequest(path: string, init: RequestInit, database: D1Database): P
     DB: database,
     FILES: env.FILES,
     STOREFRONT_ORIGIN: TEST_STOREFRONT_ORIGIN,
+    CONSOLE_ORIGIN: TEST_CONSOLE_ORIGIN,
+    BETTER_AUTH_SECRET: TEST_BETTER_AUTH_SECRET,
     ASSETS: { fetch: () => Promise.resolve(new Response('asset')) } as unknown as Fetcher,
   });
 }
 
 
 async function createSimpleProduct(): Promise<ProductDetailResponse> {
-  const response = await workerRequest('/api/console/products', {
+  const response = await consoleRequest('/api/console/products', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ product: SIMPLE_CORE, schema: null, previewHash: null }),
@@ -194,13 +218,13 @@ async function createSimpleProduct(): Promise<ProductDetailResponse> {
 async function createActiveVariant(): Promise<ProductDetailResponse> {
   const product = { ...VARIANT_CORE, status: 'active' as const };
   const schema = oneVariantSchema();
-  const preview = await workerRequest('/api/console/products/schema/preview', {
+  const preview = await consoleRequest('/api/console/products/schema/preview', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ productId: null, productSlug: 'focus-pack', product, schema }),
   });
   const previewHash = (await preview.json() as { previewHash: string }).previewHash;
-  const response = await workerRequest('/api/console/products', {
+  const response = await consoleRequest('/api/console/products', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ product, schema, previewHash }),
@@ -240,7 +264,7 @@ async function createOrder(input: {
 }
 
 async function markPaid(reference: string, key: string, paymentRef = 'WIRE-1', method = 'Bank transfer'): Promise<Response> {
-  return workerRequest(`/api/console/orders/${reference}/payments/manual`, {
+  return consoleRequest(`/api/console/orders/${reference}/payments/manual`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -252,7 +276,7 @@ async function markPaid(reference: string, key: string, paymentRef = 'WIRE-1', m
 }
 
 async function fulfill(reference: string, key: string): Promise<Response> {
-  return workerRequest(`/api/console/orders/${reference}/fulfill`, {
+  return consoleRequest(`/api/console/orders/${reference}/fulfill`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -264,7 +288,7 @@ async function fulfill(reference: string, key: string): Promise<Response> {
 }
 
 async function cancel(reference: string, key: string): Promise<Response> {
-  return workerRequest(`/api/console/orders/${reference}/cancel`, {
+  return consoleRequest(`/api/console/orders/${reference}/cancel`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -289,7 +313,7 @@ async function refund(reference: string, capability: string, key: string, reason
 }
 
 async function consoleRefund(reference: string, key: string, reason: string): Promise<Response> {
-  return workerRequest(`/api/console/orders/${reference}/refund-requests`, {
+  return consoleRequest(`/api/console/orders/${reference}/refund-requests`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -300,7 +324,7 @@ async function consoleRefund(reference: string, key: string, reason: string): Pr
 }
 
 async function list(query = ''): Promise<Response> {
-  return workerRequest(`/api/console/orders${query}`);
+  return consoleRequest(`/api/console/orders${query}`);
 }
 
 async function tableCounts(): Promise<Record<string, number>> {
@@ -595,11 +619,11 @@ describe('Order operations HTTP', () => {
     expect(byRef[two.reference]).toBe(2);
     expect(byRef[tenRef]).toBe(10);
 
-    const tenDetail = await workerRequest(`/api/console/orders/${tenRef}`);
+    const tenDetail = await consoleRequest(`/api/console/orders/${tenRef}`);
     expect(tenDetail.status).toBe(200);
     expect((await tenDetail.json() as { order: { items: unknown[] } }).order.items).toHaveLength(10);
 
-    const foreignDetail = await workerRequest('/api/console/orders/NX-1111222233334444');
+    const foreignDetail = await consoleRequest('/api/console/orders/NX-1111222233334444');
     expect(foreignDetail.status).toBe(404);
     expect((await markPaid('NX-1111222233334444', keyFor('pay-foreign'), 'WIRE-FOREIGN')).status).toBe(404);
 
@@ -739,14 +763,14 @@ describe('Order operations HTTP', () => {
     });
     assertSafeJson(replayBody);
 
-    const detail = await workerRequest(`/api/console/orders/${created.reference}`);
+    const detail = await consoleRequest(`/api/console/orders/${created.reference}`);
     const detailBody = await detail.json() as { order: Record<string, unknown> };
     expect(detail.status).toBe(200);
     expect(detail.headers.get('Access-Control-Allow-Origin')).toBeNull();
     expect(detailBody.order).toMatchObject({
       reference: created.reference,
       status: 'fulfilled',
-      allowedActions: [],
+      allowedActions: ['approve_refund', 'reject_refund'],
       refundRequestStatus: 'pending',
       refundRequest: firstRefundBody.refundRequest,
       paymentRecordState: 'recorded',
@@ -757,7 +781,7 @@ describe('Order operations HTTP', () => {
     const history = detailBody.order.history as Array<{ action: string; source: string; actorLabel: string }>;
     expect(history.map((event) => event.action)).toEqual(['order_created', 'order_paid', 'order_fulfilled', 'refund_requested']);
     expect(history[3]?.source).toBe('storefront');
-    expect(history[1]?.actorLabel).toBe('Bootstrap Owner (demo)');
+    expect(history[1]?.actorLabel).toBe('Nexus Owner');
 
     const privateGet = await workerRequest(`/api/storefront/orders/${created.reference}`, {
       headers: { 'X-Nexus-Order-Capability': CAPABILITY_A },
@@ -787,7 +811,7 @@ describe('Order operations HTTP', () => {
     const lostCancel = await cancel(cancelTarget.reference, cancelKey);
     expect(await lostCancel.json()).toEqual(firstCancelBody);
     expect(await tableCounts()).toEqual(countsAfterCancel);
-    const cancelDetail = await workerRequest(`/api/console/orders/${cancelTarget.reference}`);
+    const cancelDetail = await consoleRequest(`/api/console/orders/${cancelTarget.reference}`);
     expect(await cancelDetail.json()).toMatchObject({
       order: { status: 'canceled', allowedActions: [], refundRequest: null, paymentRecordState: 'none' },
     });
@@ -876,11 +900,15 @@ describe('Order operations HTTP', () => {
       },
       body: JSON.stringify({ reason: customerReason }),
     }, racing);
+    const ownerSession = await createConsoleSession();
     const owner = racingRequest(`/api/console/orders/${created.reference}/refund-requests`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Idempotency-Key': keyFor('owner-race'),
+        Cookie: ownerSession.cookie,
+        Origin: TEST_CONSOLE_ORIGIN,
+        'Sec-Fetch-Site': 'same-origin',
       },
       body: JSON.stringify({ reason: ownerReason }),
     }, racing);
@@ -964,17 +992,18 @@ describe('Order operations HTTP', () => {
     expect(JSON.stringify(privateBody)).not.toContain('WIRE-RACE');
     assertSafeJson(privateBody);
 
-    const detail = await workerRequest(`/api/console/orders/${created.reference}`);
+    const detail = await consoleRequest(`/api/console/orders/${created.reference}`);
     const detailBody = await detail.json() as {
       order: {
         status: string;
-        refundRequest: RefundBody['refundRequest'];
+        refundRequest: RefundBody['refundRequest'] & { decidedByUserId: string | null };
         history: Array<{ action: string; source: string }>;
       };
     };
     expect(detail.status).toBe(200);
     expect(detailBody.order.status).toBe('paid');
-    expect(detailBody.order.refundRequest).toEqual(customerBody.refundRequest);
+    expect(detailBody.order.refundRequest).toMatchObject(customerBody.refundRequest);
+    expect(detailBody.order.refundRequest.decidedByUserId).toBeNull();
     const refundEvents = detailBody.order.history.filter((event) => event.action === 'refund_requested');
     expect(refundEvents).toHaveLength(1);
     expect(refundEvents[0]?.source).toBe(stored?.actor_source);
@@ -1128,9 +1157,9 @@ describe('Order operations HTTP', () => {
 
     const listed = await list();
     const listBody = await listed.json();
-    const detail = await workerRequest(`/api/console/orders/${created.reference}`);
+    const detail = await consoleRequest(`/api/console/orders/${created.reference}`);
     const detailBody = await detail.json();
-    const sentinelDetail = await workerRequest('/api/console/orders/NX-FEDCBA9876543210');
+    const sentinelDetail = await consoleRequest('/api/console/orders/NX-FEDCBA9876543210');
     const sentinelBody = await sentinelDetail.json() as {
       order: { items: Array<{ product: { variant: { selectedOptions: Array<Record<string, unknown>> } } }> };
     };
@@ -1183,7 +1212,8 @@ describe('Order operations HTTP', () => {
     ];
     const before = await tableCounts();
     for (const path of unsupported) {
-      const response = await workerRequest(path, {
+      const request = path.startsWith('/api/console/') ? consoleRequest : workerRequest;
+      const response = await request(path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': keyFor('unsupported') },
         body: JSON.stringify({}),
@@ -1191,7 +1221,7 @@ describe('Order operations HTTP', () => {
       expect(response.status).toBe(404);
       expect(await response.json()).toMatchObject({ error: { code: 'route_not_found' } });
     }
-    const patched = await workerRequest(`/api/console/orders/${created.reference}`, {
+    const patched = await consoleRequest(`/api/console/orders/${created.reference}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'paid' }),
@@ -1199,7 +1229,7 @@ describe('Order operations HTTP', () => {
     expect(patched.status).toBe(404);
     expect(await tableCounts()).toEqual(before);
 
-    const oldCancel = await unversionedRequest(`/api/console/orders/${created.reference}/cancel`, {
+    const oldCancel = await unversionedConsoleRequest(`/api/console/orders/${created.reference}/cancel`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1225,14 +1255,14 @@ describe('Order operations HTTP', () => {
           items: [{ productId: product.id, variantId: variant.id, quantity: 1 }],
         }),
       }),
-      unversionedRequest('/api/console/orders'),
-      unversionedRequest(`/api/console/orders/${created.reference}`),
-      unversionedRequest(`/api/console/orders/${created.reference}/payments/manual`, {
+      unversionedConsoleRequest('/api/console/orders'),
+      unversionedConsoleRequest(`/api/console/orders/${created.reference}`),
+      unversionedConsoleRequest(`/api/console/orders/${created.reference}/payments/manual`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': keyFor('old-pay'), ...staleMarker },
         body: JSON.stringify({ method: 'Wire', reference: 'WIRE-OLD' }),
       }),
-      unversionedRequest(`/api/console/orders/${created.reference}/fulfill`, {
+      unversionedConsoleRequest(`/api/console/orders/${created.reference}/fulfill`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': keyFor('old-fulfill'), ...staleMarker },
         body: JSON.stringify({}),
@@ -1304,7 +1334,11 @@ describe('Order operations HTTP', () => {
     const product = await createSimpleProduct();
     const created = await persistStorefrontOrder({
       database: env.DB,
-      context: { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'storefront', id: null } },
+      context: {
+        storeId: BOOTSTRAP_STORE_ID,
+        actor: { source: 'storefront', id: null },
+        identity: { kind: 'public' },
+      },
       body: {
         customer: { name: 'Ada Lovelace', email: 'ada@example.test' },
         items: [{ productId: product.id, variantId: null, quantity: 1 }],

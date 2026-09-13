@@ -1,7 +1,8 @@
 import { CSV_MAX_BYTES, type CsvHeader, type ImportResultResponse } from '../shared/csv-contract';
+import type { ConsoleIdentityContext } from '@nexus/identity/identity-types';
 import { CsvContractError, parseCsvBytes } from './csv-parser';
 import { preflightExactMatch } from './exact-match';
-import { executeImportWrite } from './import-write';
+import { executeImportWrite, ImportPersistenceError } from './import-write';
 import { validateCsvRows } from './csv-validator';
 
 export interface ImportErrorField {
@@ -59,7 +60,7 @@ async function compensateOrReplaceError(
     await deleteOriginal(files, key);
   } catch (compensationError) {
     const incidentId = crypto.randomUUID();
-    console.error('CSV import storage compensation failure', { incidentId, compensationError });
+    console.error('CSV import storage compensation failure', { incidentId, classification: 'delete_failed' });
     throw new ImportRequestError(
       500,
       'storage_compensation_failed',
@@ -71,13 +72,26 @@ async function compensateOrReplaceError(
   if (original instanceof ImportRequestError) throw original;
   if (original instanceof CsvContractError) throw fatalCsvError(original);
   const incidentId = crypto.randomUUID();
-  console.error('CSV import persistence failure', { incidentId, error: original });
+  console.error('CSV import persistence failure', { incidentId, classification: 'confirmed_not_committed' });
   throw new ImportRequestError(500, 'persistence_failed', 'The CSV import could not be committed.', [], incidentId);
+}
+
+function retainedImportFailure(_error: unknown): never {
+  const incidentId = crypto.randomUUID();
+  console.error('CSV import commit outcome requires reconciliation', { incidentId, classification: 'committed_or_unknown' });
+  throw new ImportRequestError(
+    500,
+    'persistence_failed',
+    'The CSV import outcome could not be confirmed automatically.',
+    [],
+    incidentId,
+  );
 }
 
 export async function executeCsvImport(input: {
   database: D1Database;
   files: R2Bucket;
+  identity: ConsoleIdentityContext;
   filename: string;
   bytes: Uint8Array;
   confirmedVariants: boolean;
@@ -88,6 +102,7 @@ export async function executeCsvImport(input: {
 
   const importId = randomImportId();
   const privateObjectKey = `imports/${crypto.randomUUID()}.csv`;
+  let writeAttempted = false;
   let object: R2Object;
   try {
     object = await input.files.put(privateObjectKey, input.bytes, {
@@ -95,7 +110,7 @@ export async function executeCsvImport(input: {
     });
   } catch (error) {
     const incidentId = crypto.randomUUID();
-    console.error('CSV import storage write failure', { incidentId, error });
+    console.error('CSV import storage write failure', { incidentId, classification: 'put_failed' });
     throw new ImportRequestError(500, 'storage_write_failed', 'The original CSV could not be stored.', [], incidentId);
   }
   if (object.size !== input.bytes.byteLength) {
@@ -133,9 +148,11 @@ export async function executeCsvImport(input: {
         }],
       );
     }
-    const plan = await preflightExactMatch(input.database, validation);
+    const plan = await preflightExactMatch(input.database, input.identity.storeId, validation);
+    writeAttempted = true;
     return await executeImportWrite({
       database: input.database,
+      identity: input.identity,
       plan,
       importId,
       filename: input.filename,
@@ -143,6 +160,33 @@ export async function executeCsvImport(input: {
       privateObjectKey,
     });
   } catch (error) {
+    if (writeAttempted && error instanceof ImportPersistenceError) {
+      try {
+        const association = await input.database.prepare(
+          `SELECT private_object_key AS privateObjectKey
+             FROM imports WHERE store_id=? AND id=?`,
+        ).bind(input.identity.storeId, importId).first<{ privateObjectKey: string }>();
+        if (association !== null) return retainedImportFailure(error);
+        const stillAuthorized = await input.database.prepare(
+          `SELECT EXISTS (
+             SELECT 1 FROM store_memberships
+              WHERE id=? AND store_id=? AND user_id=? AND role='owner' AND status='active'
+           ) AS authorized`,
+        ).bind(
+          input.identity.membershipId, input.identity.storeId, input.identity.userId,
+        ).first<number>('authorized');
+        if (stillAuthorized !== 1) {
+          return compensateOrReplaceError(
+            input.files,
+            privateObjectKey,
+            new ImportRequestError(403, 'store_access_denied', 'Current Store access is required.'),
+          );
+        }
+      } catch (lookupError) {
+        if (lookupError instanceof ImportRequestError) throw lookupError;
+        return retainedImportFailure(lookupError);
+      }
+    }
     return compensateOrReplaceError(input.files, privateObjectKey, error);
   }
 }

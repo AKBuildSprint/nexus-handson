@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expect, test } from '@playwright/test';
 import { CSV_HEADER, CSV_HEADER_LINE, serializeCsvRow, type CsvRow } from '@nexus/catalog/shared/csv-contract';
+import { expect, test } from '../support/console-auth-fixtures';
 
 const fixtureDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../fixtures/import');
 
@@ -51,7 +51,7 @@ for (const viewport of [
   { name: 'desktop', width: 1280, height: 900 },
   { name: '375px', width: 375, height: 812 },
 ]) {
-  test(`downloads, previews, and imports through the real CSV API at ${viewport.name}`, async ({ page }) => {
+  test(`downloads, previews, and imports through the real CSV API at ${viewport.name}`, async ({ consoleOwnerPage: page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto('/console/products/import');
     await expect(page.getByRole('heading', { name: 'Import Products from CSV' })).toBeVisible();
@@ -83,7 +83,7 @@ for (const viewport of [
     expect(documentWidth.bodyScrollWidth).toBeLessThanOrEqual(documentWidth.clientWidth);
   });
 }
-test('loads the complete unfiltered catalog identity set on a direct import route', async ({ page }) => {
+test('loads the complete unfiltered catalog identity set on a direct import route', async ({ consoleOwnerPage: page }) => {
   const catalogRequests: string[] = [];
   page.on('request', (request) => {
     const url = new URL(request.url());
@@ -94,7 +94,7 @@ test('loads the complete unfiltered catalog identity set on a direct import rout
   expect(catalogRequests).toContain('');
 });
 
-test('refreshes complete identities after success before unchanged reselect preview', async ({ page }) => {
+test('refreshes complete identities after success before unchanged reselect preview', async ({ consoleOwnerPage: page }) => {
   const slug = `refresh-candidate-${Date.now()}`;
   const file = { name: `${slug}.csv`, mimeType: 'text/csv', buffer: simpleCsv(slug) };
   let unfilteredCatalogRequests = 0;
@@ -118,7 +118,7 @@ test('refreshes complete identities after success before unchanged reselect prev
   await expect(page.getByText('Duplicate candidate', { exact: true }).first()).toBeVisible();
 });
 
-test('lists every warning group under one confirmation and resets it when the file changes', async ({ page }) => {
+test('lists every warning group under one confirmation and resets it when the file changes', async ({ consoleOwnerPage: page }) => {
   await page.goto('/console/products/import');
   const fileInput = page.locator('#csv-file');
   await expect(fileInput).toBeEnabled();
@@ -148,7 +148,7 @@ test('lists every warning group under one confirmation and resets it when the fi
   await expect(page.getByRole('button', { name: 'Import Products' })).toBeDisabled();
 });
 
-test('retains a committed malformed result without exposing a re-POST action', async ({ page }) => {
+test('retains a committed malformed result without exposing a re-POST action', async ({ consoleOwnerPage: page }) => {
   let postCount = 0;
   await page.route('**/api/console/imports', async (route) => {
     if (route.request().method() !== 'POST') {

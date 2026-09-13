@@ -8,7 +8,8 @@ import type {
   VariantEdit,
 } from './catalog-types';
 import { CatalogValidationError } from './catalog-types';
-import { BOOTSTRAP_STORE_ID, readProductDetailById } from './catalog-read';
+import type { ConsoleIdentityContext } from '@nexus/identity/identity-types';
+import { readProductDetailById } from './catalog-read';
 import { decimalToMinor, MoneyError } from './money';
 import { catalogFingerprint, schemaPreviewHash } from './schema-change';
 import { normalizeComparisonKey, slugifyProductName, stableId } from './slug';
@@ -75,6 +76,7 @@ function assertUniqueIds(ids: string[], path: string): void {
 
 async function mapSchema(
   db: D1Database,
+  storeId: string,
   productId: string | null,
   product: ProductCoreFields,
   schema: SchemaDraft,
@@ -88,7 +90,7 @@ async function mapSchema(
        UNION ALL
        SELECT 'value' AS kind, id, group_id
          FROM product_option_values WHERE store_id = ? AND product_id = ?`,
-    ).bind(BOOTSTRAP_STORE_ID, productId, BOOTSTRAP_STORE_ID, productId).all<ExistingIdentityRow>()).results;
+    ).bind(storeId, productId, storeId, productId).all<ExistingIdentityRow>()).results;
   const existingGroups = new Map(existingIdentity.filter((row) => row.kind === 'group').map((row) => [row.id, row]));
   const existingValues = new Map(existingIdentity.filter((row) => row.kind === 'value').map((row) => [row.id, row]));
   const requestedExistingGroupIds = schema.groups.flatMap((group) => group.id === null ? [] : [group.id]);
@@ -144,7 +146,7 @@ async function mapSchema(
     ? []
     : (await db.prepare(
       'SELECT id, combination_key FROM product_variants WHERE store_id = ? AND product_id = ?',
-    ).bind(BOOTSTRAP_STORE_ID, productId).all<ExistingVariantRow>()).results;
+    ).bind(storeId, productId).all<ExistingVariantRow>()).results;
   const existingById = new Map(existingVariants.map((variant) => [variant.id, variant]));
   const existingByCombination = new Map(existingVariants.map((variant) => [variant.combination_key, variant]));
   assertUniqueIds(schema.rows.flatMap((row) => row.id === null ? [] : [row.id]), '/schema/rows');
@@ -291,7 +293,7 @@ async function fingerprintUpdatedAggregate(
 }
 
 
-function schemaStatements(db: D1Database, productId: string, mapped: MappedSchema): D1PreparedStatement[] {
+function schemaStatements(db: D1Database, storeId: string, productId: string, mapped: MappedSchema): D1PreparedStatement[] {
   const groupJson = JSON.stringify(mapped.groups.map((group) => ({ ...group, participating: group.participating ? 1 : 0 })));
   const valueJson = JSON.stringify(mapped.values);
   const variantJson = JSON.stringify(mapped.variants.map((variant) => ({
@@ -309,28 +311,28 @@ function schemaStatements(db: D1Database, productId: string, mapped: MappedSchem
   ));
   return [
     db.prepare("UPDATE product_variants SET current_schema = 0, status = 'disabled' WHERE store_id = ? AND product_id = ? AND current_schema = 1")
-      .bind(BOOTSTRAP_STORE_ID, productId),
-    db.prepare('UPDATE product_option_groups SET active = 0 WHERE store_id = ? AND product_id = ?').bind(BOOTSTRAP_STORE_ID, productId),
-    db.prepare('UPDATE product_option_values SET active = 0 WHERE store_id = ? AND product_id = ?').bind(BOOTSTRAP_STORE_ID, productId),
+      .bind(storeId, productId),
+    db.prepare('UPDATE product_option_groups SET active = 0 WHERE store_id = ? AND product_id = ?').bind(storeId, productId),
+    db.prepare('UPDATE product_option_values SET active = 0 WHERE store_id = ? AND product_id = ?').bind(storeId, productId),
     db.prepare(
       `INSERT INTO product_option_groups (id, store_id, product_id, name, comparison_key, position, participating, active)
        SELECT json_extract(value, '$.id'), ?, ?, json_extract(value, '$.name'), json_extract(value, '$.comparisonKey'),
               json_extract(value, '$.position'), json_extract(value, '$.participating'), 0 FROM json_each(?) WHERE 1
        ON CONFLICT(id) DO UPDATE SET name=excluded.name, comparison_key=excluded.comparison_key,
          position=excluded.position, participating=excluded.participating, active=0`,
-    ).bind(BOOTSTRAP_STORE_ID, productId, groupJson),
+    ).bind(storeId, productId, groupJson),
     db.prepare(
       `INSERT INTO product_option_values (id, store_id, product_id, group_id, label, comparison_key, position, active)
        SELECT json_extract(value, '$.id'), ?, ?, json_extract(value, '$.groupId'), json_extract(value, '$.label'),
               json_extract(value, '$.comparisonKey'), json_extract(value, '$.position'), 1 FROM json_each(?) WHERE 1
        ON CONFLICT(id) DO UPDATE SET group_id=excluded.group_id, label=excluded.label,
          comparison_key=excluded.comparison_key, position=excluded.position, active=1`,
-    ).bind(BOOTSTRAP_STORE_ID, productId, valueJson),
+    ).bind(storeId, productId, valueJson),
     db.prepare(
       `UPDATE product_option_groups SET active=1
         WHERE store_id=? AND product_id=?
           AND id IN (SELECT json_extract(value, '$.id') FROM json_each(?))`,
-    ).bind(BOOTSTRAP_STORE_ID, productId, groupJson),
+    ).bind(storeId, productId, groupJson),
     db.prepare(
       `INSERT INTO product_variants
          (id, store_id, product_id, combination_key, sku, status, current_schema, price_override_minor,
@@ -346,17 +348,17 @@ function schemaStatements(db: D1Database, productId: string, mapped: MappedSchem
          delivery_file_size=CASE WHEN excluded.delivery_source='product_default' THEN NULL ELSE product_variants.delivery_file_size END,
          delivery_file_kind=CASE WHEN excluded.delivery_source='product_default' THEN NULL ELSE product_variants.delivery_file_kind END,
          delivery_file_checksum=CASE WHEN excluded.delivery_source='product_default' THEN NULL ELSE product_variants.delivery_file_checksum END`,
-    ).bind(BOOTSTRAP_STORE_ID, productId, variantJson),
+    ).bind(storeId, productId, variantJson),
     db.prepare(
       `DELETE FROM product_variant_values
         WHERE store_id = ? AND product_id = ?
           AND variant_id IN (SELECT json_extract(value, '$.id') FROM json_each(?))`,
-    ).bind(BOOTSTRAP_STORE_ID, productId, variantJson),
+    ).bind(storeId, productId, variantJson),
     db.prepare(
       `INSERT INTO product_variant_values (variant_id, value_id, group_id, product_id, store_id)
        SELECT json_extract(value, '$.variantId'), json_extract(value, '$.valueId'), json_extract(value, '$.groupId'), ?, ?
          FROM json_each(?)`,
-    ).bind(productId, BOOTSTRAP_STORE_ID, membershipJson),
+    ).bind(productId, storeId, membershipJson),
     db.prepare(
       `UPDATE product_variants
           SET current_schema = 1,
@@ -364,11 +366,33 @@ function schemaStatements(db: D1Database, productId: string, mapped: MappedSchem
               updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
         WHERE store_id = ? AND product_id = ?
           AND id IN (SELECT json_extract(value, '$.id') FROM json_each(?))`,
-    ).bind(variantJson, BOOTSTRAP_STORE_ID, productId, variantJson),
+    ).bind(variantJson, storeId, productId, variantJson),
   ];
 }
 
-export async function createProduct(db: D1Database, request: CreateProductRequest): Promise<ProductDetailResponse> {
+function productCommitAssertion(
+  db: D1Database,
+  identity: ConsoleIdentityContext,
+  productId: string,
+  expectedRevision: number,
+  expectedFingerprint: string,
+): D1PreparedStatement {
+  return db.prepare(
+    `UPDATE stores SET name=CASE WHEN EXISTS (
+       SELECT 1 FROM store_memberships
+        WHERE id=? AND store_id=? AND user_id=? AND role='owner' AND status='active'
+     ) AND EXISTS (
+       SELECT 1 FROM products
+        WHERE store_id=? AND id=? AND revision=? AND import_fingerprint=?
+     ) THEN name ELSE NULL END
+     WHERE id=?`,
+  ).bind(
+    identity.membershipId, identity.storeId, identity.userId,
+    identity.storeId, productId, expectedRevision, expectedFingerprint, identity.storeId,
+  );
+}
+
+export async function createProduct(db: D1Database, identity: ConsoleIdentityContext, request: CreateProductRequest): Promise<ProductDetailResponse> {
   const id = stableId('prod');
   const slug = slugifyProductName(request.product.name);
   const values = productValues(request.product);
@@ -378,32 +402,40 @@ export async function createProduct(db: D1Database, request: CreateProductReques
       throw new CatalogValidationError('schema_preview_stale', 'The schema preview is stale.', [], 409);
     }
   }
-  const mapped = request.schema === null ? null : await mapSchema(db, null, request.product, request.schema);
+  const mapped = request.schema === null ? null : await mapSchema(db, identity.storeId, null, request.product, request.schema);
   const fingerprint = await fingerprintMappedAggregate(request.product, mapped);
   const productInsert = db.prepare(
     `INSERT INTO products
        (id, store_id, slug, name, name_search_key, slug_search_key, status, product_type, currency,
         base_price_minor, public_description, delivery_access_title, delivery_access_instructions, revision, import_fingerprint)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
-  ).bind(id, BOOTSTRAP_STORE_ID, slug, values.name, normalizeComparisonKey(values.name), normalizeComparisonKey(slug),
+     VALUES (?, ?, ?, CASE WHEN EXISTS (
+       SELECT 1 FROM store_memberships
+        WHERE id=? AND store_id=? AND user_id=? AND role='owner' AND status='active'
+     ) THEN ? ELSE NULL END, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+  ).bind(id, identity.storeId, slug, identity.membershipId, identity.storeId, identity.userId, values.name,
+    normalizeComparisonKey(values.name), normalizeComparisonKey(slug),
     values.status, mapped ? 'variant' : 'simple', values.currency, values.basePriceMinor, values.publicDescription,
     values.accessTitle, values.accessInstructions, fingerprint);
-  await db.batch(mapped ? [productInsert, ...schemaStatements(db, id, mapped)] : [productInsert]);
-  const detail = await readProductDetailById(db, id);
+  const writes = mapped ? [productInsert, ...schemaStatements(db, identity.storeId, id, mapped)] : [productInsert];
+  writes.push(productCommitAssertion(db, identity, id, 1, fingerprint));
+  await db.batch(writes);
+  const detail = await readProductDetailById(db, identity, id);
   if (!detail) throw new Error('Created Product could not be read.');
   return detail;
 }
 
 export async function validateSchemaForProduct(
   db: D1Database,
+  storeId: string,
   productId: string | null,
   product: ProductCoreFields,
   schema: SchemaDraft,
 ): Promise<void> {
-  await mapSchema(db, productId, product, schema, true);
+  await mapSchema(db, storeId, productId, product, schema, true);
 }
 export async function applyProductSchema(
   db: D1Database,
+  identity: ConsoleIdentityContext,
   productId: string,
   expectedRevision: number,
   request: ApplySchemaRequest,
@@ -413,33 +445,39 @@ export async function applyProductSchema(
     throw new CatalogValidationError('schema_preview_stale', 'The schema preview is stale.', [], 409);
 
   }
-  const mapped = await mapSchema(db, productId, request.product, request.schema);
+  const mapped = await mapSchema(db, identity.storeId, productId, request.product, request.schema);
   const values = productValues(request.product);
   const fingerprint = await fingerprintMappedAggregate(request.product, mapped);
-  const statements = schemaStatements(db, productId, mapped);
+  const statements = schemaStatements(db, identity.storeId, productId, mapped);
   statements.push(db.prepare(
     `UPDATE products SET
-       name = CASE WHEN revision = ? THEN ? ELSE NULL END,
+       name = CASE WHEN revision = ? AND EXISTS (
+         SELECT 1 FROM store_memberships
+          WHERE id=? AND store_id=? AND user_id=? AND role='owner' AND status='active'
+       ) THEN ? ELSE NULL END,
        name_search_key = ?, status = ?, product_type = ?, currency = ?, base_price_minor = ?, public_description = ?,
        delivery_access_title = ?, delivery_access_instructions = ?, revision = revision + 1,
        import_fingerprint = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
      WHERE store_id = ? AND id = ?`,
-  ).bind(expectedRevision, values.name, normalizeComparisonKey(values.name), values.status,
+  ).bind(expectedRevision, identity.membershipId, identity.storeId, identity.userId, values.name,
+    normalizeComparisonKey(values.name), values.status,
     mapped.groups.length === 0 ? 'simple' : 'variant', values.currency, values.basePriceMinor,
-    values.publicDescription, values.accessTitle, values.accessInstructions, fingerprint, BOOTSTRAP_STORE_ID, productId));
+    values.publicDescription, values.accessTitle, values.accessInstructions, fingerprint, identity.storeId, productId));
+  statements.push(productCommitAssertion(db, identity, productId, expectedRevision + 1, fingerprint));
   await db.batch(statements);
-  const detail = await readProductDetailById(db, productId);
+  const detail = await readProductDetailById(db, identity, productId);
   if (!detail) throw new CatalogValidationError('product_not_found', 'Product not found.', [], 404);
   return detail;
 }
 
 export async function updateProductNonstructural(
   db: D1Database,
+  identity: ConsoleIdentityContext,
   productId: string,
   expectedRevision: number,
   request: NonstructuralProductUpdateRequest,
 ): Promise<ProductDetailResponse> {
-  const current = await readProductDetailById(db, productId);
+  const current = await readProductDetailById(db, identity, productId);
   if (!current) throw new CatalogValidationError('product_not_found', 'Product not found.', [], 404);
   const requestedGroups = request.optionLabels.groups;
   const currentGroupIds = current.optionGroups.map((group) => group.id).sort();
@@ -511,13 +549,13 @@ export async function updateProductNonstructural(
          name=(SELECT json_extract(value, '$.name') FROM json_each(?) WHERE json_extract(value, '$.id')=product_option_groups.id),
          comparison_key=(SELECT json_extract(value, '$.comparisonKey') FROM json_each(?) WHERE json_extract(value, '$.id')=product_option_groups.id)
        WHERE store_id=? AND product_id=? AND id IN (SELECT json_extract(value, '$.id') FROM json_each(?))`,
-    ).bind(groupsJson, groupsJson, BOOTSTRAP_STORE_ID, productId, groupsJson),
+    ).bind(groupsJson, groupsJson, identity.storeId, productId, groupsJson),
     db.prepare(
       `UPDATE product_option_values SET
          label=(SELECT json_extract(value, '$.label') FROM json_each(?) WHERE json_extract(value, '$.id')=product_option_values.id),
          comparison_key=(SELECT json_extract(value, '$.comparisonKey') FROM json_each(?) WHERE json_extract(value, '$.id')=product_option_values.id)
        WHERE store_id=? AND product_id=? AND id IN (SELECT json_extract(value, '$.id') FROM json_each(?))`,
-    ).bind(optionValuesJson, optionValuesJson, BOOTSTRAP_STORE_ID, productId, optionValuesJson),
+    ).bind(optionValuesJson, optionValuesJson, identity.storeId, productId, optionValuesJson),
     db.prepare(
       `UPDATE product_variants SET
          sku=(SELECT json_extract(value, '$.sku') FROM json_each(?) WHERE json_extract(value, '$.id')=product_variants.id),
@@ -535,18 +573,23 @@ export async function updateProductNonstructural(
        WHERE store_id=? AND product_id=? AND id IN (SELECT json_extract(value, '$.id') FROM json_each(?))`,
     ).bind(variantsJson, variantsJson, variantsJson, variantsJson, variantsJson, variantsJson,
       variantsJson, variantsJson, variantsJson, variantsJson, variantsJson,
-      BOOTSTRAP_STORE_ID, productId, variantsJson),
+      identity.storeId, productId, variantsJson),
     db.prepare(
       `UPDATE products SET
-         name=CASE WHEN revision=? THEN ? ELSE NULL END, name_search_key=?, status=?, currency=?,
+         name=CASE WHEN revision=? AND EXISTS (
+           SELECT 1 FROM store_memberships
+            WHERE id=? AND store_id=? AND user_id=? AND role='owner' AND status='active'
+         ) THEN ? ELSE NULL END, name_search_key=?, status=?, currency=?,
          base_price_minor=?, public_description=?, delivery_access_title=?, delivery_access_instructions=?,
          revision=revision+1, import_fingerprint=?, updated_at=strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
        WHERE store_id=? AND id=?`,
-    ).bind(expectedRevision, values.name, normalizeComparisonKey(values.name), values.status, values.currency,
+    ).bind(expectedRevision, identity.membershipId, identity.storeId, identity.userId, values.name,
+      normalizeComparisonKey(values.name), values.status, values.currency,
       values.basePriceMinor, values.publicDescription, values.accessTitle, values.accessInstructions,
-      fingerprint, BOOTSTRAP_STORE_ID, productId),
+      fingerprint, identity.storeId, productId),
+    productCommitAssertion(db, identity, productId, expectedRevision + 1, fingerprint),
   ]);
-  const detail = await readProductDetailById(db, productId);
+  const detail = await readProductDetailById(db, identity, productId);
   if (!detail) throw new Error('Updated Product could not be read.');
   return detail;
 }

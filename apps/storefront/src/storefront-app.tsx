@@ -76,6 +76,20 @@ const MIXED_CURRENCY = 'This cart mixes currencies. Remove lines until every Pro
 const PAID_STATUS_COPY = 'This Order is paid. This page does not deliver files or pay out a refund.';
 const FULFILLED_STATUS_COPY = 'This Order is fulfilled. This page does not deliver files or pay out a refund.';
 const REFUND_REQUEST_INTRO = 'You can send one refund request. Sending a request does not issue a refund.';
+const REFUND_STATUS_COPY = {
+  pending: {
+    heading: 'Refund request pending',
+    message: 'Your request is pending. No refund has been issued.',
+  },
+  approved: {
+    heading: 'Refund request approved',
+    message: 'Your refund request was approved and is awaiting execution. No refund has been issued.',
+  },
+  rejected: {
+    heading: 'Refund request rejected',
+    message: 'Your refund request was rejected. No refund has been issued.',
+  },
+} as const;
 const CATALOG_PAGE_SIZE = 24;
 
 
@@ -357,6 +371,9 @@ function PrivateOrderPage({
   const reasonLocked = submitState === 'submitting' || submitState === 'retry';
   const displayedReason = reasonLocked && attemptRef.current ? attemptRef.current.reason : reason;
   const codePoints = Array.from(displayedReason).length;
+  const refundCopy = visibleOrder?.refundRequest
+    ? REFUND_STATUS_COPY[visibleOrder.refundRequest.status]
+    : null;
 
   return (
     <main id="storefront-content" className="order-page" tabIndex={-1}>
@@ -458,12 +475,15 @@ function PrivateOrderPage({
               </form>
             </section>
           ) : null}
-          {visibleOrder.refundRequest ? (
+          {visibleOrder.refundRequest && refundCopy ? (
             <section>
-              <h2>Refund request pending</h2>
+              <h2>{refundCopy.heading}</h2>
               <p className="refund-reason">{visibleOrder.refundRequest.reason}</p>
               <p>Requested {new Date(visibleOrder.refundRequest.createdAt).toLocaleString()}</p>
-              <p>Your request is pending. No refund has been issued.</p>
+              {visibleOrder.refundRequest.decidedAt ? (
+                <p>Decision recorded {new Date(visibleOrder.refundRequest.decidedAt).toLocaleString()}</p>
+              ) : null}
+              <p>{refundCopy.message}</p>
             </section>
           ) : null}
           {refreshFailed ? (

@@ -4,9 +4,25 @@ import { fileURLToPath } from 'node:url';
 import { cloudflare } from '@cloudflare/vite-plugin';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
+import {
+  resolveConsoleWorkerIsolation,
+  resolveIsolatedPersistRoot,
+} from '../../scripts/verification/e2e-worker-environment';
 
 const consoleRoot = fileURLToPath(new URL('.', import.meta.url));
 const projectRoot = resolve(consoleRoot, '../..');
+
+function localPersistStatePath(): string {
+  const configured = process['env'].NEXUS_TEST_PERSIST_ROOT;
+  if (configured === undefined) return resolve(projectRoot, '.wrangler/state');
+  return resolveIsolatedPersistRoot({
+    projectRoot,
+    persistRoot: configured,
+    label: 'NEXUS_TEST_PERSIST_ROOT',
+  });
+}
+
+const workerIsolation = resolveConsoleWorkerIsolation(process['env'], projectRoot);
 
 function productionImportGraph(): Plugin {
   const metadataDirectory = resolve(projectRoot, '.nexus-build');
@@ -49,10 +65,19 @@ function productionImportGraph(): Plugin {
 export default defineConfig({
   root: consoleRoot,
   cacheDir: resolve(projectRoot, 'node_modules/.vite-console'),
+  server: { strictPort: true },
   plugins: [
     cloudflare({
       configPath: resolve(projectRoot, 'wrangler.jsonc'),
-      persistState: { path: resolve(projectRoot, '.wrangler/state') },
+      persistState: { path: localPersistStatePath() },
+      // The root Wrangler config stays canonical. Under local E2E isolation the Worker only
+      // takes its origins and auth secret from the harness, and `userConfigPath` moves the
+      // `.dev.vars` / `.env` lookup into the isolated persistence root so a developer's own
+      // repository-root secrets are neither read nor modified.
+      config: workerIsolation && {
+        userConfigPath: workerIsolation.workerConfigPath,
+        vars: workerIsolation.vars,
+      },
     }),
     react(),
     productionImportGraph(),

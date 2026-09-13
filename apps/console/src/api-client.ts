@@ -21,6 +21,8 @@ import type {
   ConsoleOrderListQuery,
   ConsoleOrderListResponse,
   OrderCommandResultView,
+  OrderAssignmentCommandResultView,
+  StaffCandidateView,
 } from './orders/order-ui-types';
 
 interface ErrorEnvelope {
@@ -128,6 +130,28 @@ function orderJsonHeaders(idempotencyKey?: string): HeadersInit {
   };
 }
 
+function record(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function parseAssignmentResult(value: unknown): OrderAssignmentCommandResultView {
+  const result = record(value);
+  const assignment = record(result?.assignment);
+  if (
+    result?.action !== 'assign'
+    || typeof result.reference !== 'string'
+    || !['pending', 'paid', 'fulfilled', 'canceled'].includes(String(result.status))
+    || typeof result.occurredAt !== 'string'
+    || result.paymentId !== null
+    || result.refundRequest !== null
+    || typeof assignment?.assigneeUserId !== 'string'
+    || typeof assignment.eventId !== 'string'
+  ) throw new Error('The assignment response is invalid.');
+  return result as unknown as OrderAssignmentCommandResultView;
+}
+
 export async function fetchOrders(query: ConsoleOrderListQuery, signal?: AbortSignal): Promise<ConsoleOrderListResponse> {
   const params = new URLSearchParams();
   if (query.q) params.set('q', query.q);
@@ -205,15 +229,56 @@ export async function createConsoleRefundRequest(
   return decode(response, signal);
 }
 
-export async function fetchProductBySlug(slug: string): Promise<{ product: ProductDetailResponse; revision: number }> {
-  const response = await fetch(`/api/console/products/by-slug/${encodeURIComponent(slug)}`, { headers: { Accept: 'application/json' } });
-  const product = await decode<ProductDetailResponse>(response);
+export async function decideConsoleRefundRequest(
+  reference: string,
+  requestId: string,
+  decision: 'approve' | 'reject',
+  idempotencyKey: string,
+  signal?: AbortSignal,
+): Promise<OrderCommandResultView> {
+  const response = await fetch(
+    `/api/console/orders/${encodeURIComponent(reference)}/refund-requests/${encodeURIComponent(requestId)}/${decision}`,
+    {
+      method: 'POST',
+      headers: orderJsonHeaders(idempotencyKey),
+      body: JSON.stringify({}),
+      signal,
+    },
+  );
+  return decode(response, signal);
+}
+
+export async function fetchStaffCandidates(signal?: AbortSignal): Promise<{ staff: StaffCandidateView[] }> {
+  const response = await fetch('/api/console/staff', { headers: orderReadHeaders(), signal });
+  return decode(response, signal);
+}
+
+export async function assignConsoleOrder(
+  reference: string,
+  assigneeUserId: string,
+  idempotencyKey: string,
+  signal?: AbortSignal,
+): Promise<OrderAssignmentCommandResultView> {
+  const response = await fetch(`/api/console/orders/${encodeURIComponent(reference)}/assignment`, {
+    method: 'POST',
+    headers: orderJsonHeaders(idempotencyKey),
+    body: JSON.stringify({ assigneeUserId }),
+    signal,
+  });
+  return parseAssignmentResult(await decode<unknown>(response, signal));
+}
+
+export async function fetchProductBySlug(slug: string, signal?: AbortSignal): Promise<{ product: ProductDetailResponse; revision: number }> {
+  const response = await fetch(`/api/console/products/by-slug/${encodeURIComponent(slug)}`, {
+    headers: { Accept: 'application/json' }, signal,
+  });
+  const product = await decode<ProductDetailResponse>(response, signal);
   return { product, revision: product.revision };
 }
 
-export async function createProduct(request: CreateProductRequest): Promise<{ product: ProductDetailResponse; revision: number }> {
-  const response = await fetch('/api/console/products', { method: 'POST', headers: jsonHeaders(), body: JSON.stringify(request) });
-  const result = await decode<ProductMutationResponse>(response);
+export async function createProduct(request: CreateProductRequest, signal?: AbortSignal): Promise<{ product: ProductDetailResponse; revision: number }> {
+  const response = await fetch('/api/console/products', { method: 'POST', headers: jsonHeaders(), body: JSON.stringify(request), signal });
+  const result = await decode<ProductMutationResponse>(response, signal);
   return { product: result.product, revision: result.product.revision };
 }
 
@@ -221,33 +286,36 @@ export async function updateProduct(
   productId: string,
   revision: number,
   request: NonstructuralProductUpdateRequest,
+  signal?: AbortSignal,
 ): Promise<{ product: ProductDetailResponse; revision: number }> {
   const response = await fetch(`/api/console/products/${encodeURIComponent(productId)}`, {
-    method: 'PUT', headers: jsonHeaders(revision), body: JSON.stringify(request),
+    method: 'PUT', headers: jsonHeaders(revision), body: JSON.stringify(request), signal,
   });
-  const result = await decode<ProductMutationResponse>(response);
+  const result = await decode<ProductMutationResponse>(response, signal);
   return { product: result.product, revision: result.product.revision };
 }
 
 export async function previewProductSchema(
   revision: number | null,
   request: { productId: string | null; productSlug: string; product: CreateProductRequest['product']; schema: NonNullable<CreateProductRequest['schema']> },
+  signal?: AbortSignal,
 ): Promise<SchemaPreviewResponse> {
   const response = await fetch('/api/console/products/schema/preview', {
-    method: 'POST', headers: jsonHeaders(revision ?? undefined), body: JSON.stringify(request),
+    method: 'POST', headers: jsonHeaders(revision ?? undefined), body: JSON.stringify(request), signal,
   });
-  return decode(response);
+  return decode(response, signal);
 }
 
 export async function applyProductSchema(
   productId: string,
   revision: number,
   request: ApplySchemaRequest,
+  signal?: AbortSignal,
 ): Promise<{ product: ProductDetailResponse; revision: number }> {
   const response = await fetch(`/api/console/products/${encodeURIComponent(productId)}/schema`, {
-    method: 'PUT', headers: jsonHeaders(revision), body: JSON.stringify(request),
+    method: 'PUT', headers: jsonHeaders(revision), body: JSON.stringify(request), signal,
   });
-  const result = await decode<ProductMutationResponse>(response);
+  const result = await decode<ProductMutationResponse>(response, signal);
   return { product: result.product, revision: result.product.revision };
 }
 
@@ -256,7 +324,7 @@ export async function replaceDeliveryFile(input: {
   variantId: string | null;
   revision: number;
   file: File;
-}): Promise<number> {
+}, signal?: AbortSignal): Promise<number> {
   const suffix = input.variantId === null ? '' : `/variants/${encodeURIComponent(input.variantId)}`;
   const response = await fetch(`/api/console/products/${encodeURIComponent(input.productId)}${suffix}/delivery-file`, {
     method: 'PUT',
@@ -266,8 +334,9 @@ export async function replaceDeliveryFile(input: {
       'X-Nexus-Filename': encodeURIComponent(input.file.name),
     },
     body: input.file,
+    signal,
   });
-  const result = await decode<{ revision: number }>(response);
+  const result = await decode<{ revision: number }>(response, signal);
   return result.revision;
 }
 
@@ -275,18 +344,19 @@ export async function removeDeliveryFile(input: {
   productId: string;
   variantId: string | null;
   revision: number;
-}): Promise<number> {
+}, signal?: AbortSignal): Promise<number> {
   const suffix = input.variantId === null ? '' : `/variants/${encodeURIComponent(input.variantId)}`;
   const response = await fetch(`/api/console/products/${encodeURIComponent(input.productId)}${suffix}/delivery-file`, {
-    method: 'DELETE', headers: { 'If-Match': `"${input.revision}"` },
+    method: 'DELETE', headers: { 'If-Match': `"${input.revision}"` }, signal,
   });
-  const result = await decode<{ revision: number }>(response);
+  const result = await decode<{ revision: number }>(response, signal);
   return result.revision;
 }
 
-export async function downloadCsvTemplate(): Promise<void> {
-  const response = await fetch('/api/console/imports/template', { headers: { Accept: CSV_CONTENT_TYPE } });
-  if (!response.ok) await decode<never>(response);
+export async function downloadCsvTemplate(signal?: AbortSignal): Promise<void> {
+  const response = await fetch('/api/console/imports/template', { headers: { Accept: CSV_CONTENT_TYPE }, signal });
+  if (!response.ok) await decode<never>(response, signal);
+  if (signal?.aborted) throw abortError(signal);
   const url = URL.createObjectURL(await response.blob());
   const anchor = document.createElement('a');
   anchor.href = url;

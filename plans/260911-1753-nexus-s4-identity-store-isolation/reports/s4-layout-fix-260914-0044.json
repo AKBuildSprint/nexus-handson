@@ -1,0 +1,114 @@
+{
+  "verifiedAt": "2026-09-14T00:44:20.335716+07:00",
+  "previousAssessment": "plans/260911-1753-nexus-s4-identity-store-isolation/reports/s4-scenario-recheck-260914-0018.json",
+  "scope": "Repair the confirmed S4-06/S4-21 mobile overflows and measure the missing S4-15 production payment-reference search. Other scenario evidence gaps are not silently marked complete.",
+  "repairs": [
+    {
+      "surface": "Console",
+      "cause": "Assignment select bypassed the shared .field layout; its intrinsic option width expanded the grid.",
+      "change": "Use the existing .field label/control wrapper; allow long page content to wrap.",
+      "files": [
+        "apps/console/src/orders/order-detail-screen.tsx",
+        "apps/console/src/styles/console-layout.css"
+      ]
+    },
+    {
+      "surface": "Storefront",
+      "cause": "Long Product text could overflow both catalog cards and the selected checkout heading; fixing only the card left checkout overflow.",
+      "change": "Apply the existing overflow-wrap:anywhere convention to catalog rows and purchase/private Order ledgers.",
+      "files": [
+        "apps/storefront/src/styles.css"
+      ]
+    }
+  ],
+  "visualVerification": {
+    "browser": "Chromium",
+    "viewports": [
+      375,
+      1280
+    ],
+    "result": "document and body scroll widths equal viewport width for both apps, including populated checkout",
+    "primaryActions": "Enabled resting primary actions match color-accent and color-accent-ink; wait for existing disabled-to-enabled color transitions before comparing.",
+    "screenshots": {
+      "console": "plans/260911-1753-nexus-s4-identity-store-isolation/reports/s4-layout-fix-260914-0044-console-375.png",
+      "storefront": "plans/260911-1753-nexus-s4-identity-store-isolation/reports/s4-layout-fix-260914-0044-storefront-375.png"
+    }
+  },
+  "regressionCoverage": {
+    "strategy": "Strengthen existing tests instead of adding duplicate journeys.",
+    "files": [
+      "tests/e2e/console-orders.spec.ts",
+      "tests/e2e/storefront-orders.spec.ts",
+      "tests/support/console-auth-fixtures.ts"
+    ],
+    "cases": [
+      "Long Unicode and unbroken Staff name in real auth fixtures",
+      "Mobile Order detail with long Product name and open payment form",
+      "Keyboard assignment followed by confirmed response, reload and persisted assignee",
+      "Long script-like Product name through catalog, checkout and private Variant Order at 375px"
+    ]
+  },
+  "verification": {
+    "node": "22.23.2",
+    "commands": [
+      {
+        "command": "npm run build && npm run build:storefront && npm test",
+        "result": "pass",
+        "typecheck": "pass",
+        "consoleBuild": "pass",
+        "storefrontBuild": "pass",
+        "productionImportGraphModules": 27,
+        "workerTestsPassed": 236,
+        "chromiumContractTestsPassed": 80
+      },
+      {
+        "command": "npm run test:e2e",
+        "result": "pass",
+        "testsPassed": 30,
+        "isolatedOrigins": [
+          "http://127.0.0.1:5993",
+          "http://127.0.0.1:5994"
+        ]
+      }
+    ]
+  },
+  "performance": {
+    "runtime": "workerd",
+    "orders": 10000,
+    "assignedOrders": 200,
+    "warmupsPerRolePerWorkload": 5,
+    "samplesPerRolePerWorkload": 20,
+    "domainP95Ms": {
+      "list": {
+        "staff": 5,
+        "owner": 4
+      },
+      "customerName": {
+        "staff": 4,
+        "owner": 13
+      },
+      "paymentReferenceExact": {
+        "staff": 8,
+        "owner": 28
+      },
+      "paymentReferencePrefix": {
+        "staff": 7,
+        "owner": 16
+      }
+    },
+    "rawCustomerNameSearchP95Ms": {
+      "staff": 1,
+      "owner": 1
+    },
+    "verdict": "Each measured domain workload is below 1s and Staff <=1.25x Owner in this local sample. The prior 2ms/1ms raw-search result was not stable; this is measurement evidence, not a production SLA.",
+    "sqlChanged": false,
+    "probe": "Temporary extension of order-assignment-performance.test.ts; removed after execution. No timing assertions added to permanent correctness tests."
+  },
+  "documentation": "docs/design-guidelines.md now states full-text wrapping and shared native-select sizing conventions.",
+  "boundaries": {
+    "apiOrSchemaChanged": false,
+    "remoteTouched": false,
+    "committedOrPushed": false,
+    "all49ScenariosClaimedPassing": false
+  }
+}

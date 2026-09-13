@@ -1,3 +1,8 @@
+import {
+  createConsoleSession,
+  TEST_BETTER_AUTH_SECRET,
+  TEST_CONSOLE_ORIGIN,
+} from './identity-test-env';
 import { applyD1Migrations, env, type D1Migration } from 'cloudflare:test';
 import migrationOne from '../../migrations/0001-store-products.sql?raw';
 import migrationTwo from '../../migrations/0002-product-variants.sql?raw';
@@ -6,7 +11,12 @@ import migrationFour from '../../migrations/0004-orders.sql?raw';
 import migrationFive from '../../migrations/0005-order-operations.sql?raw';
 import migrationSix from '../../migrations/0006-order-brief-contract.sql?raw';
 import migrationSeven from '../../migrations/0007-manual-payments.sql?raw';
+import migrationEight from '../../migrations/0008-better-auth.sql?raw';
+import migrationNine from '../../migrations/0009-store-memberships.sql?raw';
+import migrationTen from '../../migrations/0010-refund-decisions.sql?raw';
+import migrationEleven from '../../migrations/0011-google-account-binding-uniqueness.sql?raw';
 import worker from '../../apps/worker/src';
+import type { ConsoleIdentityContext } from '@nexus/identity/identity-types';
 
 function splitMigrationSql(sql: string): string[] {
   const queries: string[] = [];
@@ -79,20 +89,31 @@ export const catalogMigrations: D1Migration[] = [
   { name: '0005-order-operations.sql', queries: splitMigrationSql(migrationFive) },
   { name: '0006-order-brief-contract.sql', queries: splitMigrationSql(migrationSix) },
   { name: '0007-manual-payments.sql', queries: splitMigrationSql(migrationSeven) },
+  { name: '0008-better-auth.sql', queries: splitMigrationSql(migrationEight) },
+  { name: '0009-store-memberships.sql', queries: splitMigrationSql(migrationNine) },
+  { name: '0010-refund-decisions.sql', queries: splitMigrationSql(migrationTen) },
+  { name: '0011-google-account-binding-uniqueness.sql', queries: splitMigrationSql(migrationEleven) },
 ];
 
-export type CatalogMigrationThrough = 4 | 5 | 6 | 7;
+export type CatalogMigrationThrough = 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
 
-export function applyCatalogMigrations(through: CatalogMigrationThrough = 7): Promise<void> {
+export function applyCatalogMigrations(through: CatalogMigrationThrough = 11): Promise<void> {
   return applyD1Migrations(env.DB, catalogMigrations.slice(0, through));
 }
 
 export async function resetCatalogThrough(through: CatalogMigrationThrough): Promise<void> {
   const tables = [
+    'order_assignments',
     'order_commands',
     'payments',
     'order_history',
     'order_refund_requests',
+    'store_memberships',
+    'account',
+    'session',
+    'verification',
+    'rateLimit',
+    'user',
     'order_idempotency',
     'order_access',
     'order_lines',
@@ -112,7 +133,7 @@ export async function resetCatalogThrough(through: CatalogMigrationThrough): Pro
 }
 
 export async function resetCatalog(): Promise<void> {
-  return resetCatalogThrough(7);
+  return resetCatalogThrough(11);
 }
 
 export const TEST_STOREFRONT_ORIGIN = 'https://storefront.test';
@@ -130,8 +151,52 @@ export function workerRequest(path: string, init?: RequestInit): Promise<Respons
     DB: env.DB,
     FILES: env.FILES,
     STOREFRONT_ORIGIN: TEST_STOREFRONT_ORIGIN,
+    CONSOLE_ORIGIN: TEST_CONSOLE_ORIGIN,
+    BETTER_AUTH_SECRET: TEST_BETTER_AUTH_SECRET,
+    GOOGLE_CLIENT_ID: 'test-google-client-id',
+    GOOGLE_CLIENT_SECRET: 'test-google-client-secret',
     ASSETS: { fetch: () => Promise.resolve(new Response('asset')) } as unknown as Fetcher,
   });
+}
+
+let cachedConsoleSession: { cookie: string; userId: string } | null = null;
+
+export async function getConsoleSession(): Promise<{ cookie: string; userId: string }> {
+  if (cachedConsoleSession !== null) {
+    const exists = await env.DB.prepare(
+      `SELECT EXISTS(
+         SELECT 1 FROM session
+         JOIN store_memberships membership ON membership.user_id = session.userId
+        WHERE session.userId = ? AND membership.status = 'active'
+       ) AS present`,
+    ).bind(cachedConsoleSession.userId).first<number>('present');
+    if (exists !== 1) cachedConsoleSession = null;
+  }
+  const session = cachedConsoleSession ?? await createConsoleSession();
+  cachedConsoleSession = session;
+  return session;
+}
+
+export async function getConsoleIdentity(): Promise<ConsoleIdentityContext> {
+  const session = await getConsoleSession();
+  const membership = await env.DB.prepare(
+    `SELECT id, store_id AS storeId, role, status
+       FROM store_memberships WHERE user_id=? AND status='active'`,
+  ).bind(session.userId).first<{ id: string; storeId: string; role: 'owner' | 'staff'; status: 'active' }>();
+  if (!membership) throw new Error('Expected the default Console membership.');
+  return {
+    kind: 'console', userId: session.userId, storeId: membership.storeId,
+    membershipId: membership.id, role: membership.role, membershipStatus: membership.status,
+  };
+}
+
+export async function consoleRequest(path: string, init?: RequestInit): Promise<Response> {
+  const session = await getConsoleSession();
+  const headers = new Headers(init?.headers);
+  headers.set('Cookie', session.cookie);
+  headers.set('Origin', TEST_CONSOLE_ORIGIN);
+  headers.set('Sec-Fetch-Site', 'same-origin');
+  return workerRequest(path, { ...init, headers });
 }
 
 export const SIMPLE_CORE = {

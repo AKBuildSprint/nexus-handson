@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
 import { resolveOrderItemCatalogSnapshots } from '@nexus/catalog/private-order-snapshot';
-import { BOOTSTRAP_STORE_ID } from '@nexus/catalog/catalog-read';
+import { PUBLIC_STORE_ID as BOOTSTRAP_STORE_ID } from '@nexus/catalog/public-store';
 import { env } from 'cloudflare:test';
-import { resetCatalog, SIMPLE_CORE, VARIANT_CORE, oneVariantSchema, workerRequest } from '../support/catalog-test-env';
+import { consoleRequest, resetCatalog, SIMPLE_CORE, VARIANT_CORE, oneVariantSchema } from '../support/catalog-test-env';
 
 beforeEach(resetCatalog);
 
 async function createSimple(): Promise<ProductDetailResponse> {
-  const response = await workerRequest('/api/console/products', {
+  const response = await consoleRequest('/api/console/products', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ product: SIMPLE_CORE, schema: null, previewHash: null }),
   });
@@ -18,12 +18,12 @@ async function createSimple(): Promise<ProductDetailResponse> {
 async function createActiveVariant(): Promise<ProductDetailResponse> {
   const product = { ...VARIANT_CORE, status: 'active' as const };
   const schema = oneVariantSchema();
-  const preview = await workerRequest('/api/console/products/schema/preview', {
+  const preview = await consoleRequest('/api/console/products/schema/preview', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ productId: null, productSlug: 'focus-pack', product, schema }),
   });
   const hash = (await preview.json() as { previewHash: string }).previewHash;
-  const created = await workerRequest('/api/console/products', {
+  const created = await consoleRequest('/api/console/products', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ product, schema, previewHash: hash }),
   });
@@ -77,7 +77,7 @@ describe('private Order item snapshot resolver', () => {
       optionLabels: { groups: product.optionGroups.map((group) => ({ id: group.id, name: group.name, values: group.values.map((value) => ({ id: value.id, label: value.label })) })) },
       variantEdits: [{ id: variant.id, sku: variant.sku, status: 'enabled', priceOverride: '40.00', delivery: { source: 'variant_override', accessTitle: 'Private Variant', accessInstructions: 'Open Variant' } }],
     };
-    const updated = await workerRequest(`/api/console/products/${product.id}`, {
+    const updated = await consoleRequest(`/api/console/products/${product.id}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json', 'If-Match': '"1"' }, body: JSON.stringify(update),
     });
     product = (await updated.json() as { product: ProductDetailResponse }).product;

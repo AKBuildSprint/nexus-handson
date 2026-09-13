@@ -11,6 +11,7 @@ interface CsvImportScreenProps {
   onReset?: () => void;
   onShowResult?: () => void;
   scenario?: unknown;
+  onSessionExpired?: () => void;
 }
 
 interface FileCheck {
@@ -33,7 +34,7 @@ function waitForUploadingMinimum(): Promise<void> {
   });
 }
 
-export function CsvImportScreen({ onBack, onReset, onShowResult }: CsvImportScreenProps) {
+export function CsvImportScreen({ onBack, onReset, onShowResult, onSessionExpired }: CsvImportScreenProps) {
   const [dragActive, setDragActive] = useState(false);
   const [fileCheck, setFileCheck] = useState<FileCheck>({ status: 'idle' });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -63,12 +64,16 @@ export function CsvImportScreen({ onBack, onReset, onShowResult }: CsvImportScre
       if (!controller.signal.aborted && sequence === catalogSequenceRef.current) {
         setCatalogIdentities({ status: 'ready', slugs: response.products.map((product) => product.slug) });
       }
-    }).catch(() => {
+    }).catch((error: unknown) => {
       if (!controller.signal.aborted && sequence === catalogSequenceRef.current) {
+        if (error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied')) {
+          onSessionExpired?.();
+          return;
+        }
         setCatalogIdentities({ status: 'error', slugs: [] });
       }
     });
-  }, []);
+  }, [onSessionExpired]);
 
   useEffect(() => {
     loadCatalogIdentities();
@@ -141,8 +146,9 @@ export function CsvImportScreen({ onBack, onReset, onShowResult }: CsvImportScre
     try {
       await downloadCsvTemplate();
       setTemplateState('success');
-    } catch {
-      setTemplateState('error');
+    } catch (error) {
+      if (error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied')) onSessionExpired?.();
+      else setTemplateState('error');
     }
   };
 
@@ -168,6 +174,10 @@ export function CsvImportScreen({ onBack, onReset, onShowResult }: CsvImportScre
       requestAnimationFrame(() => document.getElementById('import-result-title')?.focus());
     } catch (error) {
       if (sequence !== operationSequenceRef.current || controller.signal.aborted) return;
+      if (error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied')) {
+        onSessionExpired?.();
+        return;
+      }
       if (error instanceof ConsoleImportResultError) {
         setFailure({
           kind: 'result',

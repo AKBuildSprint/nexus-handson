@@ -2,6 +2,7 @@ import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
 import {
+  consoleRequest,
   resetCatalog,
   SIMPLE_CORE,
   VARIANT_CORE,
@@ -15,7 +16,7 @@ const CAPABILITY_B = 'B'.repeat(43);
 beforeEach(resetCatalog);
 
 async function createSimpleProduct(): Promise<ProductDetailResponse> {
-  const response = await workerRequest('/api/console/products', {
+  const response = await consoleRequest('/api/console/products', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ product: SIMPLE_CORE, schema: null, previewHash: null }),
@@ -27,13 +28,13 @@ async function createSimpleProduct(): Promise<ProductDetailResponse> {
 async function createActiveVariant(): Promise<ProductDetailResponse> {
   const product = { ...VARIANT_CORE, status: 'active' as const };
   const schema = oneVariantSchema();
-  const preview = await workerRequest('/api/console/products/schema/preview', {
+  const preview = await consoleRequest('/api/console/products/schema/preview', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ productId: null, productSlug: 'focus-pack', product, schema }),
   });
   const previewHash = (await preview.json() as { previewHash: string }).previewHash;
-  const response = await workerRequest('/api/console/products', {
+  const response = await consoleRequest('/api/console/products', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ product, schema, previewHash }),

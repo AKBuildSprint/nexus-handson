@@ -7,6 +7,7 @@
     "./*": "./src/*.ts"
   },
   "dependencies": {
+    "@nexus/identity": "file:../identity",
     "papaparse": "5.7.0"
   }
 }

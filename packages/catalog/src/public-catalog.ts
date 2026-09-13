@@ -1,5 +1,5 @@
 import type { PublicCatalogResponse } from './catalog-types';
-import { BOOTSTRAP_STORE_ID } from './catalog-read';
+import { PUBLIC_STORE_ID } from './public-store';
 
 interface PublicProductRow {
   id: string;
@@ -18,19 +18,19 @@ interface PublicMembershipRow { variant_id: string; group_id: string; value_id: 
 export async function readPublicCatalog(db: D1Database): Promise<PublicCatalogResponse> {
   const [store, productRows, groupRows, valueRows, variantRows, membershipRows] = await Promise.all([
     db.prepare('SELECT id, slug, name FROM stores WHERE id = ?')
-      .bind(BOOTSTRAP_STORE_ID).first<{ id: string; slug: string; name: string }>(),
+      .bind(PUBLIC_STORE_ID).first<{ id: string; slug: string; name: string }>(),
     db.prepare(
       `SELECT id, slug, name, product_type, currency, base_price_minor, public_description
          FROM products WHERE store_id = ? AND status = 'active'
          ORDER BY updated_at DESC, id ASC`,
-    ).bind(BOOTSTRAP_STORE_ID).all<PublicProductRow>(),
+    ).bind(PUBLIC_STORE_ID).all<PublicProductRow>(),
     db.prepare(
       `SELECT g.id, g.product_id, g.name, g.position
          FROM product_option_groups g
          JOIN products p ON p.id=g.product_id AND p.store_id=g.store_id
         WHERE g.store_id=? AND g.active=1 AND g.participating=1 AND p.status='active'
         ORDER BY g.product_id, g.position, g.id`,
-    ).bind(BOOTSTRAP_STORE_ID).all<PublicGroupRow>(),
+    ).bind(PUBLIC_STORE_ID).all<PublicGroupRow>(),
     db.prepare(
       `SELECT v.id, v.product_id, v.group_id, v.label, v.position
          FROM product_option_values v
@@ -38,21 +38,21 @@ export async function readPublicCatalog(db: D1Database): Promise<PublicCatalogRe
          JOIN products p ON p.id=v.product_id AND p.store_id=v.store_id
         WHERE v.store_id=? AND v.active=1 AND g.active=1 AND g.participating=1 AND p.status='active'
         ORDER BY v.product_id, v.group_id, v.position, v.id`,
-    ).bind(BOOTSTRAP_STORE_ID).all<PublicValueRow>(),
+    ).bind(PUBLIC_STORE_ID).all<PublicValueRow>(),
     db.prepare(
       `SELECT v.id, v.product_id, v.sku, v.price_override_minor
          FROM product_variants v
          JOIN products p ON p.id=v.product_id AND p.store_id=v.store_id
         WHERE v.store_id=? AND v.current_schema=1 AND v.status='enabled' AND p.status='active'
         ORDER BY v.product_id, v.id`,
-    ).bind(BOOTSTRAP_STORE_ID).all<PublicVariantRow>(),
+    ).bind(PUBLIC_STORE_ID).all<PublicVariantRow>(),
     db.prepare(
       `SELECT m.variant_id, m.group_id, m.value_id
          FROM product_variant_values m
          JOIN product_variants v ON v.id=m.variant_id AND v.product_id=m.product_id AND v.store_id=m.store_id
          JOIN products p ON p.id=m.product_id AND p.store_id=m.store_id
         WHERE m.store_id=? AND v.current_schema=1 AND v.status='enabled' AND p.status='active'`,
-    ).bind(BOOTSTRAP_STORE_ID).all<PublicMembershipRow>(),
+    ).bind(PUBLIC_STORE_ID).all<PublicMembershipRow>(),
   ]);
   if (!store) throw new Error('Bootstrap Store is missing.');
 

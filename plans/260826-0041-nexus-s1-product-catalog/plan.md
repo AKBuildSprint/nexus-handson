@@ -84,6 +84,8 @@ Before Cloudflare mutation, Phase 3 scaffolds minimal Worker/API 404 and passes 
 
 None. S2 and S5 briefs consume the S1 interfaces but are future implementation owners, not blocking plans.
 
+2026-09-12 overlap note: [S4 identity cutover](../260911-1753-nexus-s4-identity-store-isolation/plan.md) consumes the checked-in catalog baseline; it is not blocked on this historical verification record. Future catalog acceptance reruns must use S4 authentication once implemented; the original anonymous-demo evidence remains historical. No phase completion is inferred here.
+
 ## Open Questions
 
 None. Any backend/API change caused by approved frontend behavior is handled by the mandatory Phase 3 reconciliation gate.

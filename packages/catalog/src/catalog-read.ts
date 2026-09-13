@@ -8,8 +8,24 @@ import type {
   VariantStatus,
 } from './catalog-types';
 import { normalizeComparisonKey } from './slug';
+import type { ConsoleIdentityContext } from '@nexus/identity/identity-types';
 
-export const BOOTSTRAP_STORE_ID = 'store_nexus';
+export class CatalogReadAccessError extends Error {
+  constructor() {
+    super('Current Store membership is required.');
+    this.name = 'CatalogReadAccessError';
+  }
+}
+
+async function assertCurrentMembership(db: D1Database, identity: ConsoleIdentityContext): Promise<void> {
+  const active = await db.prepare(
+    `SELECT EXISTS (
+       SELECT 1 FROM store_memberships
+        WHERE id=? AND store_id=? AND user_id=? AND status='active'
+     ) AS active`,
+  ).bind(identity.membershipId, identity.storeId, identity.userId).first<number>('active');
+  if (active !== 1) throw new CatalogReadAccessError();
+}
 
 interface ProductRow {
   id: string;
@@ -71,77 +87,85 @@ function fileSummary(filename: string | null, size: number | null, kind: FileKin
 
 async function productRowBy(
   db: D1Database,
+  identity: ConsoleIdentityContext,
   column: 'id' | 'slug',
-  identity: string,
+  target: string,
 ): Promise<ProductRow | null> {
   return db.prepare(
     `SELECT id, slug, name, status, product_type, currency, base_price_minor,
             public_description, delivery_access_title, delivery_access_instructions,
             delivery_file_filename, delivery_file_size, delivery_file_kind, updated_at, revision
        FROM products
-      WHERE store_id = ? AND ${column} = ?`,
-  ).bind(BOOTSTRAP_STORE_ID, identity).first<ProductRow>();
+      WHERE store_id = ? AND ${column} = ?
+        AND EXISTS (SELECT 1 FROM store_memberships
+          WHERE id=? AND store_id=? AND user_id=? AND status='active')`,
+  ).bind(identity.storeId, target, identity.membershipId, identity.storeId, identity.userId).first<ProductRow>();
 }
 
-export async function readProductRevision(db: D1Database, productId: string): Promise<number | null> {
+export async function readProductRevision(db: D1Database, identity: ConsoleIdentityContext, productId: string): Promise<number | null> {
   const row = await db.prepare(
-    'SELECT revision FROM products WHERE store_id = ? AND id = ?',
-  ).bind(BOOTSTRAP_STORE_ID, productId).first<{ revision: number }>();
+    `SELECT revision FROM products WHERE store_id = ? AND id = ?
+       AND EXISTS (SELECT 1 FROM store_memberships
+         WHERE id=? AND store_id=? AND user_id=? AND status='active')`,
+  ).bind(identity.storeId, productId, identity.membershipId, identity.storeId, identity.userId).first<{ revision: number }>();
+  await assertCurrentMembership(db, identity);
   return row?.revision ?? null;
-}
-
-export async function readProductIdBySlug(db: D1Database, slug: string): Promise<string | null> {
-  const row = await db.prepare(
-    'SELECT id FROM products WHERE store_id = ? AND slug = ?',
-  ).bind(BOOTSTRAP_STORE_ID, slug).first<{ id: string }>();
-  return row?.id ?? null;
 }
 
 export async function readProductDetailBySlug(
   db: D1Database,
+  identity: ConsoleIdentityContext,
   slug: string,
 ): Promise<ProductDetailResponse | null> {
-  const row = await productRowBy(db, 'slug', slug);
-  return row ? readDetailFromRow(db, row) : null;
+  const row = await productRowBy(db, identity, 'slug', slug);
+  await assertCurrentMembership(db, identity);
+  return row ? readDetailFromRow(db, identity, row) : null;
 }
 
 export async function readProductDetailById(
   db: D1Database,
+  identity: ConsoleIdentityContext,
   productId: string,
 ): Promise<ProductDetailResponse | null> {
-  const row = await productRowBy(db, 'id', productId);
-  return row ? readDetailFromRow(db, row) : null;
+  const row = await productRowBy(db, identity, 'id', productId);
+  await assertCurrentMembership(db, identity);
+  return row ? readDetailFromRow(db, identity, row) : null;
 }
 
-async function readDetailFromRow(db: D1Database, product: ProductRow): Promise<ProductDetailResponse> {
+async function readDetailFromRow(db: D1Database, identity: ConsoleIdentityContext, product: ProductRow): Promise<ProductDetailResponse> {
   const [groupsResult, valuesResult, variantsResult, membershipsResult] = await Promise.all([
     db.prepare(
       `SELECT id, name, position, participating
          FROM product_option_groups
         WHERE store_id = ? AND product_id = ? AND active = 1
+          AND EXISTS (SELECT 1 FROM store_memberships WHERE id=? AND store_id=? AND user_id=? AND status='active')
         ORDER BY position, id`,
-    ).bind(BOOTSTRAP_STORE_ID, product.id).all<GroupRow>(),
+    ).bind(identity.storeId, product.id, identity.membershipId, identity.storeId, identity.userId).all<GroupRow>(),
     db.prepare(
       `SELECT id, group_id, label, position
          FROM product_option_values
         WHERE store_id = ? AND product_id = ? AND active = 1
+          AND EXISTS (SELECT 1 FROM store_memberships WHERE id=? AND store_id=? AND user_id=? AND status='active')
         ORDER BY group_id, position, id`,
-    ).bind(BOOTSTRAP_STORE_ID, product.id).all<ValueRow>(),
+    ).bind(identity.storeId, product.id, identity.membershipId, identity.storeId, identity.userId).all<ValueRow>(),
     db.prepare(
       `SELECT id, combination_key, sku, status, price_override_minor, delivery_source,
               delivery_access_title, delivery_access_instructions,
               delivery_file_filename, delivery_file_size, delivery_file_kind
          FROM product_variants
         WHERE store_id = ? AND product_id = ? AND current_schema = 1
+          AND EXISTS (SELECT 1 FROM store_memberships WHERE id=? AND store_id=? AND user_id=? AND status='active')
         ORDER BY id`,
-    ).bind(BOOTSTRAP_STORE_ID, product.id).all<VariantRow>(),
+    ).bind(identity.storeId, product.id, identity.membershipId, identity.storeId, identity.userId).all<VariantRow>(),
     db.prepare(
       `SELECT pvv.variant_id, pvv.group_id, pvv.value_id
          FROM product_variant_values pvv
          JOIN product_variants pv ON pv.id = pvv.variant_id
-        WHERE pvv.store_id = ? AND pvv.product_id = ? AND pv.current_schema = 1`,
-    ).bind(BOOTSTRAP_STORE_ID, product.id).all<MembershipRow>(),
+        WHERE pvv.store_id = ? AND pvv.product_id = ? AND pv.current_schema = 1
+          AND EXISTS (SELECT 1 FROM store_memberships WHERE id=? AND store_id=? AND user_id=? AND status='active')`,
+    ).bind(identity.storeId, product.id, identity.membershipId, identity.storeId, identity.userId).all<MembershipRow>(),
   ]);
+  await assertCurrentMembership(db, identity);
   const values = valuesResult.results;
   const valuesById = new Map(values.map((value) => [value.id, value]));
   const groupsById = new Map(groupsResult.results.map((group) => [group.id, group]));
@@ -222,6 +246,7 @@ async function readDetailFromRow(db: D1Database, product: ProductRow): Promise<P
 
 export async function listProducts(
   db: D1Database,
+  identity: ConsoleIdentityContext,
   query: string,
   status: 'all' | ProductStatus,
 ): Promise<ProductListResponse> {
@@ -239,11 +264,35 @@ export async function listProducts(
        FROM products p
        LEFT JOIN product_variants v ON v.product_id = p.id AND v.store_id = p.store_id AND v.current_schema = 1
       WHERE p.store_id = ?
+        AND EXISTS (SELECT 1 FROM store_memberships WHERE id=? AND store_id=? AND user_id=? AND status='active')
         AND (? = 'all' OR p.status = ?)
         AND (? = '' OR p.name_search_key LIKE ? ESCAPE '!' OR p.slug_search_key LIKE ? ESCAPE '!')
       GROUP BY p.id
       ORDER BY p.updated_at DESC, p.id ASC`,
-  ).bind(BOOTSTRAP_STORE_ID, status, status, normalizedText, normalizedQuery, normalizedQuery)
+  ).bind(identity.storeId, identity.membershipId, identity.storeId, identity.userId,
+    status, status, normalizedText, normalizedQuery, normalizedQuery)
     .all<ProductListResponse['products'][number]>();
+  await assertCurrentMembership(db, identity);
   return { products: result.results };
+}
+
+export interface ProductVariantPreviewRow {
+  id: string;
+  combinationKey: string;
+  sku: string;
+  currentSchema: number;
+}
+
+export async function readProductVariantPreviewRows(
+  db: D1Database,
+  identity: ConsoleIdentityContext,
+  productId: string,
+): Promise<ProductVariantPreviewRow[]> {
+  const result = await db.prepare(
+    `SELECT id, combination_key AS combinationKey, sku, current_schema AS currentSchema
+       FROM product_variants WHERE store_id=? AND product_id=?
+        AND EXISTS (SELECT 1 FROM store_memberships WHERE id=? AND store_id=? AND user_id=? AND status='active')`,
+  ).bind(identity.storeId, productId, identity.membershipId, identity.storeId, identity.userId).all<ProductVariantPreviewRow>();
+  await assertCurrentMembership(db, identity);
+  return result.results;
 }

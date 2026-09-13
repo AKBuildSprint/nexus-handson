@@ -180,6 +180,8 @@ Animate only opacity, transform, color, box-shadow. Never `transition: all`. Red
 
 At 375 px: rail becomes the topbar; tables become summary cards; Storefront grid becomes one column; no horizontal page scroll.
 
+Long names, references, descriptions, and Refund reasons wrap within their content surfaces, including catalog cards, checkout, private Orders, and Console detail. Preserve the full text; do not hide overflow or truncate data to satisfy the mobile width check.
+
 ## 4. Component presentation contract
 
 ### 4.1 Console shell and navigation
@@ -189,7 +191,7 @@ At 375 px: rail becomes the topbar; tables become summary cards; Storefront grid
 - Account chip uses the bootstrap Store name **Nexus**. No Faire, North Studio, or fake tenant switcher.
 - Deskbar kicker: `Nexus Operations Console · {Products\|Orders}`.
 - Compact: skip link, `Nexus · {destination}`, Menu returns focus to its trigger.
-- Do not add Inventory, Analytics, Retailers, login, or custom-domain controls.
+- Do not add Inventory, Analytics, Retailers, signup, Store switching, or custom-domain controls.
 
 Storefront chrome: **Nexus** / STOREFRONT, Catalog pill, cream canvas. Hero snapshot and metric numbers are live catalog counts.
 
@@ -221,6 +223,7 @@ Destructive or consequential actions use warning copy and explicit confirmation 
 ### 4.4 Form fields
 
 - Text, textarea, select, combobox, checkbox, and file controls use persistent labels.
+- Native selects use the shared `.field` label/control layout so long options do not impose an intrinsic page width or bypass the control sizing tokens.
 - Help text precedes the error slot so messages do not reorder unrelated content.
 - Decimal price fields use the Product currency as a visible adjacent label. Currency is not repeated as an editable Variant field.
 - Status options use the domain labels **Draft**, **Active**, and **Archived**. Variant availability uses **Enabled** and **Disabled**.
@@ -248,6 +251,7 @@ Desktop columns are:
 - Console Products shows 25 filtered Products per page; Storefront shows 24 filtered catalog cards per page. Keep the complete catalog response for metrics and checkout selection; pagination does not change the API.
 - Place Previous/Next controls above and below each list, with distinct navigation labels, the visible result range, and current/total pages. Disable controls at boundaries; reset to the first page when search or filters change and clamp after catalog shrink.
 - Console Orders retains server cursor pagination at 25 Orders per page. Its range uses cursor depth; totals come from the server summary for the active filters, never the current page length.
+- A cursor page emptied by reassignment is not a zero-match filter result when the server still reports matches. Keep Previous/First page recovery available, describe the empty page rather than the whole filter, and omit a total-page denominator smaller than the retained cursor depth.
 - Storefront page changes preserve the selected Product, option values, Customer fields, cart, and frozen checkout retry identity. Bottom navigation returns the catalog results to view.
 
 ### 4.6 Sticky editor action bar
@@ -433,7 +437,7 @@ Do not introduce controls, navigation, empty states, placeholders, or fake data 
 
 - inventory, stock, warehouses, or quantity fulfillment;
 - sales analytics, revenue dashboards, or invented wholesale terms (Net-60, MOQ, boutiques);
-- users, login, sessions, profile menus, Owner/Staff roles, or authorization claims;
+- signup, user/team administration, role switching, or session-management settings;
 - Store switching or multi-Store administration;
 - custom domains or deployment configuration;
 - CSV update, overwrite, upsert, merge strategy, or field mapping;
@@ -442,7 +446,7 @@ Do not introduce controls, navigation, empty states, placeholders, or fake data 
 - import history dashboard or background jobs;
 - Faire, Atelier, or other third-party marketplace branding.
 
-The Storefront catalog, checkout, and Console Orders list are in scope. Do not imply authentication exists. Metric cards must not invent revenue.
+The Storefront catalog, checkout, provisioned Console sign-in, role-aware Products, and assigned Orders are in scope. Metric cards must not invent revenue.
 
 
 ## 8. Phase 2 implementation gate

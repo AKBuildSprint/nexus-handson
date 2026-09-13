@@ -1,4 +1,4 @@
-import { BOOTSTRAP_STORE_ID } from '../catalog-read';
+import type { ConsoleIdentityContext } from '@nexus/identity/identity-types';
 import type { CsvDetectedType, ImportResultResponse } from '../shared/csv-contract';
 import type { ImportWritePlan } from './exact-match';
 
@@ -41,6 +41,7 @@ function detectedType(groups: ImportResultResponse['groups']): CsvDetectedType |
 
 export async function executeImportWrite(input: {
   database: D1Database;
+  identity: ConsoleIdentityContext;
   plan: ImportWritePlan;
   importId: string;
   filename: string;
@@ -49,7 +50,7 @@ export async function executeImportWrite(input: {
 }): Promise<ImportResultResponse> {
   const statements: D1PreparedStatement[] = [];
   const addJsonStatement = (sql: string, records: unknown) => {
-    statements.push(input.database.prepare(sql).bind(JSON.stringify(records)));
+    statements.push(input.database.prepare(sql).bind(input.identity.storeId, JSON.stringify(records)));
   };
 
   for (const chunk of exactChunks(input.plan.products, IMPORT_CHUNKS.products.size, IMPORT_CHUNKS.products.statements)) {
@@ -58,7 +59,7 @@ export async function executeImportWrite(input: {
          (id, store_id, slug, name, name_search_key, slug_search_key, status, product_type, currency,
           base_price_minor, public_description, delivery_access_title, delivery_access_instructions,
           revision, import_fingerprint)
-       SELECT json_extract(value, '$.idPayload'), '${BOOTSTRAP_STORE_ID}', json_extract(value, '$.slug'),
+       SELECT json_extract(value, '$.idPayload'), ?, json_extract(value, '$.slug'),
               json_extract(value, '$.name'), json_extract(value, '$.nameSearchKey'), json_extract(value, '$.slugSearchKey'),
               json_extract(value, '$.status'), json_extract(value, '$.productType'), json_extract(value, '$.currency'),
               json_extract(value, '$.basePriceMinor'), json_extract(value, '$.publicDescription'),
@@ -80,7 +81,7 @@ export async function executeImportWrite(input: {
     addJsonStatement(
       `INSERT INTO product_option_groups
          (id, store_id, product_id, name, comparison_key, position, participating, active)
-       SELECT json_extract(value, '$.id'), '${BOOTSTRAP_STORE_ID}', json_extract(value, '$.productId'),
+       SELECT json_extract(value, '$.id'), ?, json_extract(value, '$.productId'),
               json_extract(value, '$.name'), json_extract(value, '$.comparisonKey'),
               json_extract(value, '$.position'), 1, 0
          FROM json_each(?)`,
@@ -91,7 +92,7 @@ export async function executeImportWrite(input: {
     addJsonStatement(
       `INSERT INTO product_option_values
          (id, store_id, product_id, group_id, label, comparison_key, position, active)
-       SELECT json_extract(value, '$.id'), '${BOOTSTRAP_STORE_ID}', json_extract(value, '$.productId'),
+       SELECT json_extract(value, '$.id'), ?, json_extract(value, '$.productId'),
               json_extract(value, '$.groupId'), json_extract(value, '$.label'),
               json_extract(value, '$.comparisonKey'), json_extract(value, '$.position'), 1
          FROM json_each(?)`,
@@ -103,7 +104,7 @@ export async function executeImportWrite(input: {
       `INSERT INTO product_variants
          (id, store_id, product_id, combination_key, sku, status, current_schema,
           price_override_minor, delivery_source)
-       SELECT json_extract(value, '$.id'), '${BOOTSTRAP_STORE_ID}', json_extract(value, '$.productId'),
+       SELECT json_extract(value, '$.id'), ?, json_extract(value, '$.productId'),
               json_extract(value, '$.combinationKey'), json_extract(value, '$.sku'), json_extract(value, '$.status'),
               json_extract(value, '$.initialCurrentSchema'), json_extract(value, '$.priceOverrideMinor'), 'product_default'
          FROM json_each(?)`,
@@ -114,7 +115,7 @@ export async function executeImportWrite(input: {
     addJsonStatement(
       `INSERT INTO product_variant_values (variant_id, value_id, group_id, product_id, store_id)
        SELECT json_extract(value, '$.variantId'), json_extract(value, '$.valueId'),
-              json_extract(value, '$.groupId'), json_extract(value, '$.productId'), '${BOOTSTRAP_STORE_ID}'
+              json_extract(value, '$.groupId'), json_extract(value, '$.productId'), ?
          FROM json_each(?)`,
       chunk,
     );
@@ -123,7 +124,9 @@ export async function executeImportWrite(input: {
   const counts = resultCounts(input.plan.resultGroups);
   const metadata = {
     importId: input.importId,
-    storeId: BOOTSTRAP_STORE_ID,
+    storeId: input.identity.storeId,
+    membershipId: input.identity.membershipId,
+    userId: input.identity.userId,
     filename: input.filename,
     sizeBytes: input.sizeBytes,
     detectedType: detectedType(input.plan.resultGroups),
@@ -131,12 +134,18 @@ export async function executeImportWrite(input: {
     privateObjectKey: input.privateObjectKey,
     poststates: input.plan.guardedPoststates,
   };
-  addJsonStatement(
+  statements.push(input.database.prepare(
     `WITH input(payload) AS (VALUES (?))
      INSERT INTO imports
        (id, store_id, original_filename, size_bytes, detected_type,
         added_count, duplicate_count, rejected_count, private_object_key)
-     SELECT CASE WHEN NOT EXISTS (
+     SELECT CASE WHEN EXISTS (
+              SELECT 1 FROM store_memberships
+               WHERE id=json_extract(input.payload, '$.membershipId')
+                 AND store_id=json_extract(input.payload, '$.storeId')
+                 AND user_id=json_extract(input.payload, '$.userId')
+                 AND role='owner' AND status='active'
+            ) AND NOT EXISTS (
               SELECT 1
                 FROM input, json_each(input.payload, '$.poststates') AS expected
                 LEFT JOIN products
@@ -151,8 +160,7 @@ export async function executeImportWrite(input: {
             json_extract(input.payload, '$.added'), json_extract(input.payload, '$.duplicate'),
             json_extract(input.payload, '$.rejected'), json_extract(input.payload, '$.privateObjectKey')
        FROM input`,
-    metadata,
-  );
+  ).bind(JSON.stringify(metadata)));
 
   if (statements.length !== IMPORT_WRITE_STATEMENTS) {
     throw new Error(`The import batch must contain exactly ${IMPORT_WRITE_STATEMENTS} write statements.`);

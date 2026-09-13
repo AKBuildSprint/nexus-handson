@@ -1,14 +1,14 @@
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { SchemaDraft } from '@nexus/catalog/shared/schema-draft-refs';
-import { resetCatalog, VARIANT_CORE, oneVariantSchema, workerRequest } from '../support/catalog-test-env';
+import { consoleRequest, resetCatalog, VARIANT_CORE, oneVariantSchema } from '../support/catalog-test-env';
 
 beforeEach(resetCatalog);
 
 describe('Product create schema contract', () => {
   it('previews without writes, rejects a stale hash with zero writes, then maps refs to stable IDs', async () => {
     const schema = oneVariantSchema();
-    const preview = await workerRequest('/api/console/products/schema/preview', {
+    const preview = await consoleRequest('/api/console/products/schema/preview', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ productId: null, productSlug: 'focus-pack', product: VARIANT_CORE, schema }),
     });
@@ -17,7 +17,7 @@ describe('Product create schema contract', () => {
     expect(previewBody.rows[0].variantId).toBeNull();
     expect(await env.DB.prepare('SELECT count(*) AS count FROM products').first<number>('count')).toBe(0);
 
-    const stale = await workerRequest('/api/console/products', {
+    const stale = await consoleRequest('/api/console/products', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ product: VARIANT_CORE, schema, previewHash: 'stale' }),
     });
@@ -25,7 +25,7 @@ describe('Product create schema contract', () => {
     expect(await stale.json()).toMatchObject({ error: { code: 'schema_preview_stale' } });
     expect(await env.DB.prepare('SELECT count(*) AS count FROM products').first<number>('count')).toBe(0);
 
-    const created = await workerRequest('/api/console/products', {
+    const created = await consoleRequest('/api/console/products', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ product: VARIANT_CORE, schema, previewHash: previewBody.previewHash }),
     });
@@ -44,7 +44,7 @@ describe('Product create schema contract', () => {
   });
 
   it('rejects ambiguous Variant ownership before writes', async () => {
-    const response = await workerRequest('/api/console/products', {
+    const response = await consoleRequest('/api/console/products', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ product: { ...VARIANT_CORE, variants: [] }, schema: oneVariantSchema(), previewHash: 'x' }),
     });
@@ -70,7 +70,7 @@ describe('Product create schema contract', () => {
   ])('rejects normalized duplicate option input with stable fields', async ({ mutate, path, code }) => {
     const schema = oneVariantSchema();
     mutate(schema);
-    const response = await workerRequest('/api/console/products/schema/preview', {
+    const response = await consoleRequest('/api/console/products/schema/preview', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ productId: null, productSlug: 'focus-pack', product: VARIANT_CORE, schema }),
     });

@@ -177,6 +177,27 @@ function parseCommandKey(idempotencyKey: unknown): string {
   );
 }
 
+export function parseAssignmentInput(
+  body: unknown,
+  idempotencyKey: unknown,
+): { assigneeUserId: string; idempotencyKey: string } {
+  const request = objectAt(body, '');
+  rejectUnknown(request, ['assigneeUserId'], '');
+  if (
+    typeof request.assigneeUserId !== 'string'
+    || request.assigneeUserId.length < 1
+    || request.assigneeUserId.length > 128
+    || !/^[A-Za-z0-9_-]+$/.test(request.assigneeUserId)
+  ) {
+    throw new OrderValidationError('validation_failed', 'The request is invalid.', [{
+      path: '/assigneeUserId',
+      code: 'assignee_invalid',
+      message: 'Choose an active Staff member.',
+    }]);
+  }
+  return { assigneeUserId: request.assigneeUserId, idempotencyKey: parseCommandKey(idempotencyKey) };
+}
+
 function reasonHasDisallowedControls(reason: string): boolean {
   for (const char of reason) {
     if (/\p{Cf}/u.test(char)) return true;
@@ -284,4 +305,13 @@ export function parseRefundRequestInput(
     idempotencyKey: parseCommandKey(idempotencyKey),
     reason: normalizeRefundReason(request.reason),
   };
+}
+
+export function parseRefundDecisionInput(
+  body: unknown,
+  idempotencyKey: unknown,
+): { idempotencyKey: string } {
+  const request = objectAt(body, '');
+  rejectUnknown(request, [], '');
+  return { idempotencyKey: parseCommandKey(idempotencyKey) };
 }

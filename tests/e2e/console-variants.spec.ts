@@ -1,4 +1,5 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { type Locator, type Page } from '@playwright/test';
+import { expect, test } from '../support/console-auth-fixtures';
 
 function uniqueName(suffix: string): string {
   return `Verify Variant ${suffix} ${Date.now()} ${Math.random().toString(36).slice(2, 8)}`;
@@ -38,7 +39,7 @@ async function expectNoHorizontalOverflow(page: Page, width: number) {
   expect(dimensions.body).toBeLessThanOrEqual(width);
 }
 
-test('shows the reachable 10, 12, 30, and first 31+ Variant meter boundaries', async ({ page }) => {
+test('shows the reachable 10, 12, 30, and first 31+ Variant meter boundaries', async ({ consoleOwnerPage: page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
 
   await page.goto('/console/products/new');
@@ -74,7 +75,7 @@ test('shows the reachable 10, 12, 30, and first 31+ Variant meter boundaries', a
   await expect(page.getByRole('button', { name: 'Generate matrix' })).toBeDisabled();
 });
 
-test('persists Variant row edits, label-only rename, and retained/new/will-disable regeneration', async ({ page }) => {
+test('persists Variant row edits, label-only rename, and retained/new/will-disable regeneration', async ({ consoleOwnerPage: page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   const name = uniqueName('lifecycle');
   await page.goto('/console/products/new');
@@ -137,7 +138,7 @@ test('persists Variant row edits, label-only rename, and retained/new/will-disab
   await expectNoHorizontalOverflow(page, 1280);
 });
 
-test('uses the full-width 375px focused Variant editor with errors, Escape guard, overrides, and focus restoration', async ({ page }) => {
+test('uses the full-width 375px focused Variant editor with errors, Escape guard, overrides, and focus restoration', async ({ consoleOwnerPage: page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto('/console/products/new');
   await fillRequiredProduct(page, uniqueName('mobile'));
