@@ -52,25 +52,52 @@ async function assertExpectedResources(plan: ProvisioningPlan): Promise<void> {
   }
 }
 
+interface MembershipRow {
+  id: string;
+  store_id: string;
+  role: string;
+  status: string;
+}
+
+const MEMBERSHIP_COLUMNS = 'membership.id AS id,membership.store_id AS store_id,membership.role AS role,membership.status AS status';
+
+function resolveRequestedMembership(rows: MembershipRow[], input: S4IdentityInput): MembershipRow | null {
+  if (rows.length === 0) return null;
+  const exact = rows.find(
+    (row) => row.store_id === input.storeId && row.role === input.role && row.status === 'active',
+  );
+  if (!exact) throw new Error('Membership identity conflict.');
+  return exact;
+}
+
 export async function provisionS4Identity(
   database: D1Database,
   authEnvironment: { CONSOLE_ORIGIN: string; BETTER_AUTH_SECRET: string },
   input: S4IdentityInput,
 ): Promise<ProvisioningResult> {
+  const normalizedEmail = input.email.trim().toLowerCase();
+  const identityRef = sha256(normalizedEmail);
+  // Reject a conflicting membership before any Google identity is created or bound,
+  // so a refused request can never leave an account row behind.
+  const preexisting = await database.prepare(
+    `SELECT ${MEMBERSHIP_COLUMNS} FROM store_memberships membership`
+    + ' JOIN "user" member_user ON member_user.id=membership.user_id'
+    + ' WHERE lower(member_user.email)=? ORDER BY membership.id',
+  ).bind(normalizedEmail).all<MembershipRow>();
+  resolveRequestedMembership(preexisting.results, input);
+
   const google = await provisionGoogleAccount(
     createAuth({ DB: database, ...authEnvironment }),
     { email: input.email, name: input.name, googleSubject: input.googleSubject },
   );
+  // Race and recovery guard: re-read by the resolved user id after provisioning.
   const existing = await database.prepare(
-    'SELECT id,store_id,role,status FROM store_memberships WHERE user_id=? ORDER BY id',
-  ).bind(google.userId).all<{ id: string; store_id: string; role: string; status: string }>();
-  const exact = existing.results.find((row) => row.store_id === input.storeId);
-  if (existing.results.length > 0) {
-    if (!exact || exact.role !== input.role || exact.status !== 'active') {
-      throw new Error('Membership identity conflict.');
-    }
+    `SELECT ${MEMBERSHIP_COLUMNS} FROM store_memberships membership WHERE membership.user_id=? ORDER BY membership.id`,
+  ).bind(google.userId).all<MembershipRow>();
+  const exact = resolveRequestedMembership(existing.results, input);
+  if (exact) {
     return {
-      identityRef: sha256(input.email.trim().toLowerCase()),
+      identityRef,
       membershipId: exact.id,
       google: { created: google.created, recovered: google.recovered },
       membership: 'unchanged',
@@ -83,7 +110,7 @@ export async function provisionS4Identity(
     "INSERT INTO store_memberships (id,store_id,user_id,role,status,revoked_at) VALUES (?,?,?,?,'active',NULL)",
   ).bind(membershipId, input.storeId, google.userId, input.role).run();
   return {
-    identityRef: sha256(input.email.trim().toLowerCase()),
+    identityRef,
     membershipId,
     google: { created: google.created, recovered: google.recovered },
     membership: 'created',

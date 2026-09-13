@@ -17,6 +17,7 @@ import {
   writeS4ProtectedManifest,
 } from '../../scripts/verification/s4-private-fixtures';
 import { runRemoteSmokeDryRun } from '../../scripts/verification/s4-remote-smoke';
+import { S4_POPULATED_FIXTURE } from '../fixtures/s4-populated-store';
 
 function runCli(script: string, arguments_: string[], environment: Record<string, string> = {}): Promise<string> {
   return new Promise((resolveRun, rejectRun) => {
@@ -169,6 +170,30 @@ describe('S4 populated rehearsal operator boundary', () => {
         });
         expect(recovered).toMatchObject({ membership: 'created', google: { created: false } });
         assertSecretSafeText(JSON.stringify([created, repeated, recovered]), [ownerGoogleSubject, owner.email, recoverable.email]);
+
+        const preexistingMember = {
+          email: S4_POPULATED_FIXTURE.users.ownerA.email,
+          name: S4_POPULATED_FIXTURE.users.ownerA.name,
+          googleSubject: 'google-subject-preexisting-owner-a',
+          storeId: S4_POPULATED_FIXTURE.stores.a.id,
+          role: 'staff' as const,
+        };
+        const countOwnerAccounts = async (): Promise<number> => {
+          const row = await bindings.DB.prepare('SELECT count(*) AS total FROM account WHERE userId=?')
+            .bind(S4_POPULATED_FIXTURE.users.ownerA.id).first<{ total: number }>();
+          return row?.total ?? -1;
+        };
+        expect(await countOwnerAccounts()).toBe(0);
+        for (const conflicting of [
+          preexistingMember,
+          { ...preexistingMember, storeId: S4_POPULATED_FIXTURE.stores.b.id, role: 'owner' as const },
+        ]) {
+          const rejection = await provisionS4Identity(bindings.DB, authEnvironment, conflicting)
+            .then(() => null, (error: Error) => error);
+          expect(rejection?.message ?? '').toMatch(/membership identity conflict/i);
+          assertSecretSafeText(rejection?.message ?? '', [conflicting.email, conflicting.googleSubject]);
+          expect(await countOwnerAccounts()).toBe(0);
+        }
       });
       const cliIdentity = [{
         email: 'operator-cli@fixture.invalid',
