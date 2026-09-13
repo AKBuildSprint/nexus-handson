@@ -16,7 +16,7 @@ created: 2026-09-12
 
 ## Overview
 
-Implement the complete S4 authorization cutover on the existing D1/R2 deployment. Store A remains `store_nexus`; historical data, Customer capabilities, immutable purchase snapshots, payment evidence, and retained file references remain intact. Better Auth supplies provisioned email/password identity and sessions. Nexus-owned memberships, permissions, assignment, and Refund lifecycle rules remain explicit domain concerns.
+Implement the complete S4 authorization cutover against the existing D1/R2 data model. Store A remains `store_nexus`; historical data, Customer capabilities, immutable purchase snapshots, payment evidence, and retained file references remain intact. Better Auth supplies prebound Google identity and sessions. Nexus-owned memberships, permissions, assignment, and Refund lifecycle rules remain explicit domain concerns.
 
 Scope: HOLD; `--deep --tdd`. The three user-confirmed rules remain assigned-only Staff Orders, read-only Staff Products, and one final Refund Request per Order. Approval awaits S5 execution. No signup/team UI, Store picker, new delete API, money movement or MCP. Eight phases keep distinct proof boundaries; execute sequentially when file ownership overlaps.
 

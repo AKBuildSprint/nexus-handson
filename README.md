@@ -9,9 +9,19 @@ This repository is configured for public `workers.dev` teaching deployments. It 
 - **Apps** are runnable and deployable: [`apps/console`](./apps/console) (HTML/Vite), [`apps/worker`](./apps/worker) (HTTP adapters), [`apps/storefront`](./apps/storefront) (distinct-origin static app). Console and the API Worker share root [`wrangler.jsonc`](./wrangler.jsonc) and same-origin `/console` plus `/api`; Storefront keeps its own [`apps/storefront/wrangler.jsonc`](./apps/storefront/wrangler.jsonc).
 - **Packages** own business rules. [`packages/catalog`](./packages/catalog) owns products, CSV import, delivery files, and shared catalog contracts. [`packages/orders`](./packages/orders) owns Order reads, commands, command persistence, and transition rules. Worker composes both packages. Console consumes catalog only; Order UI types stay in the Console app. Storefront is HTTP-only. Orders may depend on catalog; catalog never depends on orders or apps; packages never depend on apps.
 - **Tests** (`tests/unit`, `tests/integration`, `tests/browser`, `tests/e2e`) are evidence by risk. `tests/fixtures` and `tests/support` stay helpers, not discovery roots.
-- **Migrations** are append-only D1 history. **Plans** hold decisions and contracts. **Docs** hold durable presentation knowledge. **Scripts** are operational verification tooling.
+- **Migrations** are append-only D1 history. **Scripts** are operational verification tooling.
 
-Root script names stay in [`package.json`](./package.json). Console Vite is [`apps/console/vite.config.ts`](./apps/console/vite.config.ts) and must keep the Cloudflare plugin on root Wrangler with repo-root `.wrangler` state. Storefront Vite is [`apps/storefront/vite.config.ts`](./apps/storefront/vite.config.ts).
+Console Vite is [`apps/console/vite.config.ts`](./apps/console/vite.config.ts) and must keep the Cloudflare plugin on root Wrangler with repo-root `.wrangler` state. Storefront Vite is [`apps/storefront/vite.config.ts`](./apps/storefront/vite.config.ts).
+
+## Where authority lives
+
+This README is the root route for both people and AI collaborators. Follow these authorities instead of treating stateful evidence as evergreen guidance.
+
+- **Process, evergreen.** [`AGENTS.md`](./AGENTS.md) is canonical for anyone editing this repository and routes contributors to any scoped local constraints.
+- **Presentation, evergreen.** [`docs/design-guidelines.md`](./docs/design-guidelines.md) holds the durable presentation reasoning and names the style files that carry the executable token values.
+- **Console authentication and operations, evergreen.** [`docs/google-console-login.md`](./docs/google-console-login.md) holds Google client configuration, provisioning inputs, and the membership rule that authorizes a signed-in person.
+- **Intent, decisions, and evidence, stateful.** Root `session-N-brief.md` files scope the S1–S6 sessions this README refers to, while [`plans`](./plans) and [`design`](./design) hold phase contracts, acceptance, reviews, runbooks, and captured evidence. Each records what was accepted or observed when it was written, so confirm it against code and live state before treating it as current.
+- **Behavior, executable.** [`apps`](./apps) and [`packages`](./packages) own what the product does, [`package.json`](./package.json) owns command and toolchain identity, and [`wrangler.jsonc`](./wrangler.jsonc) with [`apps/storefront/wrangler.jsonc`](./apps/storefront/wrangler.jsonc) own platform configuration. Where this README and those files disagree, those files are correct.
 
 ## Current Order scope
 
