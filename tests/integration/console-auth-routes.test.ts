@@ -1,10 +1,11 @@
+import { inspect } from 'node:util';
 import { env } from 'cloudflare:test';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { provisionGoogleAccount } from '../../apps/worker/src/auth';
 import { withConsoleAuthHeaders } from '../../apps/worker/src/http-response';
 import worker from '../../apps/worker/src';
 import type { Env } from '../../apps/worker/src/environment';
-import { consoleRequest, resetCatalog, SIMPLE_CORE, workerRequest } from '../support/catalog-test-env';
+import { consoleRequest, resetCatalog, SIMPLE_CORE, TEST_STOREFRONT_ORIGIN, workerRequest } from '../support/catalog-test-env';
 import {
   createConsoleSession,
   createPersistedTestSession,
@@ -14,7 +15,90 @@ import {
 
 beforeEach(resetCatalog);
 
+async function boundaryProduct(): Promise<string> {
+  const response = await consoleRequest('/api/console/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product: SIMPLE_CORE, schema: null, previewHash: null }) });
+  expect(response.status).toBe(201);
+  return (await response.json() as { product: { id: string } }).product.id;
+}
+
+async function publicBoundaryOrder(productId: string): Promise<{ reference: string; capability: string }> {
+  const capability = btoa(crypto.randomUUID().replaceAll('-', '')).replaceAll('=', '');
+  const response = await workerRequest('/api/storefront/orders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID(), 'X-Nexus-Order-Capability': capability, Origin: TEST_STOREFRONT_ORIGIN },
+    body: JSON.stringify({ customer: { name: 'Boundary Customer', email: 'private-boundary@example.test' }, items: [{ productId, variantId: null, quantity: 1 }] }),
+  });
+  expect(response.status).toBe(201);
+  return { reference: (await response.json() as { reference: string }).reference, capability };
+}
+
 describe('Console authentication boundary', () => {
+  it('bounds invalid sign-ins and submissions while authorized and public operations continue', async () => {
+    const owner = await createConsoleSession({ email: 'abuse-owner@example.test' });
+    const staff = await createConsoleSession({ email: 'abuse-staff@example.test', role: 'staff' });
+    const productId = await boundaryProduct();
+    const placed = await publicBoundaryOrder(productId);
+    const invalidSignIns = async () => {
+      const statuses: number[] = [];
+      for (let index = 0; index < 105; index += 1) {
+        const response = await workerRequest('/api/auth/sign-in/social', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: TEST_CONSOLE_ORIGIN, 'cf-connecting-ip': '203.0.113.33' }, body: JSON.stringify({ provider: 'github', callbackURL: '/console/products' }) });
+        statuses.push(response.status);
+      }
+      expect(statuses.every(status => status === 404 || status === 429)).toBe(true);
+      expect(statuses).toContain(429);
+    };
+    const invalidOrders = async () => {
+      for (let index = 0; index < 20; index += 1) {
+        const response = await workerRequest('/api/storefront/orders', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID(), 'X-Nexus-Order-Capability': 'Q'.repeat(43), Origin: TEST_STOREFRONT_ORIGIN }, body: '{' });
+        expect(response.status).toBe(400);
+      }
+    };
+    const legitimateWork = async () => {
+      const assigned = await workerRequest(`/api/console/orders/${placed.reference}/assignment`, { method: 'POST', headers: { Cookie: owner.cookie, Origin: TEST_CONSOLE_ORIGIN, 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID(), 'X-Nexus-Order-Contract': '2' }, body: JSON.stringify({ assigneeUserId: staff.userId }) });
+      expect(assigned.status).toBe(200);
+      const inbox = await workerRequest('/api/console/orders', { headers: { Cookie: staff.cookie, 'X-Nexus-Order-Contract': '2' } });
+      expect(inbox.status).toBe(200);
+      expect(await inbox.json()).toMatchObject({ orders: [{ reference: placed.reference }], summary: { totalOrders: 1 } });
+      const publicOrder = await publicBoundaryOrder(productId);
+      expect(publicOrder.reference).not.toBe(placed.reference);
+      const catalog = await workerRequest('/api/console/products', { headers: { Cookie: owner.cookie } });
+      expect(catalog.status).toBe(200);
+    };
+    await Promise.all([invalidSignIns(), invalidOrders(), legitimateWork()]);
+    expect(await env.DB.prepare('SELECT count(*) AS count FROM orders').first<number>('count')).toBe(2);
+    expect(await env.DB.prepare('SELECT count(*) AS count FROM order_assignments').first<number>('count')).toBe(1);
+    expect(await env.DB.prepare('SELECT count(*) AS count FROM payments').first<number>('count')).toBe(0);
+  });
+
+  it('keeps credentials and Customer PII out of auth and capability failure diagnostics', async () => {
+    const owner = await createConsoleSession({ email: 'diagnostic-owner@example.test' });
+    const placed = await publicBoundaryOrder(await boundaryProduct());
+    const logs: string[] = [];
+    const spies = (['error', 'warn', 'log', 'info'] as const).map(method => vi.spyOn(console, method).mockImplementation((...args: unknown[]) => { logs.push(inspect(args, { depth: null, maxStringLength: null, maxArrayLength: null })); }));
+    let renamed: 'session' | 'order_access' | null = null;
+    try {
+      await env.DB.prepare('ALTER TABLE session RENAME TO session_unavailable').run();
+      renamed = 'session';
+      const failedAuth = await workerRequest('/api/console/products', { headers: { Cookie: owner.cookie } });
+      expect(failedAuth.status).toBe(503);
+      const authBody = await failedAuth.text();
+      await env.DB.prepare('ALTER TABLE session_unavailable RENAME TO session').run();
+      renamed = null;
+      await env.DB.prepare('ALTER TABLE order_access RENAME TO order_access_unavailable').run();
+      renamed = 'order_access';
+      const failedLookup = await workerRequest(`/api/storefront/orders/${placed.reference}`, { headers: { Origin: TEST_STOREFRONT_ORIGIN, 'X-Nexus-Order-Capability': placed.capability, 'X-Nexus-Order-Contract': '2' } });
+      expect(failedLookup.status).toBe(500);
+      const diagnosticOutput = [authBody, await failedLookup.text(), ...logs].join('\n');
+      for (const sensitive of [owner.cookie, owner.cookie.split('=', 2)[1], placed.capability, 'private-boundary@example.test', `${placed.reference}#capability=`]) {
+        expect(diagnosticOutput.includes(sensitive), 'Failure diagnostics leaked private data.').toBe(false);
+      }
+    } finally {
+      if (renamed === 'session') await env.DB.prepare('ALTER TABLE session_unavailable RENAME TO session').run();
+      if (renamed === 'order_access') await env.DB.prepare('ALTER TABLE order_access_unavailable RENAME TO order_access').run();
+      for (const spy of spies) spy.mockRestore();
+    }
+  });
+
   it('denies the former anonymous Console bootstrap path before private disclosure', async () => {
     for (const path of [
       '/api/console/products',

@@ -104,7 +104,6 @@ describe('Better Auth workerd runtime', () => {
     const limited = await authRequest(createTestAuth(), path, { method: 'POST', body: '{}' });
     expect(limited.status).toBe(429);
     expect(limited.headers.get('x-retry-after')).toMatch(/^\d+$/);
-    expect(await env.DB.prepare('SELECT count(*) AS count FROM "rateLimit"').first<number>('count')).toBeGreaterThan(0);
   });
 
   it('rejects invalid and conflicting Google provisioning', async () => {

@@ -7,8 +7,9 @@ import {
   catalogMigrations,
   resetCatalog,
   resetCatalogThrough,
+  workerRequest,
 } from '../support/catalog-test-env';
-import { createTestAuth } from '../support/identity-test-env';
+import { createPersistedTestSession, createTestAuth } from '../support/identity-test-env';
 
 const STORE_A = 'store_nexus';
 const STORE_B = 'store_other';
@@ -182,6 +183,46 @@ describe('membership and assignment constraints', () => {
         "CREATE UNIQUE INDEX store_memberships_one_active_user ON store_memberships (user_id) WHERE status = 'active'",
       ).run();
     }
+  });
+
+  it('rejects unavailable Store memberships and cannot remove a referenced Store', async () => {
+    const userId = await provisionUser('missing-store-user', 'Missing Store User');
+    await expect(insertMembership({ id: 'missing_store_membership', storeId: 'store_missing', userId, role: 'owner' })).rejects.toThrow(/FOREIGN KEY/);
+    expect(await resolveActiveMembership(env.DB, userId)).toEqual({ kind: 'absent' });
+    const cookie = await createPersistedTestSession(createTestAuth(), userId);
+    const denied = await workerRequest('/api/console/session', { headers: { Cookie: cookie } });
+    expect(denied.status).toBe(403);
+    expect(await denied.json()).toMatchObject({ error: { code: 'store_access_denied' } });
+    expect(await env.DB.prepare('SELECT count(*) AS count FROM store_memberships WHERE user_id=?').bind(userId).first<number>('count')).toBe(0);
+    await insertStoreB();
+    await insertMembership({ id: 'retained_store_membership', storeId: STORE_B, userId, role: 'staff' });
+    await expect(env.DB.prepare('DELETE FROM stores WHERE id=?').bind(STORE_B).run()).rejects.toThrow(/FOREIGN KEY/);
+    expect(await resolveActiveMembership(env.DB, userId)).toMatchObject({ kind: 'resolved', membership: { storeId: STORE_B } });
+  });
+
+  it('rejects cross-Store Refund and history links without damaging valid aggregates', async () => {
+    await insertStoreB();
+    await insertOrder('order_link_a', STORE_A);
+    await insertOrder('order_link_b', STORE_B);
+    const refund = (id: string, storeId: string, orderId: string) => env.DB.prepare(
+      "INSERT INTO order_refund_requests (id,store_id,order_id,status,reason,actor_source) VALUES (?,?,?,'pending','Keep original request','storefront')",
+    ).bind(id, storeId, orderId).run();
+    await refund('refund_link_a', STORE_A, 'order_link_a');
+    await refund('refund_link_b', STORE_B, 'order_link_b');
+    await expect(refund('refund_crossed', STORE_B, 'order_link_a')).rejects.toThrow(/FOREIGN KEY/);
+    const history = (id: string, storeId: string, orderId: string, refundId: string) => env.DB.prepare(
+      "INSERT INTO order_history (id,store_id,order_id,status,action,source,from_status,contract_version,refund_request_id) VALUES (?,?,?,'paid','refund_requested','storefront','paid',2,?)",
+    ).bind(id, storeId, orderId, refundId).run();
+    await expect(history('history_crossed', STORE_A, 'order_link_a', 'refund_link_b')).rejects.toThrow(/FOREIGN KEY/);
+    await expect(history('history_crossed', STORE_B, 'order_link_a', 'refund_link_b')).rejects.toThrow(/FOREIGN KEY/);
+    await history('history_valid_a', STORE_A, 'order_link_a', 'refund_link_a');
+    await history('history_valid_b', STORE_B, 'order_link_b', 'refund_link_b');
+    expect((await env.DB.prepare("SELECT id,store_id,order_id FROM order_refund_requests ORDER BY id").all()).results).toEqual([
+      { id: 'refund_link_a', store_id: STORE_A, order_id: 'order_link_a' },
+      { id: 'refund_link_b', store_id: STORE_B, order_id: 'order_link_b' },
+    ]);
+    expect(await env.DB.prepare("SELECT count(*) AS count FROM order_history WHERE action='refund_requested'").first<number>('count')).toBe(2);
+    expect((await env.DB.prepare('PRAGMA foreign_key_check').all()).results).toEqual([]);
   });
 
   it('retains revoked membership history while rejecting invalid role and status shapes', async () => {

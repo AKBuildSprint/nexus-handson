@@ -187,9 +187,10 @@ describe('terminal Refund decisions', () => {
     ).bind(orderId).first<number>('count')).toBe(1);
   });
 
-  it('returns only the safe terminal decision to the Customer and keeps request occupancy final', async () => {
+  it.each(['approve', 'reject'] as const)('preserves the original request after %s for Customer and Console resubmission', async (decision) => {
     const { owner, reference, requestId, orderId } = await pendingRefundFixture();
-    const approved = await asConsole(owner.cookie, `/api/console/orders/${reference}/refund-requests/${requestId}/approve`, {
+    const finalStatus = decision === 'approve' ? 'approved' : 'rejected';
+    const approved = await asConsole(owner.cookie, `/api/console/orders/${reference}/refund-requests/${requestId}/${decision}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key('refund-safe-approve') },
       body: '{}',
@@ -205,7 +206,7 @@ describe('terminal Refund decisions', () => {
     expect(customer.status).toBe(200);
     const customerBody = await customer.json() as { refundRequest: Record<string, unknown> };
     expect(Object.keys(customerBody.refundRequest).sort()).toEqual(['createdAt', 'decidedAt', 'id', 'reason', 'status']);
-    expect(customerBody.refundRequest).toMatchObject({ id: requestId, status: 'approved' });
+    expect(customerBody.refundRequest).toMatchObject({ id: requestId, status: finalStatus });
     expect(customerBody.refundRequest).not.toHaveProperty('decidedByUserId');
     expect(customerBody.refundRequest).not.toHaveProperty('payment');
     const resubmitted = await asConsole(owner.cookie, `/api/console/orders/${reference}/refund-requests`, {
@@ -214,7 +215,14 @@ describe('terminal Refund decisions', () => {
       body: JSON.stringify({ reason: 'A changed reason must not replace the original.' }),
     });
     expect(resubmitted.status).toBe(200);
-    expect(await resubmitted.json()).toMatchObject({ refundRequest: { id: requestId, status: 'approved' } });
+    expect(await resubmitted.json()).toMatchObject({ refundRequest: customerBody.refundRequest });
+    const customerRetry = await workerRequest(`/api/storefront/orders/${reference}/refund-requests`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key('refund-customer-resubmit'), 'X-Nexus-Order-Capability': CAPABILITY, 'X-Nexus-Order-Contract': '2', Origin: TEST_STOREFRONT_ORIGIN },
+      body: JSON.stringify({ reason: 'The final request must not be reopened.' }),
+    });
+    expect(customerRetry.status).toBe(200);
+    expect(await customerRetry.json()).toMatchObject({ refundRequest: customerBody.refundRequest });
     expect(await env.DB.prepare('SELECT count(*) AS count FROM order_refund_requests WHERE order_id=?')
       .bind(orderId).first<number>('count')).toBe(1);
     expect(await env.DB.prepare("SELECT count(*) AS count FROM order_history WHERE order_id=? AND action='refund_requested'")
@@ -232,7 +240,7 @@ describe('terminal Refund decisions', () => {
     const denied = await asConsole(staff.cookie, `/api/console/orders/${reference}/refund-requests/${requestId}/approve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key('refund-staff-denied') },
-      body: '{}',
+      body: JSON.stringify({ role: 'owner', actorId: owner.userId, storeId: 'store_nexus', status: 'approved' }),
     });
     expect(denied.status).toBe(403);
     expect(await denied.json()).toMatchObject({ error: { code: 'forbidden' } });
@@ -279,16 +287,18 @@ describe('terminal Refund decisions', () => {
       },
     );
     expect(absentWithMalformedJson.status).toBe(404);
-    const invalid = await asConsole(
-      owner.cookie,
-      `/api/console/orders/${reference}/refund-requests/${requestId}/reject`,
-      {
+    for (const [index, body] of ['null', '[]', '\"approve\"', '{', JSON.stringify({ unexpected: true }), JSON.stringify({ status: 'approved', role: 'owner', actorId: 'forged', storeId: 'store_b' })].entries()) {
+      const invalid = await asConsole(owner.cookie, `/api/console/orders/${reference}/refund-requests/${requestId}/reject`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key('refund-invalid-body') },
-        body: JSON.stringify({ unexpected: true }),
-      },
-    );
-    expect(invalid.status).toBe(422);
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key(`refund-invalid-body-${index}`) },
+        body,
+      });
+      expect([400, 422]).toContain(invalid.status);
+    }
+    for (const suffix of ['%ZZ/approve', `${requestId}/unknown`, '/approve']) {
+      const invalid = await asConsole(owner.cookie, `/api/console/orders/${reference}/refund-requests/${suffix}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key('refund-invalid-path') }, body: '{}' });
+      expect(invalid.status).toBe(404);
+    }
     expect(await env.DB.prepare('SELECT status FROM order_refund_requests WHERE id=?')
       .bind(requestId).first<string>('status')).toBe('pending');
     expect(await env.DB.prepare(
@@ -329,7 +339,7 @@ describe('terminal Refund decisions', () => {
     }
   });
 
-  it('rolls back when Owner access is revoked before the decision batch commits', async () => {
+  it.each(['revocation', 'demotion'] as const)('rolls back after Owner %s before the decision batch commits', async (change) => {
     const { owner, requestId, orderId } = await pendingRefundFixture();
     const identity = await ownerIdentity(owner.userId);
     let intercepted = false;
@@ -337,7 +347,9 @@ describe('terminal Refund decisions', () => {
       if (!intercepted) {
         intercepted = true;
         await real.prepare(
-          "UPDATE store_memberships SET status='revoked',revoked_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?",
+          change === 'demotion'
+            ? "UPDATE store_memberships SET role='staff' WHERE id=?"
+            : "UPDATE store_memberships SET status='revoked',revoked_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?",
         ).bind(identity.membershipId).run();
       }
       return real.batch(statements);

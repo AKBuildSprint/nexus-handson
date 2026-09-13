@@ -7,6 +7,7 @@ import { schemaPreviewHash } from '@nexus/catalog/schema-change';
 import { deleteDeliveryFile, putDeliveryFile } from '@nexus/catalog/files/delivery-file';
 import { executeCsvImport } from '@nexus/catalog/import/import-command';
 import type { ConsoleIdentityContext } from '@nexus/identity/identity-types';
+import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
 import worker from '../../apps/worker/src';
 import {
   getConsoleIdentity, oneVariantSchema, resetCatalog, SIMPLE_CORE, TEST_STOREFRONT_ORIGIN, workerRequest,
@@ -39,12 +40,14 @@ function createBody(name = SIMPLE_CORE.name): string {
   return JSON.stringify({ product: { ...SIMPLE_CORE, name }, schema: null, previewHash: null });
 }
 
-function revokingDatabase(identity: ConsoleIdentityContext): D1Database {
+function losingOwnerDatabase(identity: ConsoleIdentityContext, change: 'revocation' | 'demotion'): D1Database {
   return {
     prepare: env.DB.prepare.bind(env.DB),
     batch: async (statements: D1PreparedStatement[]) => {
       await env.DB.prepare(
-        "UPDATE store_memberships SET status='revoked', revoked_at=strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id=?",
+        change === 'demotion'
+          ? "UPDATE store_memberships SET role='staff' WHERE id=?"
+          : "UPDATE store_memberships SET status='revoked', revoked_at=strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id=?",
       ).bind(identity.membershipId).run();
       return env.DB.batch(statements);
     },
@@ -168,6 +171,66 @@ describe('private catalog Store isolation and roles', () => {
     ).first<number>('count')).toBe(0);
   });
 
+  it('isolates known foreign Variant IDs while equal Store-local slugs and SKUs coexist', async () => {
+    const ownerA = await createConsoleSession({ email: 'variant-owner-a@example.test' });
+    const ownerB = await createConsoleSession({ email: 'variant-owner-b@example.test', storeId: 'store_b' });
+    const staffB = await createConsoleSession({ email: 'variant-staff-b@example.test', storeId: 'store_b', role: 'staff' });
+    const schema = oneVariantSchema();
+    const products: ProductDetailResponse[] = [];
+    for (const [session, privateText] of [[ownerA, 'Private Store A Variant evidence'], [ownerB, 'Private Store B Variant evidence']] as const) {
+      const product = { ...SIMPLE_CORE, delivery: { accessTitle: 'Package', accessInstructions: privateText } };
+      const created = await requestAs(session, '/api/console/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product, schema, previewHash: await schemaPreviewHash(product, schema) }) });
+      expect(created.status).toBe(201);
+      products.push((await created.json() as { product: ProductDetailResponse }).product);
+    }
+    const [productA, productB] = products;
+    expect(productA.slug).toBe(productB.slug);
+    expect(productA.variants[0].sku).toBe(productB.variants[0].sku);
+    const foreignId = productA.variants[0].id;
+    const coreB = { ...SIMPLE_CORE, delivery: { accessTitle: productB.delivery.accessTitle, accessInstructions: productB.delivery.accessInstructions } };
+    const schemaB = {
+      ...schema,
+      groups: productB.optionGroups.map(group => ({ ...group, draftRef: group.id, values: group.values.map(value => ({ ...value, draftRef: value.id })) })),
+      rows: schema.rows.map(row => ({ ...row, id: foreignId, selectedValueRefs: productB.optionGroups.flatMap(group => group.values.map(value => value.id)) })),
+    };
+    const labels = { groups: productB.optionGroups.map(group => ({ id: group.id, name: group.name, values: group.values.map(value => ({ id: value.id, label: value.label })) })) };
+    const headers = { 'Content-Type': 'application/json', 'If-Match': '"1"' };
+    const crossedCsv = CSV_TEMPLATE.trimEnd().split('\n').map((line, index) => `${line},${index === 0 ? 'variant_id' : foreignId}`).join('\n');
+    const cases: Array<{ path: string; init: RequestInit; ownerStatus: number; staffStatus: number }> = [
+      { path: `/api/console/products/${productA.id}/schema`, init: { method: 'PUT', headers, body: JSON.stringify({ product: coreB, schema: schemaB, previewHash: await schemaPreviewHash(coreB, schemaB) }) }, ownerStatus: 404, staffStatus: 404 },
+      { path: '/api/console/products/schema/preview', init: { method: 'POST', headers, body: JSON.stringify({ productId: productA.id, productSlug: productA.slug, product: coreB, schema: schemaB }) }, ownerStatus: 404, staffStatus: 403 },
+      { path: '/api/console/products/schema/preview', init: { method: 'POST', headers, body: JSON.stringify({ productId: productB.id, productSlug: productB.slug, product: coreB, schema: schemaB }) }, ownerStatus: 409, staffStatus: 403 },
+      { path: `/api/console/products/${productB.id}/schema`, init: { method: 'PUT', headers, body: JSON.stringify({ product: coreB, schema: schemaB, previewHash: await schemaPreviewHash(coreB, schemaB) }) }, ownerStatus: 409, staffStatus: 403 },
+      { path: `/api/console/products/${productB.id}`, init: { method: 'PUT', headers, body: JSON.stringify({ product: coreB, optionLabels: labels, variantEdits: [{ id: foreignId, sku: schema.rows[0].sku, status: 'enabled', priceOverride: null, delivery: { source: 'product_default' } }] }) }, ownerStatus: 422, staffStatus: 403 },
+      { path: '/api/console/products', init: { method: 'POST', headers, body: JSON.stringify({ product: coreB, schema: schemaB, previewHash: await schemaPreviewHash(coreB, schemaB) }) }, ownerStatus: 422, staffStatus: 403 },
+      { path: '/api/console/imports', init: { method: 'POST', headers: { 'Content-Type': CSV_CONTENT_TYPE, [CSV_FILENAME_HEADER]: 'foreign-variant.csv' }, body: crossedCsv }, ownerStatus: 400, staffStatus: 403 },
+    ];
+    for (const product of [productA, productB]) {
+      for (const method of ['PUT', 'DELETE']) cases.push({
+        path: `/api/console/products/${product.id}/variants/${foreignId}/delivery-file`,
+        init: { method, headers: { 'Content-Type': 'application/octet-stream', 'If-Match': '"1"', 'X-Nexus-Filename': 'foreign.pdf' }, ...(method === 'PUT' ? { body: new TextEncoder().encode('%PDF-foreign') } : {}) },
+        ownerStatus: 404, staffStatus: product.id === productA.id ? 404 : 403,
+      });
+    }
+    for (const entry of cases) {
+      for (const [session, expected] of [[ownerB, entry.ownerStatus], [staffB, entry.staffStatus]] as const) {
+        const response = await requestAs(session, entry.path, entry.init);
+        expect(response.status, `${entry.init.method} ${entry.path}`).toBe(expected);
+        expect(await response.text()).not.toContain('Private Store A Variant evidence');
+      }
+    }
+    const ownSlug = await requestAs(ownerB, `/api/console/products/by-slug/${productA.slug}`);
+    expect(await ownSlug.json()).toEqual(productB);
+    expect(await (await requestAs(ownerA, `/api/console/products/by-slug/${productA.slug}`)).json()).toEqual(productA);
+    expect((await env.FILES.list()).objects).toHaveLength(0);
+    expect(await env.DB.prepare('SELECT count(*) AS count FROM imports').first<number>('count')).toBe(0);
+    await expect(env.DB.prepare(
+      "INSERT INTO product_variants (id,store_id,product_id,combination_key,sku,status,current_schema,delivery_source) VALUES (?,'store_b',?,'collision','COLLISION','disabled',0,'product_default')",
+    ).bind(foreignId, productB.id).run()).rejects.toThrow(/UNIQUE constraint failed: product_variants.id/);
+    expect(await env.DB.prepare('SELECT store_id FROM product_variants WHERE id=?').bind(foreignId).first<string>('store_id')).toBe('store_nexus');
+    expect(await env.DB.prepare('SELECT count(*) AS count FROM product_variants').first<number>('count')).toBe(2);
+  });
+
   it('does not consume a Staff mutation body', async () => {
     const staff = await createConsoleSession({ email: 'staff-body@example.test', name: 'Staff Body', role: 'staff' });
     const body = new ReadableStream<Uint8Array>({
@@ -195,21 +258,21 @@ describe('private catalog Store isolation and roles', () => {
     expect(await env.DB.prepare('SELECT count(*) AS count FROM products').first<number>('count')).toBe(0);
   });
 
-  it('rolls back a create when Owner membership is revoked at the batch boundary', async () => {
+  it.each(['revocation', 'demotion'] as const)('rolls back a create after Owner %s at the batch boundary', async (change) => {
     const identity = await getConsoleIdentity();
-    await expect(createProduct(revokingDatabase(identity), identity, {
+    await expect(createProduct(losingOwnerDatabase(identity, change), identity, {
       product: SIMPLE_CORE, schema: null, previewHash: null,
     })).rejects.toThrow();
     expect(await env.DB.prepare('SELECT count(*) AS count FROM products').first<number>('count')).toBe(0);
   });
 
-  it('rolls back update, import, upload, and removal after commit-time revocation', async () => {
+  it.each(['revocation', 'demotion'] as const)('rolls back update, import, upload, and removal after commit-time %s', async (change) => {
     const identity = await getConsoleIdentity();
     const product = await createProduct(env.DB, identity, {
       product: SIMPLE_CORE, schema: null, previewHash: null,
     });
 
-    await expect(updateProductNonstructural(revokingDatabase(identity), identity, product.id, 1, {
+    await expect(updateProductNonstructural(losingOwnerDatabase(identity, change), identity, product.id, 1, {
       product: { ...SIMPLE_CORE, name: 'Revoked Update' },
       optionLabels: { groups: [] },
       variantEdits: [],
@@ -218,10 +281,10 @@ describe('private catalog Store isolation and roles', () => {
     expect(await env.DB.prepare('SELECT revision FROM products WHERE id=?').bind(product.id).first<number>('revision')).toBe(1);
 
     await env.DB.prepare(
-      "UPDATE store_memberships SET status='active', revoked_at=NULL WHERE id=?",
+      "UPDATE store_memberships SET role='owner', status='active', revoked_at=NULL WHERE id=?",
     ).bind(identity.membershipId).run();
     const schema = oneVariantSchema();
-    await expect(applyProductSchema(revokingDatabase(identity), identity, product.id, 1, {
+    await expect(applyProductSchema(losingOwnerDatabase(identity, change), identity, product.id, 1, {
       product: SIMPLE_CORE, schema, previewHash: await schemaPreviewHash(SIMPLE_CORE, schema),
     })).rejects.toThrow();
     expect(await env.DB.prepare('SELECT count(*) AS count FROM product_variants WHERE product_id=?')
@@ -229,10 +292,10 @@ describe('private catalog Store isolation and roles', () => {
     expect(await env.DB.prepare('SELECT revision FROM products WHERE id=?').bind(product.id).first<number>('revision')).toBe(1);
 
     await env.DB.prepare(
-      "UPDATE store_memberships SET status='active', revoked_at=NULL WHERE id=?",
+      "UPDATE store_memberships SET role='owner', status='active', revoked_at=NULL WHERE id=?",
     ).bind(identity.membershipId).run();
     await expect(putDeliveryFile({
-      db: revokingDatabase(identity), files: env.FILES, identity,
+      db: losingOwnerDatabase(identity, change), files: env.FILES, identity,
       productId: product.id, variantId: null, expectedRevision: 1,
       filename: 'revoked.pdf', body: new Blob(['%PDF-revoked']).stream(), declaredLength: null,
     })).rejects.toBeInstanceOf(CatalogReadAccessError);
@@ -240,7 +303,7 @@ describe('private catalog Store isolation and roles', () => {
     expect(await env.DB.prepare('SELECT revision FROM products WHERE id=?').bind(product.id).first<number>('revision')).toBe(1);
 
     await env.DB.prepare(
-      "UPDATE store_memberships SET status='active', revoked_at=NULL WHERE id=?",
+      "UPDATE store_memberships SET role='owner', status='active', revoked_at=NULL WHERE id=?",
     ).bind(identity.membershipId).run();
     await putDeliveryFile({
       db: env.DB, files: env.FILES, identity,
@@ -250,18 +313,18 @@ describe('private catalog Store isolation and roles', () => {
     const retainedKey = await env.DB.prepare('SELECT delivery_file_key FROM products WHERE id=?')
       .bind(product.id).first<string>('delivery_file_key');
     await expect(deleteDeliveryFile({
-      db: revokingDatabase(identity), identity, productId: product.id, variantId: null, expectedRevision: 2,
+      db: losingOwnerDatabase(identity, change), identity, productId: product.id, variantId: null, expectedRevision: 2,
     })).rejects.toBeInstanceOf(CatalogReadAccessError);
     expect(await env.DB.prepare('SELECT delivery_file_key FROM products WHERE id=?')
       .bind(product.id).first<string>('delivery_file_key')).toBe(retainedKey);
     await expect(env.FILES.get(retainedKey ?? '')).resolves.not.toBeNull();
 
     await env.DB.prepare(
-      "UPDATE store_memberships SET status='active', revoked_at=NULL WHERE id=?",
+      "UPDATE store_memberships SET role='owner', status='active', revoked_at=NULL WHERE id=?",
     ).bind(identity.membershipId).run();
     const rejectedOnly = CSV_TEMPLATE.replaceAll(',active,', ',Active,').replaceAll(',draft,', ',Draft,');
     await expect(executeCsvImport({
-      database: revokingDatabase(identity), files: env.FILES, identity,
+      database: losingOwnerDatabase(identity, change), files: env.FILES, identity,
       filename: 'rejected-only.csv', bytes: new TextEncoder().encode(rejectedOnly), confirmedVariants: false,
     })).rejects.toMatchObject({ code: 'store_access_denied' });
     expect(await env.DB.prepare('SELECT count(*) AS count FROM imports').first<number>('count')).toBe(0);

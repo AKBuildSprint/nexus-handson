@@ -9,7 +9,8 @@ import {
 } from '@nexus/orders/persistence/command-store';
 import { listConsoleOrders } from '@nexus/orders/queries/order-read';
 import { assignOrder } from '@nexus/orders/commands/order-assignment';
-import { markPaid } from '@nexus/orders/commands/order-commands';
+import { fulfillOrder, markPaid } from '@nexus/orders/commands/order-commands';
+import { createOrder } from '@nexus/orders/commands/order-write';
 import type { ConsoleIdentityContext } from '@nexus/identity/identity-types';
 import { provisionGoogleAccount } from '../../apps/worker/src/auth';
 import {
@@ -147,7 +148,7 @@ async function placeAdditionalOrder(index: number): Promise<{ reference: string 
     headers: {
       'Content-Type': 'application/json',
       'Idempotency-Key': key(`phase5-create-${index}`),
-      'X-Nexus-Order-Capability': `${index}`.repeat(43).slice(0, 43),
+      'X-Nexus-Order-Capability': btoa(String(index).padStart(32, '0')).replaceAll('=', ''),
       Origin: TEST_STOREFRONT_ORIGIN,
     },
     body: JSON.stringify({
@@ -160,6 +161,47 @@ async function placeAdditionalOrder(index: number): Promise<{ reference: string 
 }
 
 describe('assigned-only Order access', () => {
+  it('rejects malformed assignment identities and unsupported authority without audit effects', async () => {
+    const { owner, staff, order } = await fixture();
+    const bodies = [null, [], {}, { assigneeUserId: null }, { assigneeUserId: '' }, { assigneeUserId: staff.userId, role: 'owner' }, { assigneeUserId: staff.userId, actorId: owner.userId, storeId: 'store_other', status: 'approved' }];
+    for (const [index, body] of bodies.entries()) {
+      const invalid = await asConsole(owner.cookie, `/api/console/orders/${order.reference}/assignment`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key(`invalid-assignment-${index}`) }, body: JSON.stringify(body) });
+      expect(invalid.status).toBe(422);
+    }
+    const invalidJson = await asConsole(owner.cookie, `/api/console/orders/${order.reference}/assignment`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key('invalid-assignment-json') }, body: '{' });
+    expect(invalidJson.status).toBe(400);
+    expect((await asConsole(owner.cookie, '/api/console/orders/%ZZ/assignment', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key('invalid-reference') }, body: JSON.stringify({ assigneeUserId: staff.userId }) })).status).toBe(404);
+    expect(await env.DB.prepare('SELECT count(*) AS count FROM order_assignments').first<number>('count')).toBe(0);
+    expect(await env.DB.prepare("SELECT count(*) AS count FROM order_history WHERE action='assigned'").first<number>('count')).toBe(0);
+    expect(await env.DB.prepare("SELECT count(*) AS count FROM order_commands WHERE action='assign'").first<number>('count')).toBe(0);
+  });
+
+  it('refuses forged authority in assigned Staff mutations and foreign Staff requests', async () => {
+    const { owner, staff, order } = await fixture();
+    expect((await asConsole(owner.cookie, `/api/console/orders/${order.reference}/assignment`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key('forged-authority-assign') }, body: JSON.stringify({ assigneeUserId: staff.userId }) })).status).toBe(200);
+    await env.DB.prepare("INSERT INTO stores (id,slug,name) VALUES ('store_forged_b','forged-b','Store B')").run();
+    const foreignStaff = await createConsoleSession({ email: 'forged-staff-b@example.test', storeId: 'store_forged_b', role: 'staff' });
+    const forged = { role: 'owner', actorId: owner.userId, storeId: 'store_nexus', status: 'approved' };
+    const commands = [
+      { path: 'payments/manual', body: { method: 'Bank', reference: 'FORGED-PAY' } },
+      { path: 'fulfill', body: {} },
+      { path: 'cancel', body: {} },
+      { path: 'refund-requests', body: { reason: 'Do not accept forged authority.' } },
+    ];
+    for (const [index, command] of commands.entries()) {
+      const request = { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key(`forged-${index}`) }, body: JSON.stringify({ ...command.body, ...forged }) };
+      expect((await asConsole(staff.cookie, `/api/console/orders/${order.reference}/${command.path}`, request)).status).toBe(422);
+      expect((await asConsole(foreignStaff.cookie, `/api/console/orders/${order.reference}/${command.path}`, request)).status).toBe(404);
+    }
+    const denied = await asConsole(staff.cookie, `/api/console/orders/${order.reference}/assignment`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key('forged-owner-assignment') }, body: JSON.stringify({ assigneeUserId: foreignStaff.userId, ...forged }) });
+    expect(denied.status).toBe(403);
+    expect(await env.DB.prepare('SELECT status FROM orders WHERE reference=?').bind(order.reference).first<string>('status')).toBe('pending');
+    expect(await env.DB.prepare('SELECT count(*) AS count FROM payments').first<number>('count')).toBe(0);
+    expect(await env.DB.prepare('SELECT count(*) AS count FROM order_refund_requests').first<number>('count')).toBe(0);
+    expect(await env.DB.prepare("SELECT count(*) AS count FROM order_commands WHERE action <> 'assign'").first<number>('count')).toBe(0);
+    expect(await env.DB.prepare("SELECT count(*) AS count FROM order_history WHERE action NOT IN ('order_created','assigned')").first<number>('count')).toBe(0);
+  });
+
   it('keeps Staff inbox empty until an Owner assigns the Order', async () => {
     const { owner, staff, order } = await fixture();
     const before = await asConsole(staff.cookie, '/api/console/orders');
@@ -356,7 +398,7 @@ describe('assigned-only Order access', () => {
     expect(await env.DB.prepare('SELECT count(*) AS count FROM order_assignments').first<number>('count')).toBe(0);
   });
 
-  it('rolls back assignment when the assigning Owner is revoked before commit', async () => {
+  it.each(['revocation', 'demotion'] as const)('rolls back assignment after assigning Owner %s before commit', async (change) => {
     const { owner, staff, order } = await fixture();
     const ownerIdentity = await consoleIdentity(owner.userId);
     const orderId = await env.DB.prepare('SELECT id FROM orders WHERE reference=?').bind(order.reference).first<string>('id') as string;
@@ -365,7 +407,9 @@ describe('assigned-only Order access', () => {
       if (!intercepted) {
         intercepted = true;
         await real.prepare(
-          "UPDATE store_memberships SET status='revoked', revoked_at=strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id=?",
+          change === 'demotion'
+            ? "UPDATE store_memberships SET role='staff' WHERE id=?"
+            : "UPDATE store_memberships SET status='revoked', revoked_at=strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id=?",
         ).bind(ownerIdentity.membershipId).run();
       }
       return real.batch(statements);
@@ -380,6 +424,55 @@ describe('assigned-only Order access', () => {
     expect(await env.DB.prepare("SELECT count(*) AS count FROM order_history WHERE action='assigned'").first<number>('count')).toBe(0);
     expect(await env.DB.prepare("SELECT count(*) AS count FROM order_commands WHERE action='assign'").first<number>('count')).toBe(0);
     expect(await env.DB.prepare('SELECT count(*) AS count FROM order_assignments').first<number>('count')).toBe(0);
+  });
+
+  it.each(['before', 'after'] as const)('orders real reassignment %s the assigned Staff fulfillment commit', async (timing) => {
+    const { owner, staff, order } = await fixture();
+    const nextStaff = await createConsoleSession({ email: 'race-next@example.test', role: 'staff' });
+    const identity = await consoleIdentity(owner.userId);
+    const staffIdentity = await consoleIdentity(staff.userId);
+    const orderId = await env.DB.prepare('SELECT id FROM orders WHERE reference=?').bind(order.reference).first<string>('id');
+    if (!orderId) throw new Error('Missing race Order.');
+    await markPaid({ database: env.DB, context: { storeId: identity.storeId, actor: { source: 'user', id: owner.userId }, identity }, orderId, body: { method: 'Bank', reference: 'RACE-PAID' }, idempotencyKey: key('race-paid') });
+    await assignOrder({ database: env.DB, identity, orderId, body: { assigneeUserId: staff.userId }, idempotencyKey: key('race-initial') });
+    const payment = await env.DB.prepare('SELECT * FROM payments WHERE order_id=?').bind(orderId).first();
+    let intercepted = false;
+    const racing = interceptBatch(env.DB, async (statements, real) => {
+      if (intercepted) return real.batch(statements);
+      intercepted = true;
+      const reassign = () => assignOrder({ database: real, identity, orderId, body: { assigneeUserId: nextStaff.userId }, idempotencyKey: key('race-next') });
+      if (timing === 'before') await reassign();
+      const results = await real.batch(statements);
+      if (timing === 'after') await reassign();
+      return results;
+    });
+    await expect(fulfillOrder({ database: racing, context: { storeId: staffIdentity.storeId, actor: { source: 'user', id: staff.userId }, identity: staffIdentity }, orderId, body: {}, idempotencyKey: key('race-fulfill') }))
+      .rejects.toMatchObject({ code: 'not_found', status: 404 });
+    const committed = timing === 'after';
+    expect(await env.DB.prepare('SELECT status FROM orders WHERE id=?').bind(orderId).first<string>('status')).toBe(committed ? 'fulfilled' : 'paid');
+    expect(await env.DB.prepare("SELECT count(*) AS count FROM order_history WHERE order_id=? AND action='order_fulfilled'").bind(orderId).first<number>('count')).toBe(committed ? 1 : 0);
+    expect(await env.DB.prepare("SELECT count(*) AS count FROM order_commands WHERE order_id=? AND action='fulfill'").bind(orderId).first<number>('count')).toBe(committed ? 1 : 0);
+    expect(await env.DB.prepare('SELECT assignee_user_id FROM order_assignments WHERE order_id=?').bind(orderId).first<string>('assignee_user_id')).toBe(nextStaff.userId);
+    expect(await env.DB.prepare('SELECT * FROM payments WHERE order_id=?').bind(orderId).first()).toEqual(payment);
+    expect((await asConsole(staff.cookie, `/api/console/orders/${order.reference}`)).status).toBe(404);
+    expect((await asConsole(nextStaff.cookie, `/api/console/orders/${order.reference}`)).status).toBe(200);
+  });
+
+  it('rolls back an unassigned Owner payment after demotion commits', async () => {
+    const { owner, order } = await fixture();
+    const identity = await consoleIdentity(owner.userId);
+    const orderId = await env.DB.prepare('SELECT id FROM orders WHERE reference=?').bind(order.reference).first<string>('id');
+    if (!orderId) throw new Error('Missing demotion Order.');
+    const racing = interceptBatch(env.DB, async (statements, real) => {
+      await real.prepare("UPDATE store_memberships SET role='staff' WHERE id=?").bind(identity.membershipId).run();
+      return real.batch(statements);
+    });
+    await expect(markPaid({ database: racing, context: { storeId: identity.storeId, actor: { source: 'user', id: owner.userId }, identity }, orderId, body: { method: 'Bank', reference: 'DEMOTED-PAY' }, idempotencyKey: key('demoted-pay') }))
+      .rejects.toMatchObject({ code: 'store_access_denied', status: 403 });
+    expect(await env.DB.prepare('SELECT status FROM orders WHERE id=?').bind(orderId).first<string>('status')).toBe('pending');
+    expect(await env.DB.prepare('SELECT count(*) AS count FROM payments WHERE order_id=?').bind(orderId).first<number>('count')).toBe(0);
+    expect(await env.DB.prepare("SELECT count(*) AS count FROM order_history WHERE order_id=? AND action='order_paid'").bind(orderId).first<number>('count')).toBe(0);
+    expect(await env.DB.prepare("SELECT count(*) AS count FROM order_commands WHERE order_id=? AND action='mark_paid'").bind(orderId).first<number>('count')).toBe(0);
   });
 
   it('rolls back Staff processing when assignment disappears before the batch', async () => {
@@ -479,6 +572,66 @@ describe('assigned-only Order access', () => {
     expect(nextBody.orders).toHaveLength(1);
     expect(nextBody.orders[0]?.reference).not.toBe(moved.reference);
     expect(nextBody.summary.totalOrders).toBe(2);
+  });
+
+  it('rejects copied Owner and foreign Store cursors and SQL-shaped cursor input', async () => {
+    const { owner, staff, order } = await fixture();
+    await placeAdditionalOrder(2);
+    expect((await asConsole(owner.cookie, `/api/console/orders/${order.reference}/assignment`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key('copied-assign') }, body: JSON.stringify({ assigneeUserId: staff.userId }) })).status).toBe(200);
+    await env.DB.prepare("INSERT INTO stores (id,slug,name) VALUES ('store_cursor_b','cursor-b','Cursor B')").run();
+    const ownerB = await createConsoleSession({ email: 'cursor-owner-b@example.test', storeId: 'store_cursor_b' });
+    const created = await asConsole(ownerB.cookie, '/api/console/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product: SIMPLE_CORE, schema: null, previewHash: null }) });
+    expect(created.status).toBe(201);
+    const { product } = await created.json() as { product: ProductDetailResponse };
+    for (const index of [1, 2]) {
+      await createOrder({ database: env.DB, context: { storeId: 'store_cursor_b', actor: { source: 'storefront', id: null }, identity: null }, idempotencyKey: key(`cursor-b-${index}`), capability: btoa(`store-b-${index}`.padEnd(32, '0')).replaceAll('=', ''), body: { customer: { name: 'Foreign buyer', email: 'foreign@example.test' }, items: [{ productId: product.id, variantId: null, quantity: 1 }] } });
+    }
+    for (const cookie of [owner.cookie, ownerB.cookie]) {
+      const first = await asConsole(cookie, '/api/console/orders?limit=1');
+      expect(first.status).toBe(200);
+      const { nextCursor } = await first.json() as { nextCursor: string };
+      expect(typeof nextCursor).toBe('string');
+      const denied = await asConsole(staff.cookie, `/api/console/orders?limit=1&cursor=${encodeURIComponent(nextCursor)}`);
+      expect(denied.status).toBe(400);
+      expect(await denied.json()).toMatchObject({ error: { code: 'invalid_query' } });
+    }
+    const malicious = await asConsole(staff.cookie, `/api/console/orders?cursor=${encodeURIComponent("' OR 1=1; DROP TABLE orders; --")}`);
+    expect(malicious.status).toBe(400);
+    const own = await asConsole(staff.cookie, '/api/console/orders');
+    expect(await own.json()).toMatchObject({ orders: [{ reference: order.reference }], summary: { totalOrders: 1 } });
+    expect(await env.DB.prepare('SELECT count(*) AS count FROM orders').first<number>('count')).toBe(4);
+  });
+
+  it('keeps the default 25-item inbox navigable when the 26th item is reassigned', async () => {
+    const { owner, staff, order } = await fixture();
+    const identity = await consoleIdentity(owner.userId);
+    const nextStaff = await createConsoleSession({ email: 'last-page-staff@example.test', role: 'staff' });
+    const orders = [order];
+    for (let index = 2; index <= 26; index += 1) orders.push(await placeAdditionalOrder(index));
+    for (const [index, current] of orders.entries()) {
+      const orderId = await env.DB.prepare('SELECT id FROM orders WHERE reference=?').bind(current.reference).first<string>('id');
+      if (!orderId) throw new Error('Missing paginated Order.');
+      await assignOrder({ database: env.DB, identity, orderId, body: { assigneeUserId: staff.userId }, idempotencyKey: key(`boundary-assign-${index}`) });
+    }
+    const first = await asConsole(staff.cookie, '/api/console/orders');
+    const firstBody = await first.json() as { orders: Array<{ reference: string }>; nextCursor: string; summary: { totalOrders: number } };
+    expect(firstBody.orders).toHaveLength(25);
+    expect(firstBody.summary.totalOrders).toBe(26);
+    const path = `/api/console/orders?cursor=${encodeURIComponent(firstBody.nextCursor)}`;
+    const last = await asConsole(staff.cookie, path);
+    const lastBody = await last.json() as { orders: Array<{ reference: string }>; nextCursor: string | null };
+    expect(lastBody.orders).toHaveLength(1);
+    expect(lastBody.nextCursor).toBeNull();
+    const moved = lastBody.orders[0].reference;
+    expect((await asConsole(owner.cookie, `/api/console/orders/${moved}/assignment`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key('boundary-remove') }, body: JSON.stringify({ assigneeUserId: nextStaff.userId }) })).status).toBe(200);
+    const empty = await asConsole(staff.cookie, path);
+    expect(await empty.json()).toMatchObject({ orders: [], nextCursor: null, summary: { totalOrders: 25 } });
+    const previous = await asConsole(staff.cookie, '/api/console/orders');
+    const previousBody = await previous.json() as { orders: Array<{ reference: string }>; nextCursor: string | null; summary: { totalOrders: number } };
+    expect(previousBody.orders.map((row) => row.reference)).toEqual(firstBody.orders.map((row) => row.reference));
+    expect(previousBody.nextCursor).toBeNull();
+    expect(previousBody.summary.totalOrders).toBe(25);
+    expect((await asConsole(staff.cookie, `/api/console/orders/${moved}`)).status).toBe(404);
   });
 
   it('fails a list with store_access_denied when membership is revoked after its query', async () => {

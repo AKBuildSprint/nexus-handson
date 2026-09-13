@@ -2,6 +2,8 @@ import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
 import { deleteDeliveryFile, putDeliveryFile } from '@nexus/catalog/files/delivery-file';
+import { schemaPreviewHash } from '@nexus/catalog/schema-change';
+import { createConsoleSession, TEST_CONSOLE_ORIGIN } from '../support/identity-test-env';
 import {
   consoleRequest,
   getConsoleIdentity,
@@ -140,6 +142,34 @@ async function expectEveryDeliveryObjectReadable(): Promise<string[]> {
 
 
 describe('delivery replacement and compensation', () => {
+  it('denies Staff indirect removal while permitted Owner removal retains the paid snapshot', async () => {
+    const fixture = await createPurchasedVariantFixture();
+    const reference = await env.DB.prepare('SELECT reference FROM orders WHERE id=?').bind(fixture.orderId).first<string>('reference');
+    expect((await consoleRequest(`/api/console/orders/${reference}/payments/manual`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'retention-owner-payment-0001' }, body: JSON.stringify({ method: 'Bank', reference: 'RETENTION-PAID' }) })).status).toBe(200);
+    const staff = await createConsoleSession({ email: 'retention-staff@example.test', role: 'staff' });
+    const detail = await (await consoleRequest('/api/console/products/by-slug/focus-pack')).json() as ProductDetailResponse;
+    const product = { ...VARIANT_CORE, status: 'active' as const };
+    const schema = { groups: [], rows: [], confirmCombinations: false };
+    const headers = { Cookie: staff.cookie, Origin: TEST_CONSOLE_ORIGIN, 'Content-Type': 'application/json', 'If-Match': '"2"' };
+    const attempts: Array<{ path: string; init: RequestInit; status: number }> = [
+      { path: `/api/console/products/${fixture.productId}/variants/${fixture.variantId}/delivery-file`, init: { method: 'DELETE', headers }, status: 403 },
+      { path: `/api/console/products/${fixture.productId}`, init: { method: 'PUT', headers, body: JSON.stringify({ product, optionLabels: { groups: detail.optionGroups.map(group => ({ id: group.id, name: group.name, values: group.values.map(value => ({ id: value.id, label: value.label })) })) }, variantEdits: detail.variants.map(variant => ({ id: variant.id, sku: variant.sku, status: 'disabled', priceOverride: null, delivery: { source: 'product_default' } })) }) }, status: 403 },
+      { path: `/api/console/products/${fixture.productId}/schema`, init: { method: 'PUT', headers, body: JSON.stringify({ product, schema, previewHash: await schemaPreviewHash(product, schema) }) }, status: 403 },
+      { path: `/api/console/products/${fixture.productId}`, init: { method: 'DELETE', headers }, status: 404 },
+    ];
+    for (const attempt of attempts) {
+      expect((await workerRequest(attempt.path, attempt.init)).status).toBe(attempt.status);
+      expect(await env.DB.prepare('SELECT revision FROM products WHERE id=?').bind(fixture.productId).first<number>('revision')).toBe(2);
+      await expectPurchasedSnapshotRetained(fixture);
+    }
+    const removed = await consoleRequest(`/api/console/products/${fixture.productId}/variants/${fixture.variantId}/delivery-file`, { method: 'DELETE', headers: { 'If-Match': '"2"' } });
+    expect(removed.status).toBe(200);
+    expect(await env.DB.prepare('SELECT delivery_file_key FROM product_variants WHERE id=?').bind(fixture.variantId).first<string | null>('delivery_file_key')).toBeNull();
+    await expectPurchasedSnapshotRetained(fixture);
+    expect(await env.DB.prepare('SELECT status FROM orders WHERE id=?').bind(fixture.orderId).first<string>('status')).toBe('paid');
+    expect(await env.DB.prepare('SELECT external_reference FROM payments WHERE order_id=?').bind(fixture.orderId).first<string>('external_reference')).toBe('RETENTION-PAID');
+  });
+
   it('uses a new key, retains committed history, and DELETE only clears association', async () => {
     const productId = await createSimple();
     const first = await consoleRequest(`/api/console/products/${productId}/delivery-file`, {
