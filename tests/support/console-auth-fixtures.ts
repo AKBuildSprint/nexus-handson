@@ -47,7 +47,7 @@ async function provisionMembership(
   }
 }
 
-async function provisionLocalAuthFixture(): Promise<ConsoleAuthFixture> {
+export async function provisionLocalAuthFixture(): Promise<ConsoleAuthFixture> {
   const persistRoot = requiredRuntimeValue('NEXUS_TEST_PERSIST_ROOT');
   const consoleOrigin = requiredRuntimeValue('PLAYWRIGHT_API_CONSOLE_BASE_URL');
   const authSecret = requiredRuntimeValue('NEXUS_TEST_AUTH_SECRET');

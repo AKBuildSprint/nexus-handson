@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProductionConsoleApp } from '../../apps/console/src/production-console-app';
 import { OrderDetailScreen } from '../../apps/console/src/orders/order-detail-screen';
+import { clearPendingRoleCommands } from '../../apps/console/src/orders/pending-role-command';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 let container: HTMLDivElement;
@@ -66,6 +67,7 @@ function buttonByName(name: string): HTMLButtonElement | undefined {
 async function renderDetail(reference: string, routeGeneration: number, canAssign = false) {
   await act(async () => {
     root.render(createElement(OrderDetailScreen, {
+      session: { user: { id: 'owner_1', name: 'Owner One' }, store: { id: 'store_nexus', name: 'Store A' }, role: 'owner', allowedActions: ['order:read', 'order:assign', 'refund:decide'] },
       reference,
       routeGeneration,
       canAssign,
@@ -86,6 +88,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
   await act(async () => root.unmount());
   container.remove();
+  clearPendingRoleCommands();
 });
 
 describe('Console role-aware Order controls', () => {

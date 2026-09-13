@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import {
   cancelConsoleOrder,
   ConsoleApiError,
@@ -20,8 +20,14 @@ import type {
   OrderStatus,
   RefundRequestView,
 } from './order-ui-types';
+import type { ConsoleSessionView } from '../auth-client';
+import {
+  clearPendingRoleCommands, readPendingRoleCommand, removePendingRoleCommand,
+  roleCommandScope, savePendingRoleCommand, type FrozenRoleAttempt,
+} from './pending-role-command';
 
 interface OrderDetailScreenProps {
+  session: ConsoleSessionView;
   reference: string;
   routeGeneration: number;
   onInvalidateList: () => void;
@@ -34,6 +40,7 @@ type OrderAction = 'mark_paid' | 'fulfill' | 'cancel' | 'request_refund';
 type ConfirmPanel = OrderAction | null;
 type DetailNotice =
   | { kind: 'unknown' }
+  | { kind: 'recovery-unavailable' }
   | { kind: 'conflict'; idempotency: boolean; reload: boolean }
   | { kind: 'read-after-write' }
   | { kind: 'outdated'; failedCommandMessage?: string }
@@ -44,9 +51,6 @@ type FrozenAttempt =
   | { action: 'fulfill'; orderReference: string; key: string }
   | { action: 'cancel'; orderReference: string; key: string }
   | { action: 'request_refund'; orderReference: string; key: string; reason: string };
-type FrozenRoleAttempt =
-  | { action: 'assign'; orderReference: string; key: string; assigneeUserId: string }
-  | { action: 'approve' | 'reject'; orderReference: string; requestId: string; key: string };
 
 const MUTATION_DEADLINE_MS = 15_000;
 const REASON_INVALID = 'Enter a reason using 1 to 1000 characters.';
@@ -283,6 +287,7 @@ function refundDecisionActor(order: ConsoleOrderDetailView): string | null {
 }
 
 export function OrderDetailScreen({
+  session,
   reference,
   routeGeneration,
   onInvalidateList,
@@ -290,6 +295,7 @@ export function OrderDetailScreen({
   canAssign = false,
   onSessionExpired,
 }: OrderDetailScreenProps) {
+  const recoveryScope = useMemo(() => roleCommandScope(session), [session.user.id, session.store.id, session.role]);
   const [state, setState] = useState<ConsoleOrderDetailState>('loading');
   const [order, setOrder] = useState<ConsoleOrderDetailView | null>(null);
   const [panel, setPanel] = useState<ConfirmPanel>(null);
@@ -332,6 +338,17 @@ export function OrderDetailScreen({
   const applyNotice = (next: DetailNotice | null) => {
     noticeRef.current = next;
     setNotice(next);
+  };
+
+  const forgetRoleAttempt = (capturedReference: string): boolean => {
+    try {
+      removePendingRoleCommand(recoveryScope, capturedReference);
+      roleAttemptRef.current = null;
+      return true;
+    } catch {
+      applyNotice({ kind: 'recovery-unavailable' });
+      return false;
+    }
   };
 
   const stillCurrent = (generation: number, capturedReference: string) => (
@@ -407,13 +424,25 @@ export function OrderDetailScreen({
     setRoleActionBusy(false);
     applyNotice(null);
     setLockedAction(null);
+    try {
+      const restored = readPendingRoleCommand(recoveryScope, capturedReference);
+      if (restored && session.allowedActions.includes(restored.action === 'assign' ? 'order:assign' : 'refund:decide')) {
+        roleAttemptRef.current = restored;
+        if (restored.action === 'assign') setAssigneeUserId(restored.assigneeUserId);
+        applyNotice({ kind: 'unknown' });
+      } else if (restored) {
+        removePendingRoleCommand(recoveryScope, capturedReference);
+      }
+    } catch {
+      applyNotice({ kind: 'recovery-unavailable' });
+    }
     loadOrder(generation, capturedReference, controller.signal);
     return () => {
       mutationAbortRef.current?.abort();
       roleActionAbortRef.current?.abort();
       loadAbortRef.current?.abort();
     };
-  }, [reference, routeGeneration]);
+  }, [reference, routeGeneration, recoveryScope]);
 
   useEffect(() => {
     if (!canAssign) {
@@ -476,7 +505,7 @@ export function OrderDetailScreen({
   // authoritative read before the next command can be judged.
   const recoveryPending = () => {
     const current = noticeRef.current;
-    return current?.kind === 'outdated' || current?.kind === 'read-after-write';
+    return current?.kind === 'outdated' || current?.kind === 'read-after-write' || current?.kind === 'recovery-unavailable';
   };
   // Exactly one command may be in flight, whether it is an Order transition or
   // a role-aware command.
@@ -688,7 +717,7 @@ export function OrderDetailScreen({
     loadAbortRef.current?.abort();
     const controller = new AbortController();
     loadAbortRef.current = controller;
-    if (noticeRef.current?.kind !== 'read-after-write' && noticeRef.current?.kind !== 'unknown') applyNotice(null);
+    if (noticeRef.current?.kind !== 'read-after-write' && noticeRef.current?.kind !== 'unknown' && noticeRef.current?.kind !== 'recovery-unavailable') applyNotice(null);
     loadOrder(generation, capturedReference, controller.signal);
   };
 
@@ -708,6 +737,12 @@ export function OrderDetailScreen({
     const attempt = existing?.action === 'assign' && existing.orderReference === capturedReference && existing.assigneeUserId === assigneeUserId
       ? existing
       : { action: 'assign' as const, orderReference: capturedReference, assigneeUserId, key: crypto.randomUUID() };
+    try {
+      savePendingRoleCommand(recoveryScope, attempt);
+    } catch {
+      applyNotice({ kind: 'recovery-unavailable' });
+      return;
+    }
     roleAttemptRef.current = attempt;
     roleActionAbortRef.current?.abort();
     const controller = new AbortController();
@@ -717,7 +752,7 @@ export function OrderDetailScreen({
     try {
       await assignConsoleOrder(order.reference, attempt.assigneeUserId, attempt.key, controller.signal);
       if (!stillCurrent(generation, capturedReference)) return;
-      roleAttemptRef.current = null;
+      if (!forgetRoleAttempt(capturedReference)) return;
       applyNotice(null);
       onInvalidateList();
       await refetchAfterWrite(generation, capturedReference);
@@ -725,11 +760,12 @@ export function OrderDetailScreen({
       if (!stillCurrent(generation, capturedReference) || isAbortError(error)) return;
       if (error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied')) {
         roleAttemptRef.current = null;
+        clearPendingRoleCommands();
         onSessionExpired?.();
       } else if (isOutcomeUnknown(error)) {
         applyNotice({ kind: 'unknown' });
       } else {
-        roleAttemptRef.current = null;
+        if (!forgetRoleAttempt(capturedReference)) return;
         applyNotice({ kind: 'error', message: error instanceof Error ? error.message : 'Assignment failed.' });
         await refetchAfterWrite(generation, capturedReference, 'after-failure');
       }
@@ -758,6 +794,12 @@ export function OrderDetailScreen({
     const attempt = existing && existing.action === decision && existing.orderReference === capturedReference && existing.requestId === requestId
       ? existing
       : { action: decision, orderReference: capturedReference, requestId, key: crypto.randomUUID() };
+    try {
+      savePendingRoleCommand(recoveryScope, attempt);
+    } catch {
+      applyNotice({ kind: 'recovery-unavailable' });
+      return;
+    }
     roleAttemptRef.current = attempt;
     roleActionAbortRef.current?.abort();
     const controller = new AbortController();
@@ -767,7 +809,7 @@ export function OrderDetailScreen({
     try {
       await decideConsoleRefundRequest(order.reference, requestId, decision, attempt.key, controller.signal);
       if (!stillCurrent(generation, capturedReference)) return;
-      roleAttemptRef.current = null;
+      if (!forgetRoleAttempt(capturedReference)) return;
       applyNotice(null);
       onInvalidateList();
       await refetchAfterWrite(generation, capturedReference);
@@ -775,11 +817,12 @@ export function OrderDetailScreen({
       if (!stillCurrent(generation, capturedReference) || isAbortError(error)) return;
       if (error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied')) {
         roleAttemptRef.current = null;
+        clearPendingRoleCommands();
         onSessionExpired?.();
       } else if (isOutcomeUnknown(error)) {
         applyNotice({ kind: 'unknown' });
       } else {
-        roleAttemptRef.current = null;
+        if (!forgetRoleAttempt(capturedReference)) return;
         applyNotice({ kind: 'error', message: error instanceof Error ? error.message : 'Refund decision failed.' });
         await refetchAfterWrite(generation, capturedReference, 'after-failure');
       }
@@ -805,7 +848,7 @@ export function OrderDetailScreen({
   const refundDecidedActor = order?.refundRequest && order.refundRequest.status !== 'pending' ? refundDecisionActor(order) : null;
   const unknownOutcome = notice?.kind === 'unknown';
   const orderRetryAction = unknownOutcome ? attemptRef.current?.action ?? null : null;
-  const recoveryBlocked = notice?.kind === 'outdated' || notice?.kind === 'read-after-write';
+  const recoveryBlocked = recoveryPending();
   const commandsBusy = inFlight || roleActionBusy;
   // Order transitions and role-aware commands share one lock, and neither may
   // start while a recovery step or another command's outcome is unresolved.
@@ -889,6 +932,12 @@ export function OrderDetailScreen({
             <div className="notice notice-error" role="alert">
               <strong>The action succeeded, but the latest Order could not be loaded.</strong>
               <button className="button" type="button" onClick={retryLoading}>Retry loading Order</button>
+            </div>
+          ) : null}
+          {notice?.kind === 'recovery-unavailable' ? (
+            <div className="notice notice-error" role="alert">
+              <strong>Command recovery is unavailable.</strong>
+              <span>Restore this tab's browser storage and reload before trying another action.</span>
             </div>
           ) : null}
           {notice?.kind === 'error' ? (

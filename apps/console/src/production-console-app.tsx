@@ -25,6 +25,7 @@ import {
 import { ConsoleShell } from './layout/console-shell';
 import { ProductEditorScreen } from './products/product-editor-screen';
 import { OrderDetailScreen } from './orders/order-detail-screen';
+import { clearPendingRoleCommands, roleCommandScope } from './orders/pending-role-command';
 import { OrdersScreen } from './orders/orders-screen';
 import type {
   ConsoleOrderSummary,
@@ -318,6 +319,7 @@ export function ProductionConsoleApp() {
   }, []);
 
   const endSession = useCallback((expired: boolean) => {
+    if (expired) clearPendingRoleCommands();
     authOperationRef.current += 1;
     sessionRequestRef.current?.abort();
     clearPrivateState();
@@ -329,6 +331,7 @@ export function ProductionConsoleApp() {
   }, [clearPrivateState]);
 
   const activateSession = useCallback((nextSession: ConsoleSessionView) => {
+    clearPendingRoleCommands(roleCommandScope(nextSession));
     const current = sessionRef.current;
     const sameAccess = current !== null
       && current.user.id === nextSession.user.id
@@ -370,6 +373,7 @@ export function ProductionConsoleApp() {
       if (options.publishOnSuccess) publishConsoleAuthChange();
     }).catch((error: unknown) => {
       if (controller.signal.aborted || authOperationRef.current !== operation || logoutInProgressRef.current) return;
+      if (error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied')) clearPendingRoleCommands();
       endSession(options.expiredOnDenial && error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied'));
     }).finally(() => {
       if (sessionRequestRef.current === controller) sessionRequestRef.current = null;
@@ -768,6 +772,7 @@ export function ProductionConsoleApp() {
   }, []);
 
   const handleSignOut = useCallback(async () => {
+    clearPendingRoleCommands();
     const operation = authOperationRef.current + 1;
     authOperationRef.current = operation;
     logoutInProgressRef.current = true;
@@ -849,6 +854,7 @@ export function ProductionConsoleApp() {
     />;
   } else if (route.kind === 'order-detail') {
     content = <OrderDetailScreen
+      session={session}
       reference={route.reference}
       routeGeneration={orderRouteGeneration}
       onInvalidateList={invalidateOrders}
