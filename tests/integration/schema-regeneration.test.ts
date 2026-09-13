@@ -1,18 +1,18 @@
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
-import { resetCatalog, VARIANT_CORE, oneVariantSchema, workerRequest } from '../support/catalog-test-env';
+import { consoleRequest, resetCatalog, VARIANT_CORE, oneVariantSchema } from '../support/catalog-test-env';
 
 beforeEach(resetCatalog);
 
 async function createVariantProduct(): Promise<ProductDetailResponse> {
   const schema = oneVariantSchema();
-  const preview = await workerRequest('/api/console/products/schema/preview', {
+  const preview = await consoleRequest('/api/console/products/schema/preview', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ productId: null, productSlug: 'focus-pack', product: VARIANT_CORE, schema }),
   });
   const hash = (await preview.json() as { previewHash: string }).previewHash;
-  const response = await workerRequest('/api/console/products', {
+  const response = await consoleRequest('/api/console/products', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ product: VARIANT_CORE, schema, previewHash: hash }),
   });
@@ -20,13 +20,13 @@ async function createVariantProduct(): Promise<ProductDetailResponse> {
 }
 
 async function previewAndApply(product: ProductDetailResponse, schema: unknown): Promise<ProductDetailResponse> {
-  const preview = await workerRequest('/api/console/products/schema/preview', {
+  const preview = await consoleRequest('/api/console/products/schema/preview', {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'If-Match': `"${product.revision}"` },
     body: JSON.stringify({ productId: product.id, productSlug: product.slug, product: VARIANT_CORE, schema }),
   });
   expect(preview.status, JSON.stringify(await preview.clone().json())).toBe(200);
   const previewBody = await preview.json() as { previewHash: string };
-  const applied = await workerRequest(`/api/console/products/${product.id}/schema`, {
+  const applied = await consoleRequest(`/api/console/products/${product.id}/schema`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json', 'If-Match': `"${product.revision}"` },
     body: JSON.stringify({ product: VARIANT_CORE, schema, previewHash: previewBody.previewHash }),
   });
@@ -37,7 +37,7 @@ async function previewAndApply(product: ProductDetailResponse, schema: unknown):
 describe('schema regeneration lifecycle', () => {
   it('disables obsolete combinations and reactivates the same historical Variant ID', async () => {
     let product = await createVariantProduct();
-    const structuralPayload = await workerRequest(`/api/console/products/${product.id}`, {
+    const structuralPayload = await consoleRequest(`/api/console/products/${product.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'If-Match': '"1"' },
       body: JSON.stringify({
@@ -61,7 +61,7 @@ describe('schema regeneration lifecycle', () => {
     });
     const fingerprintBefore = await env.DB.prepare('SELECT import_fingerprint FROM products WHERE id=?')
       .bind(product.id).first<string>('import_fingerprint');
-    const equivalentUpdate = await workerRequest(`/api/console/products/${product.id}`, {
+    const equivalentUpdate = await consoleRequest(`/api/console/products/${product.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'If-Match': '"1"' },
       body: JSON.stringify({

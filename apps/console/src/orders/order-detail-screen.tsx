@@ -3,6 +3,9 @@ import {
   cancelConsoleOrder,
   ConsoleApiError,
   createConsoleRefundRequest,
+  assignConsoleOrder,
+  decideConsoleRefundRequest,
+  fetchStaffCandidates,
   fetchOrder,
   fulfill,
   markPaid,
@@ -22,6 +25,8 @@ interface OrderDetailScreenProps {
   routeGeneration: number;
   onInvalidateList: () => void;
   onBack: () => void;
+  canAssign?: boolean;
+  onSessionExpired?: () => void;
 }
 
 type OrderAction = 'mark_paid' | 'fulfill' | 'cancel' | 'request_refund';
@@ -38,6 +43,9 @@ type FrozenAttempt =
   | { action: 'fulfill'; orderReference: string; key: string }
   | { action: 'cancel'; orderReference: string; key: string }
   | { action: 'request_refund'; orderReference: string; key: string; reason: string };
+type FrozenRoleAttempt =
+  | { action: 'assign'; orderReference: string; key: string; assigneeUserId: string }
+  | { action: 'approve' | 'reject'; orderReference: string; requestId: string; key: string };
 
 const MUTATION_DEADLINE_MS = 15_000;
 const REASON_INVALID = 'Enter a reason using 1 to 1000 characters.';
@@ -66,6 +74,9 @@ const HISTORY_ACTION_LABEL: Record<OrderHistoryAction, string> = {
   order_fulfilled: 'Fulfilled',
   order_canceled: 'Canceled',
   refund_requested: 'Refund requested',
+  refund_approved: 'Refund approved',
+  refund_rejected: 'Refund rejected',
+  assigned: 'Assigned',
 };
 
 const HISTORY_SOURCE_LABEL: Record<OrderAuditSource, string> = {
@@ -94,7 +105,13 @@ function detailIntro(order: ConsoleOrderDetailView): string {
     return 'Review the stored Customer Order snapshot. This Order is canceled. Payment, Fulfill, and Cancel are no longer available.';
   }
   if (order.refundRequestStatus === 'pending') {
-    return 'Review the stored Customer Order snapshot. A refund request is pending. This Console does not pay out or approve the request.';
+    return 'Review the stored Customer Order snapshot. A refund request is pending. An Owner may record a final decision; this Console does not move money.';
+  }
+  if (order.refundRequestStatus === 'approved') {
+    return 'The refund request is approved and awaiting external execution. No refund is recorded as issued here.';
+  }
+  if (order.refundRequestStatus === 'rejected') {
+    return 'The refund request was rejected. No refund was issued.';
   }
   if (order.status === 'fulfilled') {
     return 'Review the stored Customer Order snapshot. This Order is fulfilled. Fulfillment is an operational status and does not grant Product Access.';
@@ -252,6 +269,8 @@ export function OrderDetailScreen({
   routeGeneration,
   onInvalidateList,
   onBack,
+  canAssign = false,
+  onSessionExpired,
 }: OrderDetailScreenProps) {
   const [state, setState] = useState<ConsoleOrderDetailState>('loading');
   const [order, setOrder] = useState<ConsoleOrderDetailView | null>(null);
@@ -264,6 +283,9 @@ export function OrderDetailScreen({
   const [inFlight, setInFlight] = useState(false);
   const [notice, setNotice] = useState<DetailNotice | null>(null);
   const [lockedAction, setLockedAction] = useState<OrderAction | null>(null);
+  const [staff, setStaff] = useState<Array<{ userId: string; name: string }>>([]);
+  const [assigneeUserId, setAssigneeUserId] = useState('');
+  const [roleActionBusy, setRoleActionBusy] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const panelHeadingRef = useRef<HTMLHeadingElement>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -272,6 +294,8 @@ export function OrderDetailScreen({
   const loadOrderRef = useRef<(generation: number, capturedReference: string, signal: AbortSignal, mode?: 'page' | 'refresh') => void>(() => undefined);
   const loadAbortRef = useRef<AbortController | null>(null);
   const mutationAbortRef = useRef<AbortController | null>(null);
+  const roleActionAbortRef = useRef<AbortController | null>(null);
+  const roleAttemptRef = useRef<FrozenRoleAttempt | null>(null);
   const restoreTriggerRef = useRef(false);
   const generationRef = useRef(routeGeneration);
   const referenceRef = useRef(reference);
@@ -293,6 +317,7 @@ export function OrderDetailScreen({
       if (epoch !== readEpochRef.current) return;
       if (!stillCurrent(generation, capturedReference)) return;
       setOrder(response.order);
+      setAssigneeUserId(response.order.assignment?.assigneeUserId ?? '');
       setState('ready');
       setNotice((current) => current?.kind === 'read-after-write' ? null : current);
       if (mode === 'refresh' && !inFlightRef.current) {
@@ -303,6 +328,10 @@ export function OrderDetailScreen({
     }).catch((error: unknown) => {
       if (epoch !== readEpochRef.current) return;
       if (!stillCurrent(generation, capturedReference) || isAbortError(error)) return;
+      if (error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied')) {
+        onSessionExpired?.();
+        return;
+      }
       if (error instanceof ConsoleApiError && error.code === 'client_contract_outdated') {
         attemptRef.current = null;
         setLockedAction(null);
@@ -331,6 +360,7 @@ export function OrderDetailScreen({
     const controller = new AbortController();
     loadAbortRef.current = controller;
     attemptRef.current = null;
+    roleAttemptRef.current = null;
     setOrder(null);
     setPanel(null);
     setPaymentMethod('');
@@ -344,9 +374,25 @@ export function OrderDetailScreen({
     loadOrder(generation, capturedReference, controller.signal);
     return () => {
       mutationAbortRef.current?.abort();
+      roleActionAbortRef.current?.abort();
       loadAbortRef.current?.abort();
     };
   }, [reference, routeGeneration]);
+
+  useEffect(() => {
+    if (!canAssign) {
+      setStaff([]);
+      return;
+    }
+    const controller = new AbortController();
+    void fetchStaffCandidates(controller.signal).then((response) => {
+      if (!controller.signal.aborted) setStaff(response.staff);
+    }).catch((error: unknown) => {
+      if (controller.signal.aborted) return;
+      if (error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied')) onSessionExpired?.();
+    });
+    return () => controller.abort();
+  }, [canAssign, routeGeneration]);
 
   useEffect(() => {
     const refresh = () => {
@@ -426,6 +472,10 @@ export function OrderDetailScreen({
     } catch (error) {
       if (epoch !== readEpochRef.current) return;
       if (!stillCurrent(generation, capturedReference) || isAbortError(error)) return;
+      if (error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied')) {
+        onSessionExpired?.();
+        return;
+      }
       if (error instanceof ConsoleApiError && error.code === 'client_contract_outdated') {
         setNotice({ kind: 'outdated' });
         return;
@@ -509,6 +559,10 @@ export function OrderDetailScreen({
       await refetchAfterWrite(generation, capturedReference);
     } catch (error) {
       if (!stillCurrent(generation, capturedReference)) return;
+      if (error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied')) {
+        onSessionExpired?.();
+        return;
+      }
       if (error instanceof ConsoleApiError && error.code === 'client_contract_outdated') {
         attemptRef.current = null;
         setLockedAction(null);
@@ -567,6 +621,81 @@ export function OrderDetailScreen({
     loadOrder(generation, capturedReference, controller.signal);
   };
 
+  const assignOrderToStaff = async () => {
+    if (!order || !assigneeUserId || roleActionBusy) return;
+    const generation = generationRef.current;
+    const capturedReference = referenceRef.current;
+    const existing = roleAttemptRef.current;
+    const attempt = existing?.action === 'assign' && existing.orderReference === capturedReference && existing.assigneeUserId === assigneeUserId
+      ? existing
+      : { action: 'assign' as const, orderReference: capturedReference, assigneeUserId, key: crypto.randomUUID() };
+    roleAttemptRef.current = attempt;
+    roleActionAbortRef.current?.abort();
+    const controller = new AbortController();
+    roleActionAbortRef.current = controller;
+    setRoleActionBusy(true);
+    try {
+      await assignConsoleOrder(order.reference, attempt.assigneeUserId, attempt.key, controller.signal);
+      if (!stillCurrent(generation, capturedReference)) return;
+      roleAttemptRef.current = null;
+      setNotice(null);
+      onInvalidateList();
+      await refetchAfterWrite(generation, capturedReference);
+    } catch (error) {
+      if (!stillCurrent(generation, capturedReference) || isAbortError(error)) return;
+      if (error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied')) {
+        roleAttemptRef.current = null;
+        onSessionExpired?.();
+      } else if (isOutcomeUnknown(error)) {
+        setNotice({ kind: 'unknown' });
+      } else {
+        roleAttemptRef.current = null;
+        setNotice({ kind: 'error', message: error instanceof Error ? error.message : 'Assignment failed.' });
+        await refetchAfterWrite(generation, capturedReference);
+      }
+    } finally {
+      if (stillCurrent(generation, capturedReference)) setRoleActionBusy(false);
+    }
+  };
+
+  const decideRefund = async (decision: 'approve' | 'reject') => {
+    if (!order?.refundRequest || roleActionBusy) return;
+    const generation = generationRef.current;
+    const capturedReference = referenceRef.current;
+    const requestId = order.refundRequest.id;
+    const existing = roleAttemptRef.current;
+    const attempt = existing && existing.action === decision && existing.orderReference === capturedReference && existing.requestId === requestId
+      ? existing
+      : { action: decision, orderReference: capturedReference, requestId, key: crypto.randomUUID() };
+    roleAttemptRef.current = attempt;
+    roleActionAbortRef.current?.abort();
+    const controller = new AbortController();
+    roleActionAbortRef.current = controller;
+    setRoleActionBusy(true);
+    try {
+      await decideConsoleRefundRequest(order.reference, requestId, decision, attempt.key, controller.signal);
+      if (!stillCurrent(generation, capturedReference)) return;
+      roleAttemptRef.current = null;
+      setNotice(null);
+      onInvalidateList();
+      await refetchAfterWrite(generation, capturedReference);
+    } catch (error) {
+      if (!stillCurrent(generation, capturedReference) || isAbortError(error)) return;
+      if (error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied')) {
+        roleAttemptRef.current = null;
+        onSessionExpired?.();
+      } else if (isOutcomeUnknown(error)) {
+        setNotice({ kind: 'unknown' });
+      } else {
+        roleAttemptRef.current = null;
+        setNotice({ kind: 'error', message: error instanceof Error ? error.message : 'Refund decision failed.' });
+        await refetchAfterWrite(generation, capturedReference);
+      }
+    } finally {
+      if (stillCurrent(generation, capturedReference)) setRoleActionBusy(false);
+    }
+  };
+
   const status = order ? statusPresentation(order.status) : null;
   const showMarkPaid = Boolean(order && (order.allowedActions.includes('mark_paid') || lockedAction === 'mark_paid'));
   const showFulfill = Boolean(order && (order.allowedActions.includes('fulfill') || lockedAction === 'fulfill'));
@@ -619,7 +748,7 @@ export function OrderDetailScreen({
             </div>
             <div className="page-actions">
               <span className={status?.className}>{status?.label}</span>
-              {order.refundRequestStatus === 'pending' ? <span className="refund-badge">Refund request pending</span> : null}
+              {order.refundRequestStatus ? <span className="refund-badge">Refund request {order.refundRequestStatus}</span> : null}
             </div>
           </header>
           {notice?.kind === 'unknown' ? (
@@ -663,6 +792,31 @@ export function OrderDetailScreen({
               <strong>The latest Order could not be loaded.</strong>
               <button className="button" type="button" onClick={retryLoading}>Retry loading Order</button>
             </div>
+          ) : null}
+
+          {canAssign && staff.length > 0 ? (
+            <section className="notice notice-info" aria-label="Order assignment">
+              <h2>Assignment</h2>
+              <label htmlFor="order-assignee">Assign Order</label>
+              <select id="order-assignee" aria-label="Assign Order" value={assigneeUserId} disabled={roleActionBusy} onChange={(event) => setAssigneeUserId(event.target.value)}>
+                <option value="" disabled>Select active Staff</option>
+                {staff.map((candidate) => <option key={candidate.userId} value={candidate.userId}>{candidate.name}</option>)}
+              </select>
+              <button className="button button-primary" type="button" disabled={roleActionBusy || !assigneeUserId || assigneeUserId === order.assignment?.assigneeUserId} onClick={() => { void assignOrderToStaff(); }}>
+                {roleAttemptRef.current?.action === 'assign' && notice?.kind === 'unknown' ? 'Retry assignment' : 'Assign'}
+              </button>
+            </section>
+          ) : null}
+
+          {order.refundRequest?.status === 'pending' && (order.allowedActions.includes('approve_refund') || order.allowedActions.includes('reject_refund')) ? (
+            <section className="notice notice-info" aria-label="Refund decision">
+              <h2>Refund decision</h2>
+              <p>Approval records a final decision and awaits external execution. This Console does not return money.</p>
+              <div className="inline-actions">
+                {order.allowedActions.includes('approve_refund') ? <button className="button button-primary" type="button" disabled={roleActionBusy} onClick={() => { void decideRefund('approve'); }}>{roleAttemptRef.current?.action === 'approve' && notice?.kind === 'unknown' ? 'Retry approve refund' : 'Approve refund'}</button> : null}
+                {order.allowedActions.includes('reject_refund') ? <button className="button" type="button" disabled={roleActionBusy} onClick={() => { void decideRefund('reject'); }}>{roleAttemptRef.current?.action === 'reject' && notice?.kind === 'unknown' ? 'Retry reject refund' : 'Reject refund'}</button> : null}
+              </div>
+            </section>
           ) : null}
 
           {panel === 'mark_paid' ? (
@@ -779,8 +933,7 @@ export function OrderDetailScreen({
             <section className="notice notice-info" aria-labelledby="console-refund-title">
               <h2 id="console-refund-title" tabIndex={-1} ref={panelHeadingRef}>Request refund for Customer</h2>
               <p>
-                Submit one pending refund request on behalf of the Customer. This anonymous bootstrap Console is a demo,
-                not authenticated Owner access. Manual refunds require confirmation of an external return in a later step.
+                Submit one pending refund request on behalf of the Customer. Manual refunds require confirmation of an external return in a later step.
                 This does not approve, reject, or return money.
               </p>
               <form

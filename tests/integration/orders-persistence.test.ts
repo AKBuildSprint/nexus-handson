@@ -1,7 +1,7 @@
 import { applyD1Migrations, env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
-import { BOOTSTRAP_STORE_ID } from '@nexus/catalog/catalog-read';
+import { PUBLIC_STORE_ID as BOOTSTRAP_STORE_ID } from '@nexus/catalog/public-store';
 import { resolveOrderItemCatalogSnapshots } from '@nexus/catalog/private-order-snapshot';
 import { listConsoleOrders } from '@nexus/orders/queries/order-read';
 import { createRefundRequest, markPaid } from '@nexus/orders/commands/order-commands';
@@ -9,6 +9,8 @@ import { createOrder } from '@nexus/orders/commands/order-write';
 import { digestOrderCapability, readPrivateOrder } from '@nexus/orders/private-access';
 import {
   catalogMigrations,
+  consoleRequest,
+  getConsoleIdentity,
   resetCatalog,
   resetCatalogThrough,
   SIMPLE_CORE,
@@ -19,12 +21,16 @@ import {
 
 const CAPABILITY_A = 'A'.repeat(43);
 const CAPABILITY_B = 'B'.repeat(43);
-const STOREFRONT_CONTEXT = { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'storefront' as const, id: null } };
+const STOREFRONT_CONTEXT = {
+  storeId: BOOTSTRAP_STORE_ID,
+  actor: { source: 'storefront' as const, id: null },
+  identity: { kind: 'public' as const },
+};
 
 beforeEach(resetCatalog);
 
 async function createSimple(name = SIMPLE_CORE.name): Promise<ProductDetailResponse> {
-  const response = await workerRequest('/api/console/products', {
+  const response = await consoleRequest('/api/console/products', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ product: { ...SIMPLE_CORE, name }, schema: null, previewHash: null }),
@@ -35,13 +41,13 @@ async function createSimple(name = SIMPLE_CORE.name): Promise<ProductDetailRespo
 async function createActiveVariant(): Promise<ProductDetailResponse> {
   const product = { ...VARIANT_CORE, status: 'active' as const };
   const schema = oneVariantSchema();
-  const preview = await workerRequest('/api/console/products/schema/preview', {
+  const preview = await consoleRequest('/api/console/products/schema/preview', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ productId: null, productSlug: 'focus-pack', product, schema }),
   });
   const previewHash = (await preview.json() as { previewHash: string }).previewHash;
-  const response = await workerRequest('/api/console/products', {
+  const response = await consoleRequest('/api/console/products', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ product, schema, previewHash }),
@@ -87,13 +93,13 @@ function twoVariantSchema() {
 async function createTwoVariantProduct(): Promise<ProductDetailResponse> {
   const product = { ...VARIANT_CORE, status: 'active' as const };
   const schema = twoVariantSchema();
-  const preview = await workerRequest('/api/console/products/schema/preview', {
+  const preview = await consoleRequest('/api/console/products/schema/preview', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ productId: null, productSlug: 'focus-pack', product, schema }),
   });
   const previewHash = (await preview.json() as { previewHash: string }).previewHash;
-  const response = await workerRequest('/api/console/products', {
+  const response = await consoleRequest('/api/console/products', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ product, schema, previewHash }),
@@ -179,9 +185,11 @@ describe('Order aggregate persistence', () => {
       reference: order.reference,
       capability: CAPABILITY_B,
     })).toBeNull();
+    const identity = await getConsoleIdentity();
     const consoleOrders = await listConsoleOrders(env.DB, {
       storeId: BOOTSTRAP_STORE_ID,
-      actor: { source: 'bootstrap_owner', id: null },
+      actor: { source: 'user', id: identity.userId },
+      identity,
     }, {
       q: '',
       status: null,
@@ -557,18 +565,28 @@ describe('Order aggregate persistence', () => {
     expect(created.items).toHaveLength(2);
     const orderId = await env.DB.prepare('SELECT id FROM orders WHERE reference=?')
       .bind(created.reference).first<string>('id') as string;
+    const ownerIdentity = await getConsoleIdentity();
     await markPaid({
       database: env.DB,
-      context: { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'bootstrap_owner', id: null } },
+      context: {
+        storeId: ownerIdentity.storeId,
+        actor: { source: 'user', id: ownerIdentity.userId },
+        identity: ownerIdentity,
+      },
       orderId,
       body: { method: 'Bank transfer', reference: 'REPLAY-PAY-1' },
       idempotencyKey: 'pay-replay-00000001',
     });
     const customerId = await env.DB.prepare('SELECT customer_id FROM orders WHERE id=?')
       .bind(orderId).first<string>('customer_id');
+    if (customerId === null) throw new Error('Expected the created Order to retain its Customer.');
     await createRefundRequest({
       database: env.DB,
-      context: { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'storefront', id: customerId } },
+      context: {
+        storeId: BOOTSTRAP_STORE_ID,
+        actor: { source: 'storefront', id: customerId },
+        identity: { kind: 'customer', storeId: BOOTSTRAP_STORE_ID, customerId },
+      },
       orderId,
       body: { reason: 'Need a refund' },
       idempotencyKey: 'refund-replay-00001',

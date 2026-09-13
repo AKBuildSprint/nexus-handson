@@ -11,6 +11,7 @@ import {
   parseCancelOrderInput,
   parseFulfillOrderInput,
   parseManualPaymentInput,
+  parseRefundDecisionInput,
   parseRefundRequestInput,
 } from '../order-validation';
 import {
@@ -23,7 +24,7 @@ import {
   readDecisionHistoryId,
   readExistingPayment,
   readLedger,
-  readOpenRefund,
+  readRefundRequest,
   readOrderTarget,
   runCommandBatch,
   stateConflict,
@@ -36,11 +37,18 @@ import {
   markPaidEligible,
   refundEligible,
 } from '../transitions/order-transitions';
+import { assertCurrentConsoleOrderAccess } from '../order-access';
 
 const encoder = new TextEncoder();
 
 const REFUND_ELIGIBILITY_SQL =
   'SELECT status AS eligibility_status FROM orders WHERE store_id = ? AND id = ?';
+
+function consoleCommandPermission(action: OrderCommandAction): 'order:process' | 'refund:request' | 'refund:decide' {
+  if (action === 'request_refund') return 'refund:request';
+  if (action === 'approve_refund' || action === 'reject_refund') return 'refund:decide';
+  return 'order:process';
+}
 
 function paymentConflict(): never {
   throw new OrderValidationError(
@@ -72,6 +80,14 @@ async function prepareCommand<TParsed extends { idempotencyKey: string }>(input:
 }> {
   const order = await readOrderTarget(input.database, input.context.storeId, input.orderId);
   if (order === null) notFound();
+  if (input.context.identity?.kind === 'console') {
+    await assertCurrentConsoleOrderAccess({
+      database: input.database,
+      identity: input.context.identity,
+      orderId: order.id,
+      action: consoleCommandPermission(input.action),
+    });
+  }
   const actor = authorizedActor(input.context, order, input.action);
   const parsed = input.parse();
   const hash = await payloadHash([
@@ -81,8 +97,24 @@ async function prepareCommand<TParsed extends { idempotencyKey: string }>(input:
     actor.id,
     ...input.canonicalBody(parsed),
   ]);
+  if (input.context.identity?.kind === 'console') {
+    await assertCurrentConsoleOrderAccess({
+      database: input.database,
+      identity: input.context.identity,
+      orderId: order.id,
+      action: consoleCommandPermission(input.action),
+    });
+  }
   const existing = await readLedger(input.database, input.context.storeId, parsed.idempotencyKey);
   if (existing) {
+    if (input.context.identity?.kind === 'console') {
+      await assertCurrentConsoleOrderAccess({
+        database: input.database,
+        identity: input.context.identity,
+        orderId: order.id,
+        action: consoleCommandPermission(input.action),
+      });
+    }
     if (existing.contract_version === 1) legacyKeyConflict();
     if (!ledgerMatches(existing, input.action, order.id, hash)) keyConflict();
     return {
@@ -90,10 +122,52 @@ async function prepareCommand<TParsed extends { idempotencyKey: string }>(input:
       actor,
       hash,
       parsed,
-      replay: await readCommandResult(input.database, input.context.storeId, parsed.idempotencyKey),
+      replay: await authorizedResult(input.database, input.context, order.id, parsed.idempotencyKey, input.action),
     };
   }
   return { order, actor, hash, parsed, replay: null };
+}
+
+async function authorizedResult(
+  database: D1Database,
+  context: OrderContext,
+  orderId: string,
+  requestKey: string,
+  action: OrderCommandAction,
+): Promise<OrderCommandResult> {
+  if (context.identity?.kind === 'console') {
+    await assertCurrentConsoleOrderAccess({
+      database,
+      identity: context.identity,
+      orderId,
+      action: consoleCommandPermission(action),
+    });
+  }
+  const result = await readCommandResult(database, context.storeId, requestKey);
+  if (context.identity?.kind === 'console') {
+    await assertCurrentConsoleOrderAccess({
+      database,
+      identity: context.identity,
+      orderId,
+      action: consoleCommandPermission(action),
+    });
+  }
+  return result;
+}
+
+async function reauthorizePrepared(
+  database: D1Database,
+  context: OrderContext,
+  orderId: string,
+  action: OrderCommandAction,
+): Promise<void> {
+  if (context.identity?.kind !== 'console') return;
+  await assertCurrentConsoleOrderAccess({
+    database,
+    identity: context.identity,
+    orderId,
+    action: consoleCommandPermission(action),
+  });
 }
 
 export async function markPaid(input: {
@@ -115,6 +189,7 @@ export async function markPaid(input: {
   const parsed = prepared.parsed;
 
   const existingPayment = await readExistingPayment(input.database, input.context.storeId, prepared.order.id);
+  await reauthorizePrepared(input.database, input.context, prepared.order.id, 'mark_paid');
   if (existingPayment) {
     if (
       existingPayment.method !== parsed.method
@@ -124,6 +199,7 @@ export async function markPaid(input: {
     }
     return bindExistingResult({
       database: input.database,
+      context: input.context,
       storeId: input.context.storeId,
       requestKey: parsed.idempotencyKey,
       orderId: prepared.order.id,
@@ -139,6 +215,7 @@ export async function markPaid(input: {
        FROM payments
       WHERE store_id = ? AND source = 'manual' AND external_reference = ?`,
   ).bind(input.context.storeId, parsed.reference).first<{ taken: number }>();
+  await reauthorizePrepared(input.database, input.context, prepared.order.id, 'mark_paid');
   if (colliding) paymentConflict();
 
   if (!markPaidEligible(prepared.order.status)) stateConflict();
@@ -148,6 +225,7 @@ export async function markPaid(input: {
   const recordedPaymentId = `pay_${crypto.randomUUID().replaceAll('-', '')}`;
   return runCommandBatch({
     database: input.database,
+    context: input.context,
     storeId: input.context.storeId,
     requestKey: parsed.idempotencyKey,
     action: 'mark_paid',
@@ -156,12 +234,14 @@ export async function markPaid(input: {
     eligible: markPaidEligible,
     onConflictReplay: async () => {
       const payment = await readExistingPayment(input.database, input.context.storeId, prepared.order.id);
+      await reauthorizePrepared(input.database, input.context, prepared.order.id, 'mark_paid');
       if (payment) {
         if (payment.method !== parsed.method || payment.external_reference !== parsed.reference) {
           paymentConflict();
         }
         return bindExistingResult({
           database: input.database,
+          context: input.context,
           storeId: input.context.storeId,
           requestKey: parsed.idempotencyKey,
           orderId: prepared.order.id,
@@ -176,6 +256,7 @@ export async function markPaid(input: {
            FROM payments
           WHERE store_id = ? AND source = 'manual' AND external_reference = ?`,
       ).bind(input.context.storeId, parsed.reference).first<{ taken: number }>();
+      await reauthorizePrepared(input.database, input.context, prepared.order.id, 'mark_paid');
       if (taken) paymentConflict();
       return null;
     },
@@ -292,9 +373,11 @@ export async function fulfillOrder(input: {
     prepared.order.id,
     'order_fulfilled',
   );
+  await reauthorizePrepared(input.database, input.context, prepared.order.id, 'fulfill');
   if (existingHistoryId) {
     return bindExistingResult({
       database: input.database,
+      context: input.context,
       storeId: input.context.storeId,
       requestKey: parsed.idempotencyKey,
       orderId: prepared.order.id,
@@ -311,6 +394,7 @@ export async function fulfillOrder(input: {
   const commandId = stableId('cmd');
   return runCommandBatch({
     database: input.database,
+    context: input.context,
     storeId: input.context.storeId,
     requestKey: parsed.idempotencyKey,
     action: 'fulfill',
@@ -324,9 +408,11 @@ export async function fulfillOrder(input: {
         prepared.order.id,
         'order_fulfilled',
       );
+      await reauthorizePrepared(input.database, input.context, prepared.order.id, 'fulfill');
       if (!existing) return null;
       return bindExistingResult({
         database: input.database,
+        context: input.context,
         storeId: input.context.storeId,
         requestKey: parsed.idempotencyKey,
         orderId: prepared.order.id,
@@ -420,9 +506,11 @@ export async function cancelOrder(input: {
     prepared.order.id,
     'order_canceled',
   );
+  await reauthorizePrepared(input.database, input.context, prepared.order.id, 'cancel');
   if (existingHistoryId) {
     return bindExistingResult({
       database: input.database,
+      context: input.context,
       storeId: input.context.storeId,
       requestKey: parsed.idempotencyKey,
       orderId: prepared.order.id,
@@ -439,6 +527,7 @@ export async function cancelOrder(input: {
   const commandId = stableId('cmd');
   return runCommandBatch({
     database: input.database,
+    context: input.context,
     storeId: input.context.storeId,
     requestKey: parsed.idempotencyKey,
     action: 'cancel',
@@ -452,9 +541,11 @@ export async function cancelOrder(input: {
         prepared.order.id,
         'order_canceled',
       );
+      await reauthorizePrepared(input.database, input.context, prepared.order.id, 'cancel');
       if (!existing) return null;
       return bindExistingResult({
         database: input.database,
+        context: input.context,
         storeId: input.context.storeId,
         requestKey: parsed.idempotencyKey,
         orderId: prepared.order.id,
@@ -542,10 +633,12 @@ export async function createRefundRequest(input: {
   if (prepared.replay) return prepared.replay;
   const parsed = prepared.parsed;
 
-  const open = await readOpenRefund(input.database, input.context.storeId, prepared.order.id);
+  const open = await readRefundRequest(input.database, input.context.storeId, prepared.order.id);
+  await reauthorizePrepared(input.database, input.context, prepared.order.id, 'request_refund');
   if (open) {
     return bindExistingResult({
       database: input.database,
+      context: input.context,
       storeId: input.context.storeId,
       requestKey: parsed.idempotencyKey,
       orderId: prepared.order.id,
@@ -559,6 +652,7 @@ export async function createRefundRequest(input: {
   const eligibility = await input.database.prepare(REFUND_ELIGIBILITY_SQL)
     .bind(input.context.storeId, prepared.order.id)
     .first<{ eligibility_status: OrderStatus }>();
+  await reauthorizePrepared(input.database, input.context, prepared.order.id, 'request_refund');
   if (!eligibility) notFound();
   if (!refundEligible(eligibility.eligibility_status)) {
     stateConflict();
@@ -569,6 +663,7 @@ export async function createRefundRequest(input: {
   const commandId = stableId('cmd');
   return runCommandBatch({
     database: input.database,
+    context: input.context,
     storeId: input.context.storeId,
     requestKey: parsed.idempotencyKey,
     action: 'request_refund',
@@ -576,10 +671,12 @@ export async function createRefundRequest(input: {
     hash: prepared.hash,
     eligible: refundEligible,
     onConflictReplay: async () => {
-      const open = await readOpenRefund(input.database, input.context.storeId, prepared.order.id);
+      const open = await readRefundRequest(input.database, input.context.storeId, prepared.order.id);
+      await reauthorizePrepared(input.database, input.context, prepared.order.id, 'request_refund');
       if (!open) return null;
       return bindExistingResult({
         database: input.database,
+        context: input.context,
         storeId: input.context.storeId,
         requestKey: parsed.idempotencyKey,
         orderId: prepared.order.id,
@@ -665,4 +762,193 @@ export async function createRefundRequest(input: {
       ),
     ],
   });
+}
+
+interface RefundDecisionInput {
+  database: D1Database;
+  context: OrderContext;
+  orderId: string;
+  requestId: string;
+  body: unknown;
+  idempotencyKey: unknown;
+}
+
+async function decideRefund(
+  input: RefundDecisionInput,
+  action: 'approve_refund' | 'reject_refund',
+): Promise<OrderCommandResult> {
+  if (input.context.identity?.kind !== 'console') notFound();
+  await assertCurrentConsoleOrderAccess({
+    database: input.database,
+    identity: input.context.identity,
+    orderId: input.orderId,
+    action: 'refund:decide',
+  });
+  const initialRequest = await input.database.prepare(
+    `SELECT status FROM order_refund_requests
+      WHERE id = ? AND store_id = ? AND order_id = ?`,
+  ).bind(input.requestId, input.context.storeId, input.orderId)
+    .first<{ status: 'pending' | 'approved' | 'rejected' }>();
+  await assertCurrentConsoleOrderAccess({
+    database: input.database,
+    identity: input.context.identity,
+    orderId: input.orderId,
+    action: 'refund:decide',
+  });
+  if (!initialRequest) notFound();
+
+  const prepared = await prepareCommand({
+    database: input.database,
+    context: input.context,
+    orderId: input.orderId,
+    action,
+    parse: () => parseRefundDecisionInput(input.body, input.idempotencyKey),
+    canonicalBody: () => [input.requestId],
+  });
+  if (prepared.replay) return prepared.replay;
+  if (initialRequest.status !== 'pending' || !refundEligible(prepared.order.status)) stateConflict();
+
+  const parsed = prepared.parsed;
+  const terminalStatus = action === 'approve_refund' ? 'approved' : 'rejected';
+  const historyAction = action === 'approve_refund' ? 'refund_approved' : 'refund_rejected';
+  const historyId = stableId('hist');
+  const commandId = stableId('cmd');
+  const decidedAt = new Date().toISOString();
+  const identity = input.context.identity;
+  const ownerArgs = [identity.membershipId, identity.storeId, identity.userId];
+
+  return runCommandBatch({
+    database: input.database,
+    context: input.context,
+    storeId: input.context.storeId,
+    requestKey: parsed.idempotencyKey,
+    action,
+    orderId: prepared.order.id,
+    hash: prepared.hash,
+    eligible: refundEligible,
+    onConflictReplay: async () => {
+      const ledger = await readLedger(input.database, input.context.storeId, parsed.idempotencyKey);
+      await reauthorizePrepared(input.database, input.context, prepared.order.id, action);
+      if (ledger) {
+        if (ledger.contract_version === 1) legacyKeyConflict();
+        if (!ledgerMatches(ledger, action, prepared.order.id, prepared.hash)) keyConflict();
+        return authorizedResult(
+          input.database,
+          input.context,
+          prepared.order.id,
+          parsed.idempotencyKey,
+          action,
+        );
+      }
+      const request = await input.database.prepare(
+        `SELECT status FROM order_refund_requests
+          WHERE id = ? AND store_id = ? AND order_id = ?`,
+      ).bind(input.requestId, input.context.storeId, prepared.order.id)
+        .first<{ status: 'pending' | 'approved' | 'rejected' }>();
+      await reauthorizePrepared(input.database, input.context, prepared.order.id, action);
+      if (!request) notFound();
+      if (request.status !== 'pending') stateConflict();
+      return null;
+    },
+    statements: [
+      input.database.prepare(
+        `INSERT INTO order_history (
+           id, store_id, order_id, status, created_at, action, source, from_status,
+           actor_id, contract_version, refund_request_id, assignee_user_id
+         )
+         SELECT ?, orders.store_id, orders.id, orders.status, ?, ?, 'user', orders.status,
+                ?, 2, requests.id, NULL
+           FROM orders
+           JOIN order_refund_requests requests
+             ON requests.id = ? AND requests.store_id = orders.store_id AND requests.order_id = orders.id
+          WHERE orders.store_id = ? AND orders.id = ? AND orders.status IN ('paid', 'fulfilled')
+            AND requests.status = 'pending'
+            AND EXISTS (SELECT 1 FROM store_memberships owner
+                         WHERE owner.id = ? AND owner.store_id = ? AND owner.user_id = ?
+                           AND owner.role = 'owner' AND owner.status = 'active')`,
+      ).bind(
+        historyId,
+        decidedAt,
+        historyAction,
+        identity.userId,
+        input.requestId,
+        input.context.storeId,
+        prepared.order.id,
+        ...ownerArgs,
+      ),
+      input.database.prepare(
+        `UPDATE order_refund_requests
+            SET status = ?, decided_at = ?, decided_by_user_id = ?
+          WHERE id = ? AND store_id = ? AND order_id = ? AND status = 'pending'
+            AND EXISTS (
+              SELECT 1 FROM order_history history
+               WHERE history.id = ? AND history.store_id = order_refund_requests.store_id
+                 AND history.order_id = order_refund_requests.order_id
+                 AND history.refund_request_id = order_refund_requests.id
+                 AND history.action = ? AND history.actor_id = ? AND history.created_at = ?
+            )`,
+      ).bind(
+        terminalStatus,
+        decidedAt,
+        identity.userId,
+        input.requestId,
+        input.context.storeId,
+        prepared.order.id,
+        historyId,
+        historyAction,
+        identity.userId,
+        decidedAt,
+      ),
+      input.database.prepare(
+        `INSERT INTO order_commands (
+           id, store_id, request_key, order_id, action, payload_hash, result_history_id,
+           contract_version, result_refund_request_id
+         ) VALUES (
+           CASE WHEN EXISTS (
+             SELECT 1 FROM order_refund_requests requests
+             JOIN order_history history
+               ON history.id = ? AND history.store_id = requests.store_id
+              AND history.order_id = requests.order_id AND history.refund_request_id = requests.id
+             JOIN orders ON orders.id = requests.order_id AND orders.store_id = requests.store_id
+             WHERE requests.id = ? AND requests.store_id = ? AND requests.order_id = ?
+               AND requests.status = ? AND requests.decided_at = ? AND requests.decided_by_user_id = ?
+               AND history.action = ? AND history.actor_id = ? AND history.created_at = ?
+               AND orders.status IN ('paid', 'fulfilled')
+               AND EXISTS (SELECT 1 FROM store_memberships owner
+                            WHERE owner.id = ? AND owner.store_id = ? AND owner.user_id = ?
+                              AND owner.role = 'owner' AND owner.status = 'active')
+           ) THEN ? ELSE NULL END,
+           ?, ?, ?, ?, ?, ?, 2, ?
+         )`,
+      ).bind(
+        historyId,
+        input.requestId,
+        input.context.storeId,
+        prepared.order.id,
+        terminalStatus,
+        decidedAt,
+        identity.userId,
+        historyAction,
+        identity.userId,
+        decidedAt,
+        ...ownerArgs,
+        commandId,
+        input.context.storeId,
+        parsed.idempotencyKey,
+        prepared.order.id,
+        action,
+        prepared.hash,
+        historyId,
+        input.requestId,
+      ),
+    ],
+  });
+}
+
+export function approveRefundRequest(input: RefundDecisionInput): Promise<OrderCommandResult> {
+  return decideRefund(input, 'approve_refund');
+}
+
+export function rejectRefundRequest(input: RefundDecisionInput): Promise<OrderCommandResult> {
+  return decideRefund(input, 'reject_refund');
 }

@@ -8,7 +8,9 @@ import {
   CSV_TEMPLATE,
 } from '@nexus/catalog/shared/csv-contract';
 import type { Env } from './environment';
+import type { ConsoleRequestContext } from './auth';
 import { jsonError, jsonResponse } from './http-response';
+import { evaluatePermission } from '@nexus/identity/permissions';
 
 function decodeImportFilename(encoded: string | null): string {
   if (!encoded) throw new ImportRequestError(422, 'validation_failed', `${CSV_FILENAME_HEADER} is required.`);
@@ -28,7 +30,11 @@ function errorResponse(error: ImportRequestError): Response {
   return jsonError(error.status, error.code, error.message, error.fields, error.incidentId);
 }
 
-export async function routeConsoleImportRequest(request: Request, env: Pick<Env, 'DB' | 'FILES'>): Promise<Response | null> {
+export async function routeConsoleImportRequest(
+  request: Request,
+  env: Pick<Env, 'DB' | 'FILES'>,
+  context: ConsoleRequestContext,
+): Promise<Response | null> {
   const pathname = new URL(request.url).pathname;
   if (pathname === '/api/console/imports/template' && request.method === 'GET') {
     return new Response(CSV_TEMPLATE, {
@@ -43,6 +49,9 @@ export async function routeConsoleImportRequest(request: Request, env: Pick<Env,
   if (pathname !== '/api/console/imports' || request.method !== 'POST') return null;
 
   try {
+    if (!evaluatePermission(context.identity, 'catalog:import', { storeId: context.store.id })) {
+      return jsonError(403, 'forbidden', 'You do not have permission to import Products.');
+    }
     if (request.headers.get('Content-Type')?.trim().toLowerCase() !== CSV_CONTENT_TYPE) {
       throw new ImportRequestError(400, 'invalid_csv', `Content-Type must be ${CSV_CONTENT_TYPE}.`);
     }
@@ -61,6 +70,7 @@ export async function routeConsoleImportRequest(request: Request, env: Pick<Env,
     const result = await executeCsvImport({
       database: env.DB,
       files: env.FILES,
+      identity: context.identity,
       filename,
       bytes,
       confirmedVariants: request.headers.get(CSV_CONFIRMATION_HEADER) === 'true',
@@ -69,7 +79,7 @@ export async function routeConsoleImportRequest(request: Request, env: Pick<Env,
   } catch (error) {
     if (error instanceof ImportRequestError) return errorResponse(error);
     const incidentId = crypto.randomUUID();
-    console.error('Unexpected CSV import route failure', { incidentId, error });
+    console.error('Unexpected CSV import route failure', { incidentId, classification: 'unexpected' });
     return jsonError(500, 'persistence_failed', 'The CSV import could not be completed.', [], incidentId);
   }
 }

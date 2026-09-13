@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
 import {
+  consoleRequest,
   resetCatalog,
   SIMPLE_CORE,
   TEST_STOREFRONT_ORIGIN,
@@ -16,7 +17,7 @@ const EMPTY_SUMMARY = {
 };
 
 async function createOrder(): Promise<Record<string, unknown>> {
-  const productResponse = await workerRequest('/api/console/products', {
+  const productResponse = await consoleRequest('/api/console/products', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ product: SIMPLE_CORE, schema: null, previewHash: null }),
@@ -47,7 +48,7 @@ function allKeys(value: unknown): string[] {
 describe('Console Orders route', () => {
   it('returns the reduced persisted projection and never adds Storefront CORS', async () => {
     const created = await createOrder();
-    const response = await workerRequest('/api/console/orders', {
+    const response = await consoleRequest('/api/console/orders', {
       headers: { Origin: TEST_STOREFRONT_ORIGIN },
     });
     const body = await response.json() as {
@@ -96,7 +97,7 @@ describe('Console Orders route', () => {
   });
 
   it('returns an empty safe envelope when no Orders exist', async () => {
-    const response = await workerRequest('/api/console/orders');
+    const response = await consoleRequest('/api/console/orders');
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       orders: [],

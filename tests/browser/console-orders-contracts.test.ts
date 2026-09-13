@@ -180,7 +180,18 @@ function paymentAck(): HTMLInputElement | undefined {
 }
 
 function stubConsoleFetch(handler: (url: URL, init?: RequestInit) => Promise<Response> | Response) {
-  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => handler(requestUrl(input), init)));
+  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = requestUrl(input);
+    if (url.pathname === '/api/console/session') {
+      return response({
+        user: { id: 'owner_browser_contract', name: 'Browser Owner' },
+        store: { id: 'store_nexus', name: 'Store A' },
+        role: 'owner',
+        allowedActions: ['catalog:read', 'order:read', 'order:process'],
+      });
+    }
+    return handler(url, init);
+  }));
 }
 
 async function renderApp() {
@@ -306,6 +317,12 @@ describe('Console Order contracts', () => {
   it('submits trimmed raw search and applies status and refund filters immediately', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       const url = requestUrl(input);
+      if (url.pathname === '/api/console/session') return response({
+        user: { id: 'owner_browser_contract', name: 'Browser Owner' },
+        store: { id: 'store_nexus', name: 'Store A' },
+        role: 'owner',
+        allowedActions: ['catalog:read', 'order:read', 'order:process'],
+      });
       if (url.pathname === '/api/console/orders') return response(listResponse([safeOrder]));
       throw new Error(`Unexpected request ${url.pathname}`);
     });
@@ -331,7 +348,8 @@ describe('Console Order contracts', () => {
     ));
     await act(async () => { refund?.click(); });
     await waitUntil(() => fetchMock.mock.calls.some((call) => requestUrl(call[0] as RequestInfo | URL).searchParams.get('refund') === 'pending'));
-    expect(new Headers(fetchMock.mock.calls[0][1]?.headers as HeadersInit).get('X-Nexus-Order-Contract')).toBe('2');
+    const firstOrderCall = fetchMock.mock.calls.find((call) => requestUrl(call[0] as RequestInfo | URL).pathname === '/api/console/orders');
+    expect(new Headers(firstOrderCall?.[1]?.headers as HeadersInit).get('X-Nexus-Order-Contract')).toBe('2');
   });
 
   it('uses the same Mark Paid panel for a zero-total Order without claiming a bank transfer', async () => {
@@ -572,12 +590,12 @@ describe('Console Order contracts', () => {
     await act(async () => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
-    await waitUntil(() => buttonByName('Record manual payment') == null);
+    await waitUntil(() => Boolean(buttonByName('Fulfill')));
     expect(container.textContent).toContain('This Order is paid.');
     expect(buttonByName('Fulfill')).not.toBeUndefined();
   });
 
-  it('ignores a deferred pre-write GET that resolves after Mark Paid', async () => {
+  it('quarantines and discards a deferred GET during session revalidation', async () => {
     let gets = 0;
     let releaseStale: (() => void) | undefined;
     const staleGate = new Promise<void>((resolve) => { releaseStale = resolve; });
@@ -608,12 +626,9 @@ describe('Console Order contracts', () => {
     await waitUntil(() => Boolean(buttonByName('Record manual payment')));
     await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
     await waitUntil(() => gets >= 2);
-    await openMarkPaidPanel();
-    await confirmMarkPaid();
-    await waitUntil(() => (container.textContent ?? '').includes('This Order is paid.'));
+    expect(buttonByName('Record manual payment')).toBeUndefined();
     releaseStale?.();
-    await flush();
-    await flush();
+    await waitUntil(() => Boolean(buttonByName('Fulfill')));
     expect(buttonByName('Record manual payment')).toBeUndefined();
     expect(container.textContent).toContain('Paid');
   });
@@ -655,7 +670,7 @@ describe('Console Order contracts', () => {
     await openMarkPaidPanel();
     expect(container.querySelector('#mark-paid-title')).not.toBeNull();
     await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
-    await waitUntil(() => container.querySelector('#mark-paid-title') == null);
+    await waitUntil(() => Boolean(buttonByName('Fulfill')));
     expect(buttonByName('Mark Paid')).toBeUndefined();
     expect(buttonByName('Record manual payment')).toBeUndefined();
     expect(buttonByName('Fulfill')).not.toBeUndefined();

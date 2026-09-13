@@ -1,6 +1,7 @@
 import { DELIVERY_FILE_BYTES_MAX } from '../shared/catalog-limits';
 import type { FileKind, PrivateFileSummary } from '../catalog-types';
-import { BOOTSTRAP_STORE_ID, readProductRevision } from '../catalog-read';
+import type { ConsoleIdentityContext } from '@nexus/identity/identity-types';
+import { CatalogReadAccessError, readProductRevision } from '../catalog-read';
 
 export class DeliveryFileError extends Error {
   constructor(
@@ -174,6 +175,25 @@ async function compensateNewObject(files: R2Bucket, key: string): Promise<void> 
   throw lastError;
 }
 
+async function isDeliveryKeyReferenced(db: D1Database, key: string): Promise<boolean> {
+  return await db.prepare(
+    `SELECT EXISTS (
+       SELECT 1 FROM products WHERE delivery_file_key=?
+       UNION ALL SELECT 1 FROM product_variants WHERE delivery_file_key=?
+       UNION ALL SELECT 1 FROM order_lines WHERE private_file_key=?
+     ) AS referenced`,
+  ).bind(key, key, key).first<number>('referenced') === 1;
+}
+
+async function isCurrentOwner(db: D1Database, identity: ConsoleIdentityContext): Promise<boolean> {
+  return await db.prepare(
+    `SELECT EXISTS (
+       SELECT 1 FROM store_memberships
+        WHERE id=? AND store_id=? AND user_id=? AND role='owner' AND status='active'
+     ) AS authorized`,
+  ).bind(identity.membershipId, identity.storeId, identity.userId).first<number>('authorized') === 1;
+}
+
 export interface DeliveryFileMutationResult {
   productId: string;
   variantId?: string;
@@ -181,9 +201,44 @@ export interface DeliveryFileMutationResult {
   revision: number;
 }
 
+function deliveryCommitAssertion(input: {
+  db: D1Database;
+  identity: ConsoleIdentityContext;
+  productId: string;
+  variantId: string | null;
+  revision: number;
+  key: string | null;
+}): D1PreparedStatement {
+  const association = input.variantId === null
+    ? `EXISTS (SELECT 1 FROM products
+         WHERE store_id=? AND id=? AND revision=? AND delivery_file_key IS ?)`
+    : `EXISTS (SELECT 1 FROM products
+         WHERE store_id=? AND id=? AND revision=?) AND EXISTS (
+         SELECT 1 FROM product_variants
+          WHERE store_id=? AND product_id=? AND id=? AND current_schema=1
+            AND delivery_source='variant_override' AND delivery_file_key IS ?)`;
+  const statement = input.db.prepare(
+    `UPDATE stores SET name=CASE WHEN EXISTS (
+       SELECT 1 FROM store_memberships
+        WHERE id=? AND store_id=? AND user_id=? AND role='owner' AND status='active'
+     ) AND ${association} THEN name ELSE NULL END WHERE id=?`,
+  );
+  return input.variantId === null
+    ? statement.bind(
+      input.identity.membershipId, input.identity.storeId, input.identity.userId,
+      input.identity.storeId, input.productId, input.revision, input.key, input.identity.storeId,
+    )
+    : statement.bind(
+      input.identity.membershipId, input.identity.storeId, input.identity.userId,
+      input.identity.storeId, input.productId, input.revision,
+      input.identity.storeId, input.productId, input.variantId, input.key, input.identity.storeId,
+    );
+}
+
 export async function putDeliveryFile(input: {
   db: D1Database;
   files: R2Bucket;
+  identity: ConsoleIdentityContext;
   productId: string;
   variantId: string | null;
   expectedRevision: number;
@@ -200,14 +255,14 @@ export async function putDeliveryFile(input: {
       throw new DeliveryFileError(413, 'delivery_file_size_exceeded', 'Delivery files may not exceed 25 MB.');
     }
   }
-  const revision = await readProductRevision(input.db, input.productId);
+  const revision = await readProductRevision(input.db, input.identity, input.productId);
   if (revision === null) throw new DeliveryFileError(404, 'product_not_found', 'Product not found.');
   if (revision !== input.expectedRevision) throw new DeliveryFileError(409, 'revision_conflict', 'The Product revision has changed.');
   if (input.variantId !== null) {
     const variant = await input.db.prepare(
       `SELECT id FROM product_variants
         WHERE store_id=? AND product_id=? AND id=? AND current_schema=1 AND delivery_source='variant_override'`,
-    ).bind(BOOTSTRAP_STORE_ID, input.productId, input.variantId).first<{ id: string }>();
+    ).bind(input.identity.storeId, input.productId, input.variantId).first<{ id: string }>();
     if (!variant) throw new DeliveryFileError(404, 'variant_not_found', 'Variant not found or does not use a complete override.');
   }
   const inspected = await inspectAndCountDeliveryBody(input.body);
@@ -222,7 +277,7 @@ export async function putDeliveryFile(input: {
     const streamFailure = inspected.streamError();
     if (streamFailure) throw streamFailure;
     const incidentId = crypto.randomUUID();
-    console.error('Delivery storage write failure', { incidentId, error });
+    console.error('Delivery storage write failure', { incidentId, classification: 'upload_failed' });
     throw new DeliveryFileError(500, 'storage_write_failed', 'The delivery file could not be stored.', incidentId);
   }
   const actualSize = inspected.byteCount();
@@ -238,32 +293,57 @@ export async function putDeliveryFile(input: {
     if (input.variantId === null) {
       await input.db.batch([input.db.prepare(
         `UPDATE products SET
-           name=CASE WHEN revision=? THEN name ELSE NULL END,
+           name=CASE WHEN revision=? AND EXISTS (
+             SELECT 1 FROM store_memberships
+              WHERE id=? AND store_id=? AND user_id=? AND role='owner' AND status='active'
+           ) THEN name ELSE NULL END,
            delivery_file_key=?, delivery_file_filename=?, delivery_file_size=?, delivery_file_kind=?, delivery_file_checksum=?,
            revision=revision+1, updated_at=strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
          WHERE store_id=? AND id=?`,
-      ).bind(input.expectedRevision, key, input.filename, actualSize, inspected.kind, checksum, BOOTSTRAP_STORE_ID, input.productId)]);
+      ).bind(input.expectedRevision, input.identity.membershipId, input.identity.storeId, input.identity.userId,
+        key, input.filename, actualSize, inspected.kind, checksum, input.identity.storeId, input.productId),
+      deliveryCommitAssertion({ ...input, revision: input.expectedRevision + 1, key })]);
     } else {
       await input.db.batch([
         input.db.prepare(
           `UPDATE product_variants SET delivery_file_key=?, delivery_file_filename=?, delivery_file_size=?,
              delivery_file_kind=?, delivery_file_checksum=?, updated_at=strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
            WHERE store_id=? AND product_id=? AND id=? AND current_schema=1 AND delivery_source='variant_override'`,
-        ).bind(key, input.filename, actualSize, inspected.kind, checksum, BOOTSTRAP_STORE_ID, input.productId, input.variantId),
+        ).bind(key, input.filename, actualSize, inspected.kind, checksum, input.identity.storeId, input.productId, input.variantId),
         input.db.prepare(
-          `UPDATE products SET name=CASE WHEN revision=? THEN name ELSE NULL END,
+          `UPDATE products SET name=CASE WHEN revision=? AND EXISTS (
+             SELECT 1 FROM store_memberships
+              WHERE id=? AND store_id=? AND user_id=? AND role='owner' AND status='active'
+           ) THEN name ELSE NULL END,
              revision=revision+1, updated_at=strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
            WHERE store_id=? AND id=?`,
-        ).bind(input.expectedRevision, BOOTSTRAP_STORE_ID, input.productId),
+        ).bind(input.expectedRevision, input.identity.membershipId, input.identity.storeId, input.identity.userId,
+          input.identity.storeId, input.productId),
+        deliveryCommitAssertion({ ...input, revision: input.expectedRevision + 1, key }),
       ]);
     }
-  } catch {
+  } catch (error) {
+    try {
+      if (await isDeliveryKeyReferenced(input.db, key)) {
+        throw new DeliveryFileError(
+          500, 'persistence_failed', 'The delivery file outcome requires reconciliation.', crypto.randomUUID(),
+        );
+      }
+    } catch (lookupError) {
+      if (lookupError instanceof DeliveryFileError) throw lookupError;
+      throw new DeliveryFileError(
+        500, 'persistence_failed', 'The delivery file outcome requires reconciliation.', crypto.randomUUID(),
+      );
+    }
     try {
       await compensateNewObject(input.files, key);
     } catch {
       throw new DeliveryFileError(500, 'storage_compensation_failed', 'File storage compensation failed.', crypto.randomUUID());
     }
-    const currentRevision = await readProductRevision(input.db, input.productId);
+    if (!await isCurrentOwner(input.db, input.identity)) {
+      throw new CatalogReadAccessError();
+    }
+    const currentRevision = await readProductRevision(input.db, input.identity, input.productId);
     if (currentRevision !== input.expectedRevision) {
       throw new DeliveryFileError(409, 'revision_conflict', 'The Product revision has changed.');
     }
@@ -280,27 +360,33 @@ export async function putDeliveryFile(input: {
 
 export async function deleteDeliveryFile(input: {
   db: D1Database;
+  identity: ConsoleIdentityContext;
   productId: string;
   variantId: string | null;
   expectedRevision: number;
 }): Promise<DeliveryFileMutationResult> {
-  const revision = await readProductRevision(input.db, input.productId);
+  const revision = await readProductRevision(input.db, input.identity, input.productId);
   if (revision === null) throw new DeliveryFileError(404, 'product_not_found', 'Product not found.');
   if (revision !== input.expectedRevision) throw new DeliveryFileError(409, 'revision_conflict', 'The Product revision has changed.');
   try {
     if (input.variantId === null) {
       await input.db.batch([input.db.prepare(
-        `UPDATE products SET name=CASE WHEN revision=? THEN name ELSE NULL END,
+        `UPDATE products SET name=CASE WHEN revision=? AND EXISTS (
+           SELECT 1 FROM store_memberships
+            WHERE id=? AND store_id=? AND user_id=? AND role='owner' AND status='active'
+         ) THEN name ELSE NULL END,
            delivery_file_key=NULL, delivery_file_filename=NULL, delivery_file_size=NULL,
            delivery_file_kind=NULL, delivery_file_checksum=NULL, revision=revision+1,
            updated_at=strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
          WHERE store_id=? AND id=?`,
-      ).bind(input.expectedRevision, BOOTSTRAP_STORE_ID, input.productId)]);
+      ).bind(input.expectedRevision, input.identity.membershipId, input.identity.storeId, input.identity.userId,
+        input.identity.storeId, input.productId),
+      deliveryCommitAssertion({ ...input, revision: input.expectedRevision + 1, key: null })]);
     } else {
       const variant = await input.db.prepare(
         `SELECT id FROM product_variants
           WHERE store_id=? AND product_id=? AND id=? AND current_schema=1 AND delivery_source='variant_override'`,
-      ).bind(BOOTSTRAP_STORE_ID, input.productId, input.variantId).first<{ id: string }>();
+      ).bind(input.identity.storeId, input.productId, input.variantId).first<{ id: string }>();
       if (!variant) throw new DeliveryFileError(404, 'variant_not_found', 'Variant not found or does not use a complete override.');
       await input.db.batch([
         input.db.prepare(
@@ -308,17 +394,28 @@ export async function deleteDeliveryFile(input: {
              delivery_file_size=NULL, delivery_file_kind=NULL, delivery_file_checksum=NULL,
              updated_at=strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
            WHERE store_id=? AND product_id=? AND id=?`,
-        ).bind(BOOTSTRAP_STORE_ID, input.productId, input.variantId),
+        ).bind(input.identity.storeId, input.productId, input.variantId),
         input.db.prepare(
-          `UPDATE products SET name=CASE WHEN revision=? THEN name ELSE NULL END,
+          `UPDATE products SET name=CASE WHEN revision=? AND EXISTS (
+             SELECT 1 FROM store_memberships
+              WHERE id=? AND store_id=? AND user_id=? AND role='owner' AND status='active'
+           ) THEN name ELSE NULL END,
              revision=revision+1, updated_at=strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
            WHERE store_id=? AND id=?`,
-        ).bind(input.expectedRevision, BOOTSTRAP_STORE_ID, input.productId),
+        ).bind(input.expectedRevision, input.identity.membershipId, input.identity.storeId, input.identity.userId,
+          input.identity.storeId, input.productId),
+        deliveryCommitAssertion({ ...input, revision: input.expectedRevision + 1, key: null }),
       ]);
     }
   } catch (error) {
     if (error instanceof DeliveryFileError) throw error;
-    const currentRevision = await readProductRevision(input.db, input.productId);
+    const currentRevision = await readProductRevision(input.db, input.identity, input.productId);
+    if (currentRevision === input.expectedRevision + 1) {
+      throw new DeliveryFileError(500, 'persistence_failed', 'The delivery file outcome requires reconciliation.', crypto.randomUUID());
+    }
+    if (!await isCurrentOwner(input.db, input.identity)) {
+      throw new CatalogReadAccessError();
+    }
     if (currentRevision !== input.expectedRevision) throw new DeliveryFileError(409, 'revision_conflict', 'The Product revision has changed.');
     throw new DeliveryFileError(500, 'persistence_failed', 'The delivery file association could not be removed.', crypto.randomUUID());
   }

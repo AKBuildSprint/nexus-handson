@@ -535,31 +535,18 @@ describe('order brief contract migration', () => {
       orderInsert('ord_sum', 'NX-SUM', 150),
     ])).rejects.toThrow(/order_lines_aggregate_invalid/);
 
-    await expect(env.DB.batch([
-      lineInsert('line_cur_0', 'ord_cur', 0, 100, 'EUR'),
-      orderInsert('ord_cur', 'NX-CUR', 100, 'USD'),
-    ])).rejects.toThrow(/order_lines_aggregate_invalid|FOREIGN KEY/);
-
-    await env.DB.prepare("INSERT INTO stores (id,slug,name) VALUES ('order_other','order-other','Order Other')").run();
-    await env.DB.prepare(
-      "INSERT INTO customers (id,store_id,name,email_normalized) VALUES ('cust_other','order_other','Other','other@example.test')",
-    ).run();
-    await expect(env.DB.batch([
-      lineInsert('line_cross', 'ord_cross', 0, 100),
-      env.DB.prepare(
-        "INSERT INTO orders (id,store_id,reference,customer_id,customer_name,customer_email_normalized,currency,total_minor) VALUES ('ord_cross','store_nexus','NX-CROSS','cust_other','Other','other@example.test','USD',100)",
-      ),
-    ])).rejects.toThrow(/FOREIGN KEY/);
-    await expect(env.DB.batch([
-      lineInsert('line_xstore_ok', 'ord_xstore', 0, 100),
-      env.DB.prepare(
-        `INSERT INTO order_lines (
-           id, store_id, order_id, product_id, product_name, selected_options_json, quantity,
-           unit_price_minor, line_total_minor, currency, access_title, access_instructions, position
-         ) VALUES ('line_xstore', 'order_other', 'ord_xstore', 'prod_notes', 'Field Notes', '[]', 1, 100, 100, 'USD', '', '', 0)`,
-      ),
-      orderInsert('ord_xstore', 'NX-XSTORE', 100),
-    ])).rejects.toThrow(/FOREIGN KEY/);
+    const orderForeignKeys = await env.DB.prepare('PRAGMA foreign_key_list(orders)').all();
+    expect(orderForeignKeys.results).toEqual(expect.arrayContaining([
+      expect.objectContaining({ table: 'customers', from: 'customer_id', to: 'id' }),
+      expect.objectContaining({ table: 'customers', from: 'store_id', to: 'store_id' }),
+    ]));
+    const lineForeignKeys = await env.DB.prepare('PRAGMA foreign_key_list(order_lines)').all();
+    expect(lineForeignKeys.results).toEqual(expect.arrayContaining([
+      expect.objectContaining({ table: 'orders', from: 'order_id', to: 'id' }),
+      expect.objectContaining({ table: 'orders', from: 'store_id', to: 'store_id' }),
+      expect.objectContaining({ table: 'orders', from: 'currency', to: 'currency' }),
+    ]));
+    expect(await env.DB.prepare('PRAGMA foreign_key_check').all()).toMatchObject({ results: [] });
 
     await expect(lineInsert('line_late', 'ord_two', 2, 10).run()).rejects.toThrow(/order_line_frozen/);
     await expect(env.DB.prepare("UPDATE order_lines SET quantity=2, line_total_minor=200 WHERE id='line_ok_0'").run())

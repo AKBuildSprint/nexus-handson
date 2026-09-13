@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { type Locator, type Page } from '@playwright/test';
+import { expect, test } from '../support/console-auth-fixtures';
 
 const CONSOLE_ORIGIN = process.env.PLAYWRIGHT_API_CONSOLE_BASE_URL ?? 'http://127.0.0.1:5173';
 const STOREFRONT_ORIGIN = process.env.PLAYWRIGHT_STOREFRONT_BASE_URL ?? 'http://127.0.0.1:5174';
@@ -35,6 +36,12 @@ interface ConsoleOrderResponse extends OrderResponse {
 
 function uniqueToken(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function testPersistRoot(): string {
+  const value = process['env'].NEXUS_TEST_PERSIST_ROOT;
+  if (!value) throw new Error('Missing required local E2E setting: NEXUS_TEST_PERSIST_ROOT.');
+  return value;
 }
 
 async function fillRequiredProduct(page: Page, name: string, basePrice: string) {
@@ -139,11 +146,11 @@ async function tabUntilFocused(page: Page, locator: Locator, limit = 40) {
   await expect(locator).toBeFocused();
 }
 
-test('keeps Console search, filters, pager, and confirmation reachable by keyboard without overflow', async ({ page }, testInfo) => {
+test('keeps Console search, filters, pager, and confirmation reachable by keyboard without overflow', async ({ page: storefrontPage, consoleOwnerPage: page }) => {
   const name = `Verify Console Keys ${uniqueToken()}`;
   await createSimpleProduct(page, name, '9.50');
-  await page.goto(STOREFRONT_ORIGIN);
-  const order = await placeOrder(page, name);
+  await storefrontPage.goto(STOREFRONT_ORIGIN);
+  const order = await placeOrder(storefrontPage, name);
 
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${CONSOLE_ORIGIN}/console/orders`);
@@ -185,9 +192,6 @@ test('keeps Console search, filters, pager, and confirmation reachable by keyboa
   expect(desktopOverflow.viewport).toBe(1280);
   expect(desktopOverflow.overflowing).toEqual([]);
 
-  await redactVisibleEmails(page);
-  await page.locator('.page-stack').screenshot({ path: testInfo.outputPath('ui-01-console-list-1280.png') });
-
   await page.getByRole('link', { name: order.body.reference }).click();
   await expect(page.getByRole('heading', { name: order.body.reference })).toBeVisible();
   await tabUntilFocused(page, page.getByRole('button', { name: 'Record manual payment' }));
@@ -201,21 +205,19 @@ test('keeps Console search, filters, pager, and confirmation reachable by keyboa
   await page.goto(`${CONSOLE_ORIGIN}/console/orders`);
   await expect(page.getByRole('heading', { name: 'Orders' })).toBeVisible();
   await expectNoHorizontalOverflow(page, 375);
-  await redactVisibleEmails(page);
-  await page.locator('.page-stack').screenshot({ path: testInfo.outputPath('ui-01-console-list-375.png') });
 });
 
-test('ignores late Order A GET and Complete after opening Order B', async ({ page }) => {
+test('ignores late Order A GET and Complete after opening Order B', async ({ page: storefrontPage, consoleOwnerPage: page }) => {
   test.setTimeout(120_000);
   const token = uniqueToken();
   const nameA = `Verify Console A ${token}`;
   const nameB = `Verify Console B ${token}`;
   await createSimpleProduct(page, nameA, '11.00');
   await createSimpleProduct(page, nameB, '12.00');
-  await page.goto(STOREFRONT_ORIGIN);
-  const orderA = await placeOrder(page, nameA);
-  await page.getByRole('button', { name: 'Back to catalog' }).click();
-  const orderB = await placeOrder(page, nameB);
+  await storefrontPage.goto(STOREFRONT_ORIGIN);
+  const orderA = await placeOrder(storefrontPage, nameA);
+  await storefrontPage.getByRole('button', { name: 'Back to catalog' }).click();
+  const orderB = await placeOrder(storefrontPage, nameB);
 
   await page.goto(`${CONSOLE_ORIGIN}/console/orders`);
   await page.getByLabel('Search Orders').fill(orderA.body.reference);
@@ -329,7 +331,7 @@ function queryLocalOrderGraph(reference: string): {
     FROM orders o WHERE o.reference = '${reference}'`;
   const output = execFileSync('npx', [
     'wrangler', 'd1', 'execute', 'nexus-s1-468cba-db',
-    '--local', '--config', 'wrangler.jsonc', '--json', '--command', sql,
+    '--local', '--persist-to', testPersistRoot(), '--config', 'wrangler.jsonc', '--json', '--command', sql,
   ], { encoding: 'utf8' });
   const parsed = JSON.parse(output.slice(output.indexOf('['))) as Array<{ results: Array<Record<string, unknown>> }>;
   const row = parsed[0]?.results[0];
@@ -343,17 +345,7 @@ function queryLocalOrderGraph(reference: string): {
   };
 }
 
-async function redactVisibleEmails(page: Page) {
-  await page.evaluate(() => {
-    for (const node of document.querySelectorAll('body *')) {
-      if (!node.childElementCount && /@/.test(node.textContent ?? '')) {
-        node.textContent = '[redacted-email]';
-      }
-    }
-  });
-}
-
-test('shows separate Simple and Variant Orders safely through direct, navigation, and 375px Console journeys', async ({ page }) => {
+test('shows separate Simple and Variant Orders safely through direct, navigation, and 375px Console journeys', async ({ page: storefrontPage, consoleOwnerPage: page }) => {
   const token = uniqueToken();
   const simpleName = `Verify Console Simple ${token}`;
   const variantName = `Verify Console Variant ${token}`;
@@ -362,16 +354,16 @@ test('shows separate Simple and Variant Orders safely through direct, navigation
   await createVariantProduct(page, variantName, token);
 
   const observedRequestUrls: string[] = [];
-  page.on('request', (request) => observedRequestUrls.push(request.url()));
-  await page.goto(STOREFRONT_ORIGIN);
-  const simpleOrder = await placeOrder(page, simpleName);
+  storefrontPage.on('request', (request) => observedRequestUrls.push(request.url()));
+  await storefrontPage.goto(STOREFRONT_ORIGIN);
+  const simpleOrder = await placeOrder(storefrontPage, simpleName);
   expect(simpleOrder.body.items[0].product.variant === null).toBe(true);
   expect(simpleOrder.body.items[0].unitPriceMinor).toBe(2125);
   expect(simpleOrder.body.totalMinor).toBe(2125);
 
-  await page.getByRole('button', { name: 'Back to catalog' }).click();
-  await expect(page.locator('.catalog-row').filter({ hasText: variantName })).toBeVisible();
-  const variantOrder = await placeOrder(page, variantName, 'PDF');
+  await storefrontPage.getByRole('button', { name: 'Back to catalog' }).click();
+  await expect(storefrontPage.locator('.catalog-row').filter({ hasText: variantName })).toBeVisible();
+  const variantOrder = await placeOrder(storefrontPage, variantName, 'PDF');
   expect(variantOrder.body.items[0].product.variant !== null).toBe(true);
   expect(variantOrder.body.items[0].product.variant?.selectedOptions.some((option) => option.groupName === 'Format' && option.valueLabel === 'PDF')).toBe(true);
   expect(variantOrder.body.items[0].unitPriceMinor).toBe(4175);
@@ -455,7 +447,7 @@ async function completeOrderFromDetail(page: Page, reference: string) {
   await expect(page.locator('.status-tag.status-active')).toContainText('Paid');
 }
 
-test('completes zero-total and paid Orders, restores detail via reload and popstate, and conflicts a stale cancel', async ({ page, context }) => {
+test('completes zero-total and paid Orders, restores detail via reload and popstate, and conflicts a stale cancel', async ({ page: storefrontPage, consoleOwnerPage: page }) => {
   test.setTimeout(120_000);
   const token = uniqueToken();
   const paidName = `Verify Console Paid ${token}`;
@@ -466,14 +458,14 @@ test('completes zero-total and paid Orders, restores detail via reload and popst
   await createSimpleProduct(page, zeroName, '0.00');
   await createSimpleProduct(page, staleName, '12.00');
 
-  await page.goto(STOREFRONT_ORIGIN);
-  const paidOrder = await placeOrder(page, paidName);
+  await storefrontPage.goto(STOREFRONT_ORIGIN);
+  const paidOrder = await placeOrder(storefrontPage, paidName);
   expect(paidOrder.body.totalMinor).toBe(2125);
-  await page.getByRole('button', { name: 'Back to catalog' }).click();
-  const zeroOrder = await placeOrder(page, zeroName);
+  await storefrontPage.getByRole('button', { name: 'Back to catalog' }).click();
+  const zeroOrder = await placeOrder(storefrontPage, zeroName);
   expect(zeroOrder.body.totalMinor).toBe(0);
-  await page.getByRole('button', { name: 'Back to catalog' }).click();
-  const staleOrder = await placeOrder(page, staleName);
+  await storefrontPage.getByRole('button', { name: 'Back to catalog' }).click();
+  const staleOrder = await placeOrder(storefrontPage, staleName);
 
   await page.goto(`${CONSOLE_ORIGIN}/console/orders/${paidOrder.body.reference}`);
   await expect(page.getByRole('heading', { name: paidOrder.body.reference })).toBeVisible();
@@ -488,7 +480,7 @@ test('completes zero-total and paid Orders, restores detail via reload and popst
   await completeOrderFromDetail(page, paidOrder.body.reference);
   await completeOrderFromDetail(page, zeroOrder.body.reference);
 
-  const pageB = await context.newPage();
+  const pageB = await page.context().newPage();
   await page.goto(`${CONSOLE_ORIGIN}/console/orders/${staleOrder.body.reference}`);
   await expect(page.getByRole('heading', { name: staleOrder.body.reference })).toBeVisible();
   await pageB.goto(`${CONSOLE_ORIGIN}/console/orders/${staleOrder.body.reference}`);
@@ -507,11 +499,11 @@ test('completes zero-total and paid Orders, restores detail via reload and popst
   await expect(page.getByRole('link', { name: zeroOrder.body.reference })).toBeVisible();
 });
 
-test('retries Mark Paid after a committed response loss using the same key', async ({ page }) => {
+test('retries Mark Paid after a committed response loss using the same key', async ({ page: storefrontPage, consoleOwnerPage: page }) => {
   const name = `Verify Console Loss ${uniqueToken()}`;
   await createSimpleProduct(page, name, '18.00');
-  await page.goto(STOREFRONT_ORIGIN);
-  const order = await placeOrder(page, name);
+  await storefrontPage.goto(STOREFRONT_ORIGIN);
+  const order = await placeOrder(storefrontPage, name);
 
   const keys: string[] = [];
   await page.route('**/api/console/orders/*/payments/manual', async (route) => {
@@ -562,5 +554,3 @@ test('retries Mark Paid after a committed response loss using the same key', asy
   expect(body.order.refundRequest).toBeNull();
   expect(containsPrivateProjectionKey(body)).toBe(false);
 });
-
-

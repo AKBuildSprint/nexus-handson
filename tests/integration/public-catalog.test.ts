@@ -1,11 +1,11 @@
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { resetCatalog, SIMPLE_CORE, VARIANT_CORE, oneVariantSchema, workerRequest } from '../support/catalog-test-env';
+import { consoleRequest, resetCatalog, SIMPLE_CORE, VARIANT_CORE, oneVariantSchema, workerRequest } from '../support/catalog-test-env';
 
 beforeEach(resetCatalog);
 
 async function create(body: unknown) {
-  return workerRequest('/api/console/products', {
+  return consoleRequest('/api/console/products', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
   });
 }
@@ -21,7 +21,7 @@ describe('public catalog allow-list', () => {
     await create({ product: SIMPLE_CORE, schema: null, previewHash: null });
     const schema = oneVariantSchema();
     const activeVariantCore = { ...VARIANT_CORE, status: 'active' as const };
-    const preview = await workerRequest('/api/console/products/schema/preview', {
+    const preview = await consoleRequest('/api/console/products/schema/preview', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ productId: null, productSlug: 'focus-pack', product: activeVariantCore, schema }),
     });

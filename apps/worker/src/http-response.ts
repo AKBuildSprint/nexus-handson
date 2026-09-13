@@ -63,3 +63,14 @@ export function jsonError(
 export function routeNotFound(): Response {
   return jsonError(404, 'route_not_found', 'The requested API route was not found.');
 }
+
+export function withConsoleAuthHeaders(response: Response, authHeaders: Headers): Response {
+  const headers = new Headers(response.headers);
+  for (const cookie of authHeaders.getSetCookie()) headers.append('Set-Cookie', cookie);
+  headers.set('Cache-Control', 'no-store');
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}

@@ -4,9 +4,11 @@ import {
   OrderValidationError,
   type OrderCommandAction,
   type OrderCommandResult,
+  type OrderContext,
   type OrderStatus,
   type RefundRequestProjection,
 } from '../order-types';
+import { assertCurrentConsoleOrderAccess, consoleVisibilityBinds, consoleVisibilitySql } from '../order-access';
 
 interface CommandLedgerRow {
   order_id: string;
@@ -24,6 +26,11 @@ interface CommandResultRow {
   refund_id: string | null;
   refund_reason: string | null;
   refund_created_at: string | null;
+  refund_status: RefundRequestProjection['status'] | null;
+  refund_decided_at: string | null;
+  event_id: string;
+  assignee_user_id: string | null;
+  history_action: string;
 }
 
 export interface OrderCommandTarget {
@@ -33,6 +40,7 @@ export interface OrderCommandTarget {
   total_minor: number;
   currency: string;
   customer_id: string;
+  assignee_user_id: string | null;
 }
 
 interface ExistingPaymentRow {
@@ -100,22 +108,31 @@ export async function readOrderTarget(
   orderId: string,
 ): Promise<OrderCommandTarget | null> {
   return database.prepare(
-    `SELECT id, reference, status, total_minor, currency, customer_id
+    `SELECT orders.id, orders.reference, orders.status, orders.total_minor, orders.currency, orders.customer_id,
+            assignment.assignee_user_id
        FROM orders
-      WHERE store_id = ? AND id = ?`,
+       LEFT JOIN order_assignments assignment
+         ON assignment.store_id = orders.store_id AND assignment.order_id = orders.id
+      WHERE orders.store_id = ? AND orders.id = ?`,
   ).bind(storeId, orderId).first<OrderCommandTarget>();
 }
 
 function refundProjection(row: CommandResultRow): RefundRequestProjection | null {
-  if (row.action !== 'request_refund' || row.refund_id === null || row.refund_reason === null
-    || row.refund_created_at === null) {
+  if (
+    (row.action !== 'request_refund' && row.action !== 'approve_refund' && row.action !== 'reject_refund')
+    || row.refund_id === null
+    || row.refund_reason === null
+    || row.refund_created_at === null
+    || row.refund_status === null
+  ) {
     return null;
   }
   return {
     id: row.refund_id,
-    status: 'pending',
+    status: row.refund_status,
     reason: row.refund_reason,
     createdAt: row.refund_created_at,
+    decidedAt: row.refund_decided_at,
   };
 }
 
@@ -129,10 +146,15 @@ export async function readCommandResult(
             commands.action AS action,
             history.status AS status,
             history.created_at AS occurredAt,
+            history.id AS event_id,
+            history.assignee_user_id AS assignee_user_id,
+            history.action AS history_action,
             payments.id AS payment_id,
             refunds.id AS refund_id,
             refunds.reason AS refund_reason,
-            refunds.created_at AS refund_created_at
+            refunds.created_at AS refund_created_at,
+            refunds.status AS refund_status,
+            refunds.decided_at AS refund_decided_at
        FROM order_commands commands
        JOIN order_history history
          ON history.id = commands.result_history_id
@@ -152,6 +174,32 @@ export async function readCommandResult(
       WHERE commands.store_id = ? AND commands.request_key = ?`,
   ).bind(storeId, requestKey).first<CommandResultRow>();
   if (!row) throw new OrderPersistenceError(new Error('The command result could not be read.'));
+  const expectedHistoryAction: Record<OrderCommandAction, string> = {
+    assign: 'assigned',
+    mark_paid: 'order_paid',
+    fulfill: 'order_fulfilled',
+    cancel: 'order_canceled',
+    request_refund: 'refund_requested',
+    approve_refund: 'refund_approved',
+    reject_refund: 'refund_rejected',
+  };
+  if (row.history_action !== expectedHistoryAction[row.action]) {
+    throw new OrderPersistenceError(new Error('The command result event is incompatible.'));
+  }
+  if (row.action === 'assign') {
+    if (row.assignee_user_id === null) {
+      throw new OrderPersistenceError(new Error('The assignment result could not be read.'));
+    }
+    return {
+      reference: row.reference,
+      action: 'assign',
+      status: row.status,
+      occurredAt: row.occurredAt,
+      paymentId: null,
+      refundRequest: null,
+      assignment: { assigneeUserId: row.assignee_user_id, eventId: row.event_id },
+    };
+  }
   return {
     reference: row.reference,
     action: row.action,
@@ -187,7 +235,7 @@ export async function readDecisionHistoryId(
   return row?.id ?? null;
 }
 
-export async function readOpenRefund(
+export async function readRefundRequest(
   database: D1Database,
   storeId: string,
   orderId: string,
@@ -200,7 +248,7 @@ export async function readOpenRefund(
         AND history.order_id = requests.order_id
         AND history.store_id = requests.store_id
         AND history.action = 'refund_requested'
-      WHERE requests.store_id = ? AND requests.order_id = ? AND requests.status = 'pending'`,
+      WHERE requests.store_id = ? AND requests.order_id = ?`,
   ).bind(storeId, orderId).first<{ id: string; history_id: string }>();
 }
 
@@ -213,10 +261,11 @@ export async function bindExistingResult(input: {
   hash: string;
   historyId: string;
   refundRequestId: string | null;
+  context: OrderContext;
 }): Promise<OrderCommandResult> {
   const commandId = stableId('cmd');
   try {
-    await input.database.batch([
+    const statements = [
       input.database.prepare(
         `INSERT INTO order_commands (
            id, store_id, request_key, order_id, action, payload_hash, result_history_id,
@@ -241,14 +290,50 @@ export async function bindExistingResult(input: {
         input.historyId,
         input.refundRequestId,
       ),
-    ]);
+    ];
+    if (input.context.identity?.kind === 'console') {
+      statements.push(input.database.prepare(
+        `UPDATE orders
+            SET status = CASE WHEN ${consoleVisibilitySql('orders')} THEN status ELSE NULL END
+          WHERE store_id = ? AND id = ?`,
+      ).bind(
+        ...consoleVisibilityBinds(input.context.identity),
+        input.storeId,
+        input.orderId,
+      ));
+    }
+    await input.database.batch(statements);
   } catch (error) {
+    await authorizeResult(input.database, input.context, input.orderId, input.action);
     const ledger = await readLedger(input.database, input.storeId, input.requestKey);
+    await authorizeResult(input.database, input.context, input.orderId, input.action);
     if (!ledger) throw new OrderPersistenceError(error);
     if (ledger.contract_version === 1) legacyKeyConflict();
     if (!ledgerMatches(ledger, input.action, input.orderId, input.hash)) keyConflict();
   }
-  return readCommandResult(input.database, input.storeId, input.requestKey);
+  await authorizeResult(input.database, input.context, input.orderId, input.action);
+  const result = await readCommandResult(input.database, input.storeId, input.requestKey);
+  await authorizeResult(input.database, input.context, input.orderId, input.action);
+  return result;
+}
+
+async function authorizeResult(
+  database: D1Database,
+  context: OrderContext,
+  orderId: string,
+  action: OrderCommandAction,
+): Promise<void> {
+  if (context.identity?.kind !== 'console') return;
+  await assertCurrentConsoleOrderAccess({
+    database,
+    identity: context.identity,
+    orderId,
+    action: action === 'request_refund'
+      ? 'refund:request'
+      : action === 'approve_refund' || action === 'reject_refund'
+        ? 'refund:decide'
+        : 'order:process',
+  });
 }
 
 async function recoverFailedBatch(
@@ -262,14 +347,20 @@ async function recoverFailedBatch(
     eligible: (status: OrderStatus) => boolean;
   },
   cause: unknown,
+  context: OrderContext,
 ): Promise<OrderCommandResult> {
+  await authorizeResult(database, context, input.orderId, input.action);
   const ledger = await readLedger(database, storeId, input.requestKey);
+  await authorizeResult(database, context, input.orderId, input.action);
   if (ledger) {
     if (ledger.contract_version === 1) legacyKeyConflict();
     if (!ledgerMatches(ledger, input.action, input.orderId, input.hash)) keyConflict();
-    return readCommandResult(database, storeId, input.requestKey);
+    const result = await readCommandResult(database, storeId, input.requestKey);
+    await authorizeResult(database, context, input.orderId, input.action);
+    return result;
   }
   const order = await readOrderTarget(database, storeId, input.orderId);
+  await authorizeResult(database, context, input.orderId, input.action);
   if (order === null) notFound();
   if (!input.eligible(order.status)) stateConflict();
   throw new OrderPersistenceError(cause);
@@ -285,15 +376,31 @@ export async function runCommandBatch(input: {
   eligible: (status: OrderStatus) => boolean;
   statements: D1PreparedStatement[];
   onConflictReplay?: () => Promise<OrderCommandResult | null>;
+  context: OrderContext;
 }): Promise<OrderCommandResult> {
   try {
-    await input.database.batch(input.statements);
+    const guard = input.context.identity?.kind === 'console'
+      ? input.database.prepare(
+        `UPDATE orders
+            SET status = CASE WHEN ${consoleVisibilitySql('orders')} THEN status ELSE NULL END
+          WHERE store_id = ? AND id = ?`,
+      ).bind(
+        ...consoleVisibilityBinds(input.context.identity),
+        input.storeId,
+        input.orderId,
+      )
+      : null;
+    await input.database.batch(guard === null ? input.statements : [...input.statements, guard]);
   } catch (error) {
+    await authorizeResult(input.database, input.context, input.orderId, input.action);
     if (input.onConflictReplay) {
       const recovered = await input.onConflictReplay();
       if (recovered) return recovered;
     }
-    return recoverFailedBatch(input.database, input.storeId, input, error);
+    return recoverFailedBatch(input.database, input.storeId, input, error, input.context);
   }
-  return readCommandResult(input.database, input.storeId, input.requestKey);
+  await authorizeResult(input.database, input.context, input.orderId, input.action);
+  const result = await readCommandResult(input.database, input.storeId, input.requestKey);
+  await authorizeResult(input.database, input.context, input.orderId, input.action);
+  return result;
 }
