@@ -41,10 +41,10 @@ function visibleSave(page: Page) {
   return page.locator('button.desktop-save');
 }
 
-async function fillRequiredProduct(page: Page, name: string, basePrice: string) {
+async function fillRequiredProduct(page: Page, name: string, basePrice: string, currency = 'USD') {
   await page.getByLabel('Product name').fill(name);
   await page.getByLabel('Base price').fill(basePrice);
-  await page.getByLabel('Currency').fill('USD');
+  await page.getByLabel('Currency').fill(currency);
   await page.getByLabel('Product status').selectOption('Active');
   await page.getByLabel('Customer-visible description').fill(`Public description for ${name}`);
   await page.getByLabel('Private access title').fill(`Private package for ${name}`);
@@ -653,4 +653,53 @@ test('places one Order with a Simple and Variant Product, then Marks Paid, Fulfi
   await expect(consoleOwnerPage.getByText('Refund request pending').first()).toBeVisible();
   await expect(consoleOwnerPage.getByRole('button', { name: 'Request refund for Customer' })).toHaveCount(0);
   await expect(consoleOwnerPage.locator('#console-refund-reason')).toHaveCount(0);
+});
+
+test('preserves VND amounts through catalog, checkout, receipt, and Console Orders', async ({ page, consoleOwnerPage }) => {
+  const name = `Currency precision VND ${uniqueToken()}`;
+  await consoleOwnerPage.goto(`${CONSOLE_ORIGIN}/console/products/new`);
+  await fillRequiredProduct(consoleOwnerPage, name, '249000', 'VND');
+  await visibleSave(consoleOwnerPage).click();
+  await expect(consoleOwnerPage.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
+
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(STOREFRONT_ORIGIN);
+  const amounts = await page.evaluate(() => {
+    const formatter = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'VND' });
+    return { unit: formatter.format(249000), total: formatter.format(498000) };
+  });
+  await expect(page.locator('.catalog-row').filter({ hasText: name })).toContainText(amounts.unit);
+  await addCatalogLine(page, { productName: name, quantity: '2' });
+  await expect(page.locator('#checkout-cart')).toContainText(amounts.total);
+  await expect(page.locator('.purchase-total')).toContainText(amounts.total);
+  await expectNoHorizontalOverflow(page, 375);
+  await page.getByLabel('Name').fill('Currency Customer');
+  await page.getByLabel('Email').fill('currency.customer@example.test');
+  const created = page.waitForResponse((response) => (
+    response.request().method() === 'POST'
+    && new URL(response.url()).pathname === '/api/storefront/orders'
+  ));
+  await page.getByRole('button', { name: 'Place Order' }).click();
+  const response = await created;
+  expect(response.status()).toBe(201);
+  const order = await response.json() as CustomerOrderResponse;
+  expect(order.currency).toBe('VND');
+  expect(order.totalMinor).toBe(498000);
+  await expect(page.getByText(`Order ${order.reference}`)).toBeVisible();
+  await expect(page.locator('.order-item-list')).toContainText(amounts.unit);
+  await expect(page.locator('.total-line')).toContainText(amounts.total);
+  await expectNoHorizontalOverflow(page, 375);
+
+  await consoleOwnerPage.setViewportSize({ width: 375, height: 812 });
+  await consoleOwnerPage.goto(`${CONSOLE_ORIGIN}/console/orders`);
+  await consoleOwnerPage.getByLabel('Search Orders').fill(order.reference);
+  await consoleOwnerPage.getByRole('button', { name: 'Search' }).click();
+  await expect(consoleOwnerPage.getByRole('link', { name: order.reference })).toBeVisible();
+  await expect(consoleOwnerPage.locator('.order-summary-card .order-total')).toContainText(amounts.total);
+  await expectNoHorizontalOverflow(consoleOwnerPage, 375);
+  await consoleOwnerPage.getByRole('link', { name: order.reference }).click();
+  await expect(consoleOwnerPage.getByRole('heading', { name: order.reference })).toBeVisible();
+  await expect(consoleOwnerPage.locator('.order-total')).toContainText(amounts.total);
+  await expect(consoleOwnerPage.locator('.order-items-mobile')).toContainText(amounts.unit);
+  await expectNoHorizontalOverflow(consoleOwnerPage, 375);
 });
