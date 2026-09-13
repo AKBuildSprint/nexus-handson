@@ -77,6 +77,23 @@ For each permanent test group retain: source scenario IDs, exact test path/name,
 
 One test may cover several rows. All Critical/High rows require actual boundary evidence before local acceptance; Medium rows require the specified visual evidence as well. Structural table validation checks only IDs/severity/ownership, not application correctness.
 
+## Remaining-scenario verification (2026-09-14)
+
+The follow-up closed **17 of 20** previously partial scenarios locally. Combined with the preceding recheck and layout/performance evidence, the current assessment is **46 `pass_local`, 3 partial, 0 failing**. This is not deployed acceptance. The [complete evidence record](./reports/s4-remaining-verification-260914-0215.json) lists every remaining scenario, observations, screenshots, regression commands, and limitations.
+
+Two reproduced defects were corrected:
+- **S4-24:** reload lost unresolved assignment/decision intent. Minimal per-tab metadata now restores the original explicit retry after fresh session resolution; identity changes discard it and unavailable storage blocks dispatch.
+- **S4-14:** a reassignment-emptied cursor page incorrectly claimed no filter matches and displayed `Page 2 of 1`. The copy now describes only that page, preserves recovery controls, and omits the impossible denominator.
+
+Node **22.23.2** verification: Worker **254/254**, browser **79/79**, Node operator **10/10**, and full Playwright **35/35** on correctly configured `localhost` origins. Console and Storefront builds passed. A wording/callback-only browser test was removed rather than repinned. Separate real-browser probes verified migrated Owner data, literal SQL-shaped search, Staff 25/26 pagination and reassignment recovery, keyboard retry/conflict handling, capability-safe failure channels, origin mismatch recovery, and 375 px layout/token behavior.
+
+Three scenarios remain partial:
+- **S4-22:** keyboard and Chrome accessibility-tree behavior passed; actual spoken VoiceOver was not verified. Orca Accessibility and screenshot permissions are not granted.
+- **S4-23:** both loopback-host configurations and mismatch handling passed locally; real Google consent and deployed HTTPS smoke remain unverified.
+- **S4-28:** populated raw-Wrangler rollback/retry/reapply passed with an isolated local writer barrier; no live old-writer cutover was exercised. Remote provisioning and authenticated smoke apply still require implementation/review before separate deployment authorization.
+
+No remote read, mutation, deployment, commit, or push was performed for this follow-up.
+
 ## Unresolved questions
 
 None for coverage allocation or membership cardinality; separate accounts per Store were confirmed on 2026-09-12. Runtime prerequisites remain tracked in [contracts](./contracts.md).

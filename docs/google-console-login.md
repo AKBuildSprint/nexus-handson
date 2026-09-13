@@ -52,4 +52,6 @@ On visibility, back-forward restoration, or a sibling-tab auth change, the Conso
 
 A private endpoint returning `401` or `store_access_denied`, including CSV template download, clears the rendered identity and returns to sign-in. An older identity's delayed response cannot clear or restore the current identity.
 
+Assignment and Refund decision commands save only pending action identifiers and the original idempotency key in this tab's `sessionStorage`, scoped to the verified user ID, Store ID, and role. Reload first resolves the session and refetches the Order, then offers an explicit retry of the same intent/key; it never automatically submits the command. Unavailable recovery storage blocks these commands before dispatch. Sign-out, confirmed expiry/access loss, or a changed user/Store/role clears the pending metadata. Credentials, Customer payloads, and Order capabilities are not stored with it; current server authorization still governs every retry.
+
 Storefront routes do not require Google configuration. Automated tests stub the Google provider callback; a real Google consent smoke remains required before reporting a deployment ready.

@@ -251,6 +251,7 @@ Desktop columns are:
 - Console Products shows 25 filtered Products per page; Storefront shows 24 filtered catalog cards per page. Keep the complete catalog response for metrics and checkout selection; pagination does not change the API.
 - Place Previous/Next controls above and below each list, with distinct navigation labels, the visible result range, and current/total pages. Disable controls at boundaries; reset to the first page when search or filters change and clamp after catalog shrink.
 - Console Orders retains server cursor pagination at 25 Orders per page. Its range uses cursor depth; totals come from the server summary for the active filters, never the current page length.
+- A cursor page emptied by reassignment is not a zero-match filter result when the server still reports matches. Keep Previous/First page recovery available, describe the empty page rather than the whole filter, and omit a total-page denominator smaller than the retained cursor depth.
 - Storefront page changes preserve the selected Product, option values, Customer fields, cart, and frozen checkout retry identity. Bottom navigation returns the catalog results to view.
 
 ### 4.6 Sticky editor action bar

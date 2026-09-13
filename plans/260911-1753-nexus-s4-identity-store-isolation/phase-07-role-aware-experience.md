@@ -156,7 +156,7 @@ Phase 7 owns `local-binding-context.ts`: `withLocalBindings({configPath,persistR
 
 Audit correction (2026-09-12, session lifecycle): add a real-browser due-refresh case with a real persisted test session arranged past updateAge through private fixtures, not by waiting a day. Verify a Console bootstrap/private response extends the browser cookie expiry while retaining the same identity, and expired-session library deletion cookies remove the cookie before the signed-out UI settles. Phase 3 owns forwarding and denial-path assertions; no JavaScript access to HttpOnly cookie values or credential-bearing artifact capture.
 
-Rerun the same Reds after Green and Refactor, plus the existing Product/editor/import E2E consumers now using real Owner login. Disable trace/video/HAR/network dumps during credential/capability handling (current Playwright defaults retain failure traces); store only sanitized diagnostics. An expired session clears private drafts and retry caches. An unknown mutation outcome triggers authorized refetch; retain an in-memory frozen intent/key only within the same user/Store context, never transfer it to another account. A reload restores server state rather than auto-submitting an unrecorded intent.
+Rerun the same Reds after Green and Refactor, plus the existing Product/editor/import E2E consumers now using real Owner login. Disable trace/video/HAR/network dumps during credential/capability handling; store only sanitized diagnostics. Sign-out or confirmed session/access loss clears private drafts and retry caches. Assignment and Refund decisions retain minimal frozen intent/key metadata in per-tab `sessionStorage`, scoped to the verified user, Store, and role, never transferred to another identity. Reload resolves the session and refetches server state before offering an explicit same-key retry; it never auto-submits. If recovery storage is unavailable, block dispatch rather than create an unrecoverable command.
 
 ## Narrow Regression Commands
 
@@ -165,7 +165,7 @@ Use exact files; avoid `npm run test:integration -- <file>` because the repo con
 ```sh
 npx vitest run --config vitest.browser.config.ts tests/browser/console-auth-contracts.test.ts
 npx vitest run --config vitest.browser.config.ts tests/browser/console-orders-contracts.test.ts tests/browser/storefront-orders-contracts.test.ts
-npx playwright test tests/e2e/console-auth.spec.ts tests/e2e/console-orders.spec.ts tests/e2e/storefront-orders.spec.ts
+npx playwright test tests/e2e/console-auth.spec.ts tests/e2e/console-reload-recovery.spec.ts tests/e2e/console-orders.spec.ts tests/e2e/storefront-orders.spec.ts
 npx playwright test tests/e2e/console-products.spec.ts tests/e2e/console-variants.spec.ts tests/e2e/console-import.spec.ts
 npm run typecheck
 ```

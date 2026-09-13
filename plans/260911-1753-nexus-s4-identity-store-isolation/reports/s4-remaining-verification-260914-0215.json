@@ -1,0 +1,488 @@
+{
+  "generatedAt": "2026-09-13T19:18:56.292Z",
+  "runtime": {
+    "node": "22.23.2",
+    "platform": "darwin arm64"
+  },
+  "scope": {
+    "requestedRemainingScenarios": 20,
+    "closedLocally": 17,
+    "stillPartial": 3,
+    "overall": {
+      "pass_local": 46,
+      "partial": 3,
+      "failed": 0
+    },
+    "baseline": {
+      "pass_local": 29,
+      "partial": 20
+    },
+    "remoteReadOrMutationPerformed": false,
+    "deploymentClaimed": false
+  },
+  "priorEvidence": [
+    "s4-scenario-recheck-260914-0018.json",
+    "s4-layout-fix-260914-0044.json"
+  ],
+  "sourceScenarioMatrix": "plans/reports/scenario-260912-0041-nexus-s4-identity-store-isolation.md",
+  "fixedDefects": [
+    {
+      "scenario": "S4-24",
+      "before": "An unresolved assignment or approval lost its original retry intent/key after full reload; both reproduction cases failed before the fix.",
+      "after": "Minimal per-tab pending metadata is bound to verified user/Store/role. Explicit retry preserves intent/key after reload, including a committed approval whose response was lost. Identity replacement discards old metadata; unavailable storage blocks dispatch.",
+      "files": [
+        "apps/console/src/orders/pending-role-command.ts",
+        "apps/console/src/orders/order-detail-screen.tsx",
+        "apps/console/src/production-console-app.tsx"
+      ],
+      "regression": "tests/e2e/console-reload-recovery.spec.ts: five scenarios"
+    },
+    {
+      "scenario": "S4-14",
+      "before": "A real Staff cursor page emptied by reassignment displayed Page 2 of 1 and claimed no filter matches although the server reported 25.",
+      "after": "The empty state describes the current page, retains Previous/First page recovery, and omits an impossible page denominator. Cursor and filtering behavior are unchanged.",
+      "files": [
+        "apps/console/src/orders/orders-screen.tsx"
+      ],
+      "regression": "Real Worker/browser boundary replay at 375 pixels; exact original first-page rows remain accessible."
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "S4-24",
+      "status": "pass_local",
+      "evidence": [
+        "tests/e2e/console-reload-recovery.spec.ts",
+        "s4-remaining-recovery-375.png"
+      ],
+      "observed": [
+        "Assignment connection loss before commit and approval response loss after commit retain the original key on explicit retry.",
+        "Reload does not issue an automatic POST or report false success.",
+        "Owner to Staff to the same Owner clears the old intent; unavailable storage prevents dispatch; failed sign-in remains private."
+      ]
+    },
+    {
+      "id": "S4-09",
+      "status": "pass_local",
+      "evidence": [
+        "tests/integration/order-assignment.test.ts"
+      ],
+      "observed": [
+        "Real reassignment A1 to A2 forced before and after Staff fulfillment commit.",
+        "Before commit: paid, no fulfillment event/ledger. After commit: fulfilled, one event/ledger. Subsequent A1 response/detail is concealed in both cases; A2 can read."
+      ]
+    },
+    {
+      "id": "S4-12",
+      "status": "pass_local",
+      "evidence": [
+        "tests/integration/order-assignment.test.ts",
+        "tests/integration/catalog-store-isolation.test.ts",
+        "tests/integration/refund-decisions.test.ts"
+      ],
+      "observed": [
+        "Demotion and revocation at protected catalog, assignment and Refund decision writes do not create privileged effects.",
+        "An unassigned Owner demoted before payment commit is denied without payment/history/ledger; existing D1/R2 compensation assertions remain intact."
+      ]
+    },
+    {
+      "id": "S4-13",
+      "status": "pass_local",
+      "evidence": [
+        "tests/integration/order-assignment.test.ts"
+      ],
+      "observed": [
+        "Genuine Owner A and Owner B pagination cursors copied into Staff requests return 400 invalid_query.",
+        "The authorized Staff list and summary contain only its assigned Order."
+      ]
+    },
+    {
+      "id": "S4-29",
+      "status": "pass_local",
+      "evidence": [
+        "tests/integration/catalog-store-isolation.test.ts",
+        "tests/integration/s4-acceptance.test.ts"
+      ],
+      "observed": [
+        "Foreign Product/Variant identities exercised across schema, preview, ordinary edits, create, CSV and upload/delete paths with Owner B and Staff B.",
+        "Requests are concealed or rejected at the appropriate boundary; private A instructions, unchanged product data and R2/import state are checked."
+      ]
+    },
+    {
+      "id": "S4-35",
+      "status": "pass_local",
+      "evidence": [
+        "tests/integration/identity-schema.test.ts",
+        "tests/integration/refund-decisions.test.ts"
+      ],
+      "observed": [
+        "Direct cross-Store Refund/Order and Refund-history references fail foreign keys.",
+        "Otherwise-identical valid same-Store rows succeed; foreign_key_check is empty."
+      ]
+    },
+    {
+      "id": "S4-01",
+      "status": "pass_local",
+      "evidence": [
+        "scripts/verification/s4-populated-rehearsal.ts",
+        "tests/node/s4-populated-rehearsal.test.ts",
+        "s4-remaining-migrated-owner-375.png"
+      ],
+      "observed": [
+        "The existing user_owner_a opened the migrated paid legacy Order in the real Console.",
+        "Original Order/line/payment/history rows, references and legacy provenance matched before and after browser access.",
+        "The preservation comparison was captured before subsequent disposable browser fixtures were added."
+      ]
+    },
+    {
+      "id": "S4-03",
+      "status": "pass_local",
+      "evidence": [
+        "tests/integration/identity-schema.test.ts"
+      ],
+      "observed": [
+        "Membership targeting an absent Store is rejected by foreign keys; the account gains no automatic membership and is denied.",
+        "Deleting a referenced Store is also rejected; an existing valid Store B membership still resolves to B."
+      ]
+    },
+    {
+      "id": "S4-05",
+      "status": "pass_local",
+      "evidence": [
+        "tests/integration/order-assignment.test.ts",
+        "tests/integration/refund-decisions.test.ts"
+      ],
+      "observed": [
+        "Malformed JSON, null/array bodies, missing or invalid identities, unsupported authority fields, malformed paths and unsupported decision actions are rejected.",
+        "Business rows, audit history and command ledgers remain unchanged on these failures."
+      ]
+    },
+    {
+      "id": "S4-07",
+      "status": "pass_local",
+      "evidence": [
+        "tests/integration/order-assignment.test.ts",
+        "tests/integration/refund-decisions.test.ts",
+        "tests/integration/catalog-store-isolation.test.ts"
+      ],
+      "observed": [
+        "Forged Owner/actor/Store/status fields do not upgrade Staff on payment, fulfillment, cancellation, refund request, assignment, decision or catalog mutation paths.",
+        "Assigned Staff invalid-body and foreign Staff concealed paths leave no unauthorized effects."
+      ]
+    },
+    {
+      "id": "S4-08",
+      "status": "pass_local",
+      "evidence": [
+        "tests/integration/order-assignment.test.ts",
+        "tests/integration/order-operations-routes.test.ts",
+        "s4-scenario-recheck-260914-0018.json"
+      ],
+      "observed": [
+        "SQL-shaped cursors are rejected. A separate real browser/API probe persisted a SQL-shaped Customer name and found exactly that one Order using q; an unrelated 26-Order query remained intact.",
+        "Prior real-browser literal HTML/script rendering evidence in both apps is retained; all current browser and E2E regressions passed."
+      ]
+    },
+    {
+      "id": "S4-14",
+      "status": "pass_local",
+      "evidence": [
+        "tests/integration/order-assignment.test.ts",
+        "tests/browser/console-orders-contracts.test.ts",
+        "s4-remaining-empty-staff-page.png"
+      ],
+      "observed": [
+        "Real default 25/26 Staff pagination, last-item reassignment, empty cursor response, updated total 25 and original first-page return are verified.",
+        "The browser repeated the same boundary with real filtered Staff requests; Previous remained usable, the moved Order disappeared, and Next was disabled after returning.",
+        "The misleading empty-page scope and impossible page denominator were reproduced and corrected."
+      ]
+    },
+    {
+      "id": "S4-16",
+      "status": "pass_local",
+      "evidence": [
+        "tests/integration/console-auth-routes.test.ts",
+        "tests/integration/auth-runtime.test.ts"
+      ],
+      "observed": [
+        "105 unsupported-provider sign-ins include rate-limited responses and run alongside malformed public requests.",
+        "A legitimate Owner assignment, assigned Staff read, public Order creation and Owner catalog read still succeed without extra payment or assignment effects."
+      ]
+    },
+    {
+      "id": "S4-19",
+      "status": "pass_local",
+      "evidence": [
+        "tests/integration/refund-decisions.test.ts"
+      ],
+      "observed": [
+        "Console and Customer resubmission after both approval and rejection return the unchanged original request and terminal status.",
+        "A changed reason does not reopen the request or duplicate request history."
+      ]
+    },
+    {
+      "id": "S4-36",
+      "status": "pass_local",
+      "evidence": [
+        "tests/integration/catalog-store-isolation.test.ts",
+        "tests/integration/auth-runtime.test.ts",
+        "tests/node/s4-populated-rehearsal.test.ts"
+      ],
+      "observed": [
+        "Matching Product slugs and Variant SKUs in A/B remain isolated.",
+        "A global Variant ID collision is rejected without replacing the original row; Google identity no-op/conflict and provisioning gates remain green."
+      ]
+    },
+    {
+      "id": "S4-42",
+      "status": "pass_local",
+      "evidence": [
+        "tests/integration/console-auth-routes.test.ts",
+        "tests/integration/auth-runtime.test.ts"
+      ],
+      "observed": [
+        "Real session-table and capability-table faults return sanitized 503/500 responses; deeply inspected error/warn/log/info output does not expose supplied credentials or Customer private values.",
+        "A separate anonymous browser exercised valid and wrong capabilities: no capability appeared in network URLs, Referer, browser diagnostics or rendered failure text; headers were confined to the exact private endpoint.",
+        "Only sanitized facts and screenshots without bearer links are retained."
+      ]
+    },
+    {
+      "id": "S4-48",
+      "status": "pass_local",
+      "evidence": [
+        "tests/integration/delivery-replacement.test.ts"
+      ],
+      "observed": [
+        "Staff cannot indirectly remove purchased delivery through direct deletion, Variant disable/inheritance changes, schema removal or unsupported Product deletion.",
+        "A permitted Owner file detach retains the paid Order snapshot, original purchased object bytes and payment reference."
+      ]
+    },
+    {
+      "id": "S4-22",
+      "status": "partial",
+      "evidence": [
+        "s4-remaining-keyboard-denial-375.png",
+        "s4-remaining-recovery-375.png"
+      ],
+      "observed": [
+        "Native keyboard type-ahead selected Staff; Enter submitted/retried; a duplicate activation did not create a second intent.",
+        "A keyboard Refund rejection received a real 409 after another operation approved it. Chrome exposes an assertive atomic alert and Tab continues to an enabled control."
+      ],
+      "missing": [
+        "No spoken screen-reader run. Orca Accessibility and screenshot permissions are not granted; no OS permission settings were changed.",
+        "Chrome accessibility-tree semantics are not claimed as VoiceOver announcement evidence."
+      ]
+    },
+    {
+      "id": "S4-23",
+      "status": "partial",
+      "evidence": [
+        "tests/e2e/console-auth.spec.ts",
+        "tests/e2e/console-reload-recovery.spec.ts",
+        "docs/google-console-login.md"
+      ],
+      "observed": [
+        "Five recovery E2E cases passed on 127.0.0.1; the final full 35-case E2E suite passed on correctly configured localhost origins.",
+        "Visiting localhost against a 127.0.0.1-configured Worker sent no original cookie; session returned 401 and sign-in returned 403 with an enabled retry and no external Google request.",
+        "Existing secure-cookie and refresh/deletion forwarding regressions passed."
+      ],
+      "missing": [
+        "Real Google consent and deployed HTTPS browser smoke are not verified.",
+        "Exact deployed origins, reviewed remote operator capability and authorized test identities are still required."
+      ]
+    },
+    {
+      "id": "S4-28",
+      "status": "partial",
+      "evidence": [
+        "tests/node/s4-populated-rehearsal.test.ts",
+        "scripts/verification/s4-populated-rehearsal.ts",
+        "remote-runbook.md"
+      ],
+      "observed": [
+        "Raw Wrangler populated rehearsal verifies three abort checkpoints, successful retry, no-op reapply, preservation and zero foreign-key violations.",
+        "The barrier is explicitly isolated disposable local state."
+      ],
+      "missing": [
+        "No live old-writer drain/barrier, authorized remote checkpoint or deployed cutover was exercised.",
+        "Remote provisioning and authenticated S4 smoke apply remain unimplemented/unreviewed; authorization alone does not make the runbook executable."
+      ]
+    }
+  ],
+  "checks": {
+    "worker": {
+      "passed": 254,
+      "files": 41,
+      "command": "npm run test:workerd"
+    },
+    "browser": {
+      "passed": 79,
+      "files": 6,
+      "command": "npm run test:browser"
+    },
+    "node": {
+      "passed": 10,
+      "files": 2,
+      "command": "npx vitest run --config vitest.node.config.ts"
+    },
+    "e2e": {
+      "passed": 35,
+      "command": "npm run test:e2e",
+      "consoleOrigin": "http://localhost:5251",
+      "storefrontOrigin": "http://localhost:5252"
+    },
+    "consoleBuild": "passed including typecheck and production import graph",
+    "storefrontBuild": "passed",
+    "sessionOutput": [
+      "artifact://300",
+      "artifact://322"
+    ]
+  },
+  "migration": {
+    "baselineRef": "a3a67f6",
+    "failureObserved": true,
+    "retrySucceeded": true,
+    "reapplyWasNoop": true,
+    "preservationMatched": true,
+    "foreignKeyViolations": 0,
+    "localSafety": {
+      "writerBarrier": "isolated-disposable-state",
+      "checkpointVerified": true,
+      "abortsVerified": 3
+    },
+    "ownerUserId": "user_owner_a",
+    "legacyReference": "NX-AAAAAAAAAAAAAAAA",
+    "legacyPaymentReference": "NPAFIXTURE",
+    "legacyExternalPaymentReference": "WIRE-A",
+    "legacyStatus": "paid",
+    "legacyTotalMinor": 1200,
+    "legacyCurrency": "USD",
+    "countsAtPreservationComparison": {
+      "stores": 2,
+      "products": 2,
+      "orders": 3,
+      "lines": 3,
+      "payments": 1,
+      "refunds": 1,
+      "customers": 2
+    },
+    "browserProjectionMatched": true,
+    "postBrowserDatabaseRowsMatched": true
+  },
+  "browserProof": {
+    "keyboard": {
+      "reference": "NX-EA10C693EB0B479A",
+      "selectionKeys": "Tab; Escape; type Staff A1",
+      "duplicateIntentBlocked": true,
+      "reloadDidNotReplay": true,
+      "originalKeyReused": true,
+      "mobile": {
+        "width": 375,
+        "scrollWidth": 375,
+        "tokens": {
+          "fill": "rgb(0, 0, 0)",
+          "ink": "rgb(255, 255, 255)"
+        },
+        "action": {
+          "name": "Retry assignment",
+          "fill": "rgb(0, 0, 0)",
+          "ink": "rgb(255, 255, 255)"
+        }
+      },
+      "tabsToReject": 2,
+      "keyboardRejectStatus": 409,
+      "denial": {
+        "text": "The Order state does not allow this action.",
+        "focusedTag": "BODY",
+        "scrollWidth": 375
+      },
+      "nextFocus": {
+        "tag": "BUTTON",
+        "text": "Fulfill"
+      },
+      "alerts": [
+        {
+          "role": "alert",
+          "properties": [
+            {
+              "name": "live",
+              "value": {
+                "type": "token",
+                "value": "assertive"
+              }
+            },
+            {
+              "name": "atomic",
+              "value": {
+                "type": "boolean",
+                "value": true
+              }
+            },
+            {
+              "name": "relevant",
+              "value": {
+                "type": "tokenList",
+                "value": "additions text"
+              }
+            }
+          ]
+        }
+      ],
+      "spokenScreenReaderVerified": false
+    },
+    "pagination": {
+      "firstPageOrders": 25,
+      "lastPageOrdersBeforeReassignment": 1,
+      "totalBefore": 26,
+      "emptyPageStatus": 200,
+      "emptyPageOrders": 0,
+      "totalAfter": 25,
+      "previousEnabledOnEmptyPage": true,
+      "previousRestoresOriginalPage": true,
+      "movedOrderAbsent": true,
+      "nextDisabledAfterReturn": true,
+      "emptyPageText": "ORDER OPERATIONS · NEXUS\n\nOrders\n\nReview Customer purchases from the Storefront.\n\nSearch Orders\nSearch\nOrder status\nAll\nPending\nPaid\nFulfilled\nCanceled\nPending refund requests\n\nMATCHING ORDERS\n\n25\n\nServer aggregate for current filters\n\nPENDING\n\n25\n\nPaid 0\n\nFULFILLED\n\n0\n\nCanceled 0\n\nOPEN REFUND REQUESTS\n\n0\n\nPending refund requests on matching Orders\n\nOrder results\n\nShowing 0–0 of 25 · Page 2\n\nPrevious\nNext\nNo Orders remain on this page.\n\nThe result set changed. Return to the previous or first page to review matching Orders.\n\nClear filters\nFirst page\n\nShowing 0–0 of 25 · Page 2\n\nPrevious\nNext",
+      "mobile": {
+        "width": 375,
+        "scrollWidth": 375
+      },
+      "scopeCopyCorrected": true,
+      "impossiblePageDenominatorRemoved": true
+    },
+    "sqlLiteralSearch": {
+      "status": 200,
+      "literalCustomerMatchedExactly": true,
+      "matchedOrders": 1,
+      "unrelatedQueryOrdersRetained": 26,
+      "schemaAndQueryStillUsable": true
+    },
+    "capabilityChannels": {
+      "validStatus": 200,
+      "wrongCapabilityStatus": 404,
+      "anonymousContextCookies": 0,
+      "networkRequests": 26,
+      "capabilityHeaderRequests": 6,
+      "capabilityInNetworkUrl": false,
+      "capabilityInReferrer": false,
+      "capabilityInBrowserDiagnostics": false,
+      "capabilityInRenderedFailure": false,
+      "capabilityOnlyOnExactPrivateEndpoint": true
+    },
+    "originMismatch": {
+      "configuredOrigin": "http://127.0.0.1:5241",
+      "visitedOrigin": "http://localhost:5241",
+      "sessionStatus": 401,
+      "signInStatus": 403,
+      "retryEnabled": true,
+      "privateOrdersHidden": true,
+      "originalCookieForwarded": false,
+      "externalGoogleRequests": 0
+    }
+  },
+  "verificationNotes": [
+    "The first full E2E run exposed reuse of a Staff session deliberately expired by the authentication suite. The recovery test now provisions a fresh fixture and returns to the original operator Owner; the full suite subsequently passed.",
+    "A wording/callback-only browser test was removed rather than repinned to new empty-state copy; browser count is now 79.",
+    "Non-fatal existing Vite native-loader and NO_COLOR/FORCE_COLOR warnings remain.",
+    "No commit, push, deployment or remote mutation was performed."
+  ]
+}
