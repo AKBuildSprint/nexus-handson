@@ -5,7 +5,7 @@ import { executeImportWrite } from '@nexus/catalog/import/import-write';
 import { parseCsvBytes } from '@nexus/catalog/import/csv-parser';
 import { validateCsvRows } from '@nexus/catalog/import/csv-validator';
 import template from '../fixtures/import/unified-template.csv?raw';
-import { resetCatalog } from '../support/catalog-test-env';
+import { getConsoleIdentity, resetCatalog } from '../support/catalog-test-env';
 
 function validation(source = template) {
   return validateCsvRows(parseCsvBytes(new TextEncoder().encode(source)).rows);
@@ -14,6 +14,7 @@ function validation(source = template) {
 async function commit(plan: ImportWritePlan, suffix: string) {
   return executeImportWrite({
     database: env.DB,
+    identity: await getConsoleIdentity(),
     plan,
     importId: `imp_exact_${suffix}`,
     filename: 'unified-template.csv',
@@ -26,7 +27,7 @@ describe('additive CSV exact match', () => {
   beforeEach(resetCatalog);
 
   it('plans all-new simple and Variant records, then re-imports with zero additions', async () => {
-    const first = await preflightExactMatch(env.DB, validation());
+    const first = await preflightExactMatch(env.DB, 'store_nexus', validation());
     expect(first.products).toHaveLength(2);
     expect(first.groups).toHaveLength(2);
     expect(first.values).toHaveLength(3);
@@ -36,7 +37,7 @@ describe('additive CSV exact match', () => {
     expect(firstResult.counts).toEqual({ added: 3, duplicate: 0, rejected: 0 });
 
     const before = await env.DB.prepare("SELECT revision, import_fingerprint FROM products WHERE slug='focus-pack'").first<{ revision: number; import_fingerprint: string }>();
-    const second = await preflightExactMatch(env.DB, validation());
+    const second = await preflightExactMatch(env.DB, 'store_nexus', validation());
     expect(second.variants).toHaveLength(0);
     const secondResult = await commit(second, 'second');
     expect(secondResult.counts).toEqual({ added: 0, duplicate: 3, rejected: 0 });
@@ -45,7 +46,7 @@ describe('additive CSV exact match', () => {
   });
 
   it('adds a missing new SKU and combination under an otherwise exact Product/schema', async () => {
-    await commit(await preflightExactMatch(env.DB, validation()), 'seed');
+    await commit(await preflightExactMatch(env.DB, 'store_nexus', validation()), 'seed');
     const light = await env.DB.prepare("SELECT id, product_id FROM product_variants WHERE sku='FOCUS-LIGHT'").first<{ id: string; product_id: string }>();
     if (!light) throw new Error('Seed Variant was not created.');
     await env.DB.batch([
@@ -53,7 +54,7 @@ describe('additive CSV exact match', () => {
       env.DB.prepare('DELETE FROM product_variant_values WHERE variant_id=?').bind(light.id),
       env.DB.prepare('DELETE FROM product_variants WHERE id=?').bind(light.id),
     ]);
-    const additive = await preflightExactMatch(env.DB, validation());
+    const additive = await preflightExactMatch(env.DB, 'store_nexus', validation());
     expect(additive.variants.map((variant) => variant.sku)).toEqual(['FOCUS-LIGHT']);
     const result = await commit(additive, 'additive');
     expect(result.counts).toEqual({ added: 1, duplicate: 2, rejected: 0 });
@@ -61,12 +62,12 @@ describe('additive CSV exact match', () => {
   });
 
   it('rejects SKU/combination reassignment without writing an update', async () => {
-    await commit(await preflightExactMatch(env.DB, validation()), 'identity-seed');
+    await commit(await preflightExactMatch(env.DB, 'store_nexus', validation()), 'identity-seed');
     const swapped = template
       .replace('FOCUS-DARK,,enabled,Theme,Dark', 'TEMP-SKU,,enabled,Theme,Dark')
       .replace('FOCUS-LIGHT,,enabled,Theme,Light', 'FOCUS-DARK,,enabled,Theme,Light')
       .replace('TEMP-SKU,,enabled,Theme,Dark', 'FOCUS-LIGHT,,enabled,Theme,Dark');
-    const conflict = await preflightExactMatch(env.DB, validation(swapped));
+    const conflict = await preflightExactMatch(env.DB, 'store_nexus', validation(swapped));
     expect(conflict.resultGroups.find((group) => group.productSlug === 'focus-pack')).toMatchObject({ outcome: 'rejected' });
     expect(conflict.variants).toHaveLength(0);
   });

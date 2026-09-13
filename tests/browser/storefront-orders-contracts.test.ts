@@ -2,6 +2,7 @@ import { act, createElement } from 'react';
 import type { ComponentType } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import '../../apps/storefront/src/styles.css';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -385,6 +386,69 @@ describe('Storefront Order contracts', () => {
     expect(container.textContent).toContain('Original stored reason');
     expect(container.textContent).toContain('Your request is pending. No refund has been issued.');
     expect(container.querySelector('#refund-reason')).toBeNull();
+  });
+
+  it('shows an approved refund as awaiting execution without claiming money moved', async () => {
+    window.history.replaceState({}, '', '/orders/NX-260827-ABCD#capability=opaque_capability_value_1234567890');
+    container.style.width = '375px';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(customerOrder({
+      status: 'paid',
+      paymentNextStep: null,
+      refundRequest: {
+        id: 'rr_approved',
+        status: 'approved',
+        reason: `Approved request ${'unbroken'.repeat(60)}`,
+        createdAt: '2026-08-27T13:00:00.000Z',
+        decidedAt: '2026-08-27T14:00:00.000Z',
+        decidedByUserId: 'private-owner-id',
+        internalHistory: 'private-history-sentinel',
+        paymentReference: 'private-payment-sentinel',
+        privateFileKey: 'private-file-sentinel',
+      },
+    }))));
+
+    await renderApp();
+
+    expect(container.textContent).toContain('Refund request approved');
+    expect(container.textContent).toContain('approved and is awaiting execution');
+    expect(container.textContent).toContain('No refund has been issued.');
+    expect(container.textContent).toContain('Decision recorded');
+    expect(container.querySelector('#refund-reason')).toBeNull();
+    expect(container.textContent).not.toContain('Send refund request');
+    expect(container.textContent).not.toContain('Refunded');
+    expect(container.textContent).not.toContain('money has been returned');
+    expect(container.textContent).not.toContain('private-owner-id');
+    expect(container.textContent).not.toContain('private-history-sentinel');
+    expect(container.textContent).not.toContain('private-payment-sentinel');
+    expect(container.textContent).not.toContain('private-file-sentinel');
+    expect(container.scrollWidth).toBeLessThanOrEqual(container.clientWidth);
+  });
+
+  it('shows a rejected refund truthfully without exposing decision internals', async () => {
+    window.history.replaceState({}, '', '/orders/NX-260827-ABCD#capability=opaque_capability_value_1234567890');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(customerOrder({
+      status: 'fulfilled',
+      paymentNextStep: null,
+      refundRequest: {
+        id: 'rr_rejected',
+        status: 'rejected',
+        reason: 'Stored customer reason',
+        createdAt: '2026-08-27T13:00:00.000Z',
+        decidedAt: '2026-08-27T14:30:00.000Z',
+        decidedByUserId: 'private-decider',
+        note: 'private-note',
+      },
+    }))));
+
+    await renderApp();
+
+    expect(container.textContent).toContain('Refund request rejected');
+    expect(container.textContent).toContain('Your refund request was rejected. No refund has been issued.');
+    expect(container.textContent).toContain('Decision recorded');
+    expect(container.querySelector('#refund-reason')).toBeNull();
+    expect(container.textContent).not.toContain('Send refund request');
+    expect(container.textContent).not.toContain('private-decider');
+    expect(container.textContent).not.toContain('private-note');
   });
 
   it('validates refund reason by Unicode code points', async () => {

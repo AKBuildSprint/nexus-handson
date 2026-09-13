@@ -1,7 +1,6 @@
 import { catalogFingerprint } from '../schema-change';
 import { canonicalCombination } from '../variant-matrix';
 import { normalizeComparisonKey } from '../slug';
-import { BOOTSTRAP_STORE_ID } from '../catalog-read';
 import type {
   CsvHeader,
   CsvImportGroupOutcome,
@@ -287,11 +286,11 @@ async function lookup<T>(database: D1Database, sql: string, payload: unknown): P
   return (await database.prepare(sql).bind(JSON.stringify(payload)).all<T>()).results;
 }
 
-export async function preflightExactMatch(database: D1Database, validation: CsvValidationResult): Promise<ImportWritePlan> {
+export async function preflightExactMatch(database: D1Database, storeId: string, validation: CsvValidationResult): Promise<ImportWritePlan> {
   const eligibleGroups = validation.groups.filter((group) => group.eligible);
   const slugs = eligibleGroups.map((group) => group.productSlug);
   const skus = eligibleGroups.flatMap((group) => group.rows.flatMap((row) => row.variant ? [row.variant.sku] : []));
-  const payload = { storeId: BOOTSTRAP_STORE_ID, slugs, skus };
+  const payload = { storeId, slugs, skus };
 
   const existingProducts = await lookup<ExistingProductRow>(database,
     `WITH input(payload) AS (VALUES (?))

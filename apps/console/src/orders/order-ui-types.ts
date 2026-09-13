@@ -1,5 +1,6 @@
 export type OrderStatus = 'pending' | 'paid' | 'fulfilled' | 'canceled';
-export type OrderCommandAction = 'cancel' | 'request_refund' | 'mark_paid' | 'fulfill';
+export type OrderCommandAction =
+  | 'assign' | 'cancel' | 'request_refund' | 'approve_refund' | 'reject_refund' | 'mark_paid' | 'fulfill';
 export type OrderHistoryAction =
   | 'order_created'
   | 'order_completed'
@@ -7,7 +8,10 @@ export type OrderHistoryAction =
   | 'order_paid'
   | 'order_fulfilled'
   | 'order_canceled'
-  | 'refund_requested';
+  | 'refund_requested'
+  | 'refund_approved'
+  | 'refund_rejected'
+  | 'assigned';
 export type OrderAuditSource = 'console' | 'customer_capability' | 'bootstrap_owner' | 'storefront' | 'user' | 'system';
 export type OrderStatusFilter = 'all' | OrderStatus;
 export type PaymentRecordState = 'none' | 'recorded' | 'legacy_unrecorded';
@@ -48,14 +52,19 @@ export interface ConsoleOrderView {
   totalMinor: number;
   currency: string;
   createdAt: string;
-  refundRequestStatus: 'pending' | null;
+  refundRequestStatus: 'pending' | 'approved' | 'rejected' | null;
 }
 
-export interface ConsoleOrderRefundRequestView {
+export interface RefundRequestView {
   id: string;
-  status: 'pending';
+  status: 'pending' | 'approved' | 'rejected';
   reason: string;
   createdAt: string;
+  decidedAt: string | null;
+}
+
+export interface ConsoleOrderRefundRequestView extends RefundRequestView {
+  decidedByUserId: string | null;
 }
 
 export interface ConsoleOrderHistoryView {
@@ -81,8 +90,11 @@ export interface PaymentLedgerView {
 }
 
 export interface ConsoleOrderDetailView extends ConsoleOrderView {
+  assignment?: { assigneeUserId: string } | null;
   refundRequest: ConsoleOrderRefundRequestView | null;
-  allowedActions: Array<'cancel' | 'mark_paid' | 'fulfill' | 'request_refund'>;
+  allowedActions: Array<
+    'cancel' | 'mark_paid' | 'fulfill' | 'request_refund' | 'approve_refund' | 'reject_refund'
+  >;
   history: ConsoleOrderHistoryView[];
   payment: PaymentLedgerView | null;
   paymentRecordState: PaymentRecordState;
@@ -114,13 +126,30 @@ export interface ConsoleOrderListResponse {
   hasOrders: boolean;
 }
 
-export interface OrderCommandResultView {
+interface OrderCommandResultBaseView {
   reference: string;
-  action: OrderCommandAction;
   status: OrderStatus;
   occurredAt: string;
+}
+
+export interface OrderTransitionCommandResultView extends OrderCommandResultBaseView {
+  action: Exclude<OrderCommandAction, 'assign'>;
   paymentId: string | null;
-  refundRequest: ConsoleOrderRefundRequestView | null;
+  refundRequest: RefundRequestView | null;
+}
+
+export interface OrderAssignmentCommandResultView extends OrderCommandResultBaseView {
+  action: 'assign';
+  paymentId: null;
+  refundRequest: null;
+  assignment: { assigneeUserId: string; eventId: string };
+}
+
+export type OrderCommandResultView = OrderTransitionCommandResultView | OrderAssignmentCommandResultView;
+
+export interface StaffCandidateView {
+  userId: string;
+  name: string;
 }
 
 export type ConsoleOrdersState = 'loading' | 'ready' | 'empty' | 'no-results' | 'error';

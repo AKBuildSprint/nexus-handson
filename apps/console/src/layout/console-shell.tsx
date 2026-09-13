@@ -7,6 +7,8 @@ interface ConsoleShellProps {
   activeDestination?: 'Products' | 'Orders';
   onOpenProducts: (trigger: HTMLElement) => boolean;
   onOpenOrders?: (trigger: HTMLElement) => boolean;
+  identity?: { userName: string; storeName: string; role: 'owner' | 'staff' };
+  onSignOut?: () => void;
 }
 
 export function ConsoleShell({
@@ -16,7 +18,10 @@ export function ConsoleShell({
   activeDestination = 'Products',
   onOpenProducts,
   onOpenOrders,
+  identity,
+  onSignOut,
 }: ConsoleShellProps) {
+  const sessionIdentity = identity ?? { userName: 'Nexus', storeName: 'Store', role: 'owner' as const };
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -54,7 +59,8 @@ export function ConsoleShell({
             <span>Operations Console</span>
           </div>
           <div className="console-role-pill">
-            <span>Viewing as Store operator</span>
+            <span>{sessionIdentity.storeName} · {sessionIdentity.role === 'owner' ? 'Owner' : 'Staff'}</span>
+            <span>Role: {sessionIdentity.role === 'owner' ? 'Owner' : 'Staff'}.</span>
           </div>
           <nav className="console-nav">
             <button
@@ -83,10 +89,11 @@ export function ConsoleShell({
               <span className="icon-glyph">person</span>
             </span>
             <div>
-              <div className="console-account-name">Nexus</div>
-              <div className="console-account-meta">Store operator</div>
+              <div className="console-account-name">{sessionIdentity.userName}</div>
+              <div className="console-account-meta">{sessionIdentity.storeName} · {sessionIdentity.role === 'owner' ? 'Owner' : 'Staff'}</div>
             </div>
           </div>
+          {onSignOut ? <button className="button" type="button" onClick={onSignOut}>Sign out</button> : null}
           {railNote ? <p className="console-rail-note">{railNote}</p> : null}
         </div>
       </aside>
@@ -105,6 +112,7 @@ export function ConsoleShell({
           <span className="console-avatar" aria-hidden="true">
             <span className="icon-glyph">person</span>
           </span>
+          {onSignOut ? <button className="button" type="button" onClick={onSignOut}>Sign out</button> : null}
         </div>
       </header>
 
@@ -151,6 +159,9 @@ export function ConsoleShell({
           <button className="button" type="button" onClick={closeMenu}>
             Close menu
           </button>
+          {onSignOut ? <button className="button" type="button" onClick={() => { closeMenu(); onSignOut(); }}>
+            Sign out
+          </button> : null}
         </nav>
       ) : null}
 

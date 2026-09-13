@@ -9,9 +9,19 @@ This repository is configured for public `workers.dev` teaching deployments. It 
 - **Apps** are runnable and deployable: [`apps/console`](./apps/console) (HTML/Vite), [`apps/worker`](./apps/worker) (HTTP adapters), [`apps/storefront`](./apps/storefront) (distinct-origin static app). Console and the API Worker share root [`wrangler.jsonc`](./wrangler.jsonc) and same-origin `/console` plus `/api`; Storefront keeps its own [`apps/storefront/wrangler.jsonc`](./apps/storefront/wrangler.jsonc).
 - **Packages** own business rules. [`packages/catalog`](./packages/catalog) owns products, CSV import, delivery files, and shared catalog contracts. [`packages/orders`](./packages/orders) owns Order reads, commands, command persistence, and transition rules. Worker composes both packages. Console consumes catalog only; Order UI types stay in the Console app. Storefront is HTTP-only. Orders may depend on catalog; catalog never depends on orders or apps; packages never depend on apps.
 - **Tests** (`tests/unit`, `tests/integration`, `tests/browser`, `tests/e2e`) are evidence by risk. `tests/fixtures` and `tests/support` stay helpers, not discovery roots.
-- **Migrations** are append-only D1 history. **Plans** hold decisions and contracts. **Docs** hold durable presentation knowledge. **Scripts** are operational verification tooling.
+- **Migrations** are append-only D1 history. **Scripts** are operational verification tooling.
 
-Root script names stay in [`package.json`](./package.json). Console Vite is [`apps/console/vite.config.ts`](./apps/console/vite.config.ts) and must keep the Cloudflare plugin on root Wrangler with repo-root `.wrangler` state. Storefront Vite is [`apps/storefront/vite.config.ts`](./apps/storefront/vite.config.ts).
+Console Vite is [`apps/console/vite.config.ts`](./apps/console/vite.config.ts) and must keep the Cloudflare plugin on root Wrangler with repo-root `.wrangler` state. Storefront Vite is [`apps/storefront/vite.config.ts`](./apps/storefront/vite.config.ts).
+
+## Where authority lives
+
+This README is the root route for both people and AI collaborators. Follow these authorities instead of treating stateful evidence as evergreen guidance.
+
+- **Process, evergreen.** [`AGENTS.md`](./AGENTS.md) is canonical for anyone editing this repository and routes contributors to any scoped local constraints.
+- **Presentation, evergreen.** [`docs/design-guidelines.md`](./docs/design-guidelines.md) holds the durable presentation reasoning and names the style files that carry the executable token values.
+- **Console authentication and operations, evergreen.** [`docs/google-console-login.md`](./docs/google-console-login.md) holds Google client configuration, provisioning inputs, and the membership rule that authorizes a signed-in person.
+- **Intent, decisions, and evidence, stateful.** Root `session-N-brief.md` files scope the S1–S6 sessions this README refers to, while [`plans`](./plans) and [`design`](./design) hold phase contracts, acceptance, reviews, runbooks, and captured evidence. Each records what was accepted or observed when it was written, so confirm it against code and live state before treating it as current.
+- **Behavior, executable.** [`apps`](./apps) and [`packages`](./packages) own what the product does, [`package.json`](./package.json) owns command and toolchain identity, and [`wrangler.jsonc`](./wrangler.jsonc) with [`apps/storefront/wrangler.jsonc`](./apps/storefront/wrangler.jsonc) own platform configuration. Where this README and those files disagree, those files are correct.
 
 ## Current Order scope
 
@@ -22,7 +32,7 @@ Two references stay distinct:
 - Internal `paymentReference` (`NP-…`): stable expected-payment identity created with the Order. Searchable and Customer-safe. Not bank-transaction evidence.
 - Console-only `payments.external_reference`: Owner-supplied evidence of money received outside Nexus. Never fabricated for legacy rows.
 
-Refunds are **pending requests only**. The Customer private page and Console-on-behalf path share one open request. Copy never says the money was returned. Approve, Reject, and Execute remain S4. S5 must not auto-return money for `legacy_unrecorded` paid Orders that lack original payment evidence.
+Each Order has one final Refund Request lifecycle: **pending**, **approved**, or **rejected**. Customers and the Console-on-behalf path share that request; only an authenticated Owner can make the final Approve/Reject decision. Approval records intent and never claims that money moved. Refund execution remains S5, which must not auto-return money for `legacy_unrecorded` paid Orders that lack original payment evidence.
 
 Legacy `completed` rows map to **paid** without invented payments or fulfill events. Console shows `paymentRecordState: legacy_unrecorded` when no payments row exists.
 
@@ -30,7 +40,7 @@ Every live Order GET/POST requires `X-Nexus-Order-Contract: 2`. Missing or other
 
 Order code lives in `packages/orders`: reads in [`queries/order-read.ts`](./packages/orders/src/queries/order-read.ts); create and command orchestration in [`commands/order-write.ts`](./packages/orders/src/commands/order-write.ts) and [`commands/order-commands.ts`](./packages/orders/src/commands/order-commands.ts); D1 ledger, result, batch, and recovery helpers in [`persistence/command-store.ts`](./packages/orders/src/persistence/command-store.ts); pure actor and eligibility rules in [`transitions/order-transitions.ts`](./packages/orders/src/transitions/order-transitions.ts). Types, validation, and [`private-access.ts`](./packages/orders/src/private-access.ts) stay at the package src root. Commands may import persistence and transitions; those two layers must not import each other. Create-time item snapshots come from [`packages/catalog/src/private-order-snapshot.ts`](./packages/catalog/src/private-order-snapshot.ts) so live catalog and delivery identity are not re-read into Customer output. Persist each create/command through one D1 `batch`; do not replace that with sequential independent writes.
 
-Console Order actions remain an **anonymous bootstrap demo**: a server-assigned bootstrap actor, not authenticated Owner access. S4 owns membership and the evaluator seam. Do not describe this slice as real authorization. S3 decisions are recorded in the [reconciliation plan](./plans/260908-1845-s3-brief-reconciliation/plan.md#confirmed-decisions), with continuity and handoff requirements in its [acceptance phase](./plans/260908-1845-s3-brief-reconciliation/phase-06-acceptance-and-deployed-continuity.md). S4 owns refund Approve/Reject; S5 owns verified payment ingress and money return, including no auto-return for `legacy_unrecorded`.
+The checked-out Console requires a prebound Google identity plus one active Nexus Store membership. Owners can manage the Store; Staff see Products read-only and can work only assigned Orders. Google authenticates the account while Nexus memberships remain the authorization source. See [Google Console login](./docs/google-console-login.md) for local configuration and provisioning inputs. Storefront public routes remain anonymous and Customer Order routes retain their exact bearer capability. This is locally verified behavior; no remote migration, provisioning, deployment, real Google consent, or smoke result is claimed. S5 owns verified payment ingress and money return, including no auto-return for `legacy_unrecorded`.
 
 ## Requirements
 
@@ -69,6 +79,7 @@ VITE_STOREFRONT_API_BASE_URL=http://127.0.0.1:5173 npm run dev:storefront -- --h
 ```sh
 npm run typecheck
 npm run test:unit
+npm run verification:s4-rehearsal:test
 npm run test:integration
 npm run test:browser
 npm run test:e2e
@@ -122,7 +133,7 @@ Do not create replacement resources when an identity is absent or ambiguous. Res
 Use confirmed values for `$D1_DATABASE_NAME`, `$STOREFRONT_WORKER_NAME`, and the two exact deployed HTTPS origins below; do not construct or guess a Worker origin. Deployment order is dependency-bearing:
 
 ```sh
-# 1. After proven prior-writer quiescence, apply pending D1 migrations (0006 Order graph, 0007 payments) to the existing database. Never rewrite applied 0001–0005. A rehearsal export taken while traffic is live is not the rollback checkpoint.
+# 1. After proven prior-writer quiescence and an authorized checkpoint, apply pending append-only migrations through 0011 to the existing database. Never rewrite applied migrations. An export taken while traffic is live is not the rollback checkpoint.
 npx wrangler d1 migrations apply "$D1_DATABASE_NAME" --remote
 
 # 2. Build/deploy Storefront against the exact existing API origin; capture its returned origin.
@@ -132,15 +143,19 @@ VITE_STOREFRONT_API_BASE_URL="$EXACT_API_ORIGIN" npm run deploy:storefront -- "$
 npm run deploy:console -- "STOREFRONT_ORIGIN:$EXACT_STOREFRONT_ORIGIN"
 ```
 
-[`migrations/0004-orders.sql`](./migrations/0004-orders.sql) introduced Orders after S1 catalog migrations. [`migrations/0006-order-brief-contract.sql`](./migrations/0006-order-brief-contract.sql) and [`migrations/0007-manual-payments.sql`](./migrations/0007-manual-payments.sql) are the S3 append-only follow-ons. Never rewrite an applied migration. The Storefront build-time `VITE_STOREFRONT_API_BASE_URL` and API Worker runtime `STOREFRONT_ORIGIN` are opposite sides of the two-origin contract. Each value must be an origin only, with no credentials, path, query, or fragment. The deploy arguments above are values appended to the scripts' existing `--name` and `--var` options in [`package.json`](./package.json).
+[`migrations/0008-better-auth.sql`](./migrations/0008-better-auth.sql), [`migrations/0009-store-memberships.sql`](./migrations/0009-store-memberships.sql), and [`migrations/0010-refund-decisions.sql`](./migrations/0010-refund-decisions.sql) are the S4 schema. [`migrations/0011-google-account-binding-uniqueness.sql`](./migrations/0011-google-account-binding-uniqueness.sql) enforces one Nexus user per Google subject and one Google subject per Nexus user. Never rewrite an applied migration. The Storefront build-time `VITE_STOREFRONT_API_BASE_URL` and API Worker runtime `STOREFRONT_ORIGIN` are opposite sides of the two-origin contract. Each value must be an origin only, with no credentials, path, query, or fragment. The deploy arguments above are values appended to the scripts' existing `--name` and `--var` options in [`package.json`](./package.json).
 
-Remote Order cutover is a breaking API/body/state change. Do not infer a `workers.dev` hostname from the Worker name. Do not apply 0006/0007 remotely without an observable drain or rehearsed write barrier, an abort deadline, and an authorized checkpoint. If that condition cannot be proven, restore ordinary serving and stop before schema mutation.
+Remote S4 cutover changes authentication, API authorization, and schema state together. Do not infer a `workers.dev` hostname from the Worker name. Do not apply 0008–0011 remotely without an observable drain or rehearsed write barrier, an abort deadline, and an authorized checkpoint. Follow the unexecuted [S4 remote runbook](./plans/260911-1753-nexus-s4-identity-store-isolation/reports/remote-runbook.md). If that condition cannot be proven, restore ordinary serving and stop before schema mutation.
 
 There is intentionally no generic deploy wrapper. Root [`wrangler.jsonc`](./wrangler.jsonc) and [`apps/storefront/wrangler.jsonc`](./apps/storefront/wrangler.jsonc) keep `workers_dev: true` and `preview_urls: false`; only the API Worker binds D1/R2 and routes `/api` Worker-first.
 
 No deployment is claimed by this README. A controller must capture both returned `*.workers.dev` origins and run the remote gates before reporting deployment success.
 
-## Remote smoke and private fixtures
+## S4 remote preparation
+
+S4 uses the dry-run-first `verification:s4-fixtures`, `provision:s4-identities`, and `verification:s4-remote:smoke` commands plus the named `s4-provisioning` binding environment for local validation and remote-input validation only. Remote cutover is blocked because remote identity provisioning and authenticated S4 smoke apply are not implemented or reviewed. The [S4 remote runbook](./plans/260911-1753-nexus-s4-identity-store-isolation/reports/remote-runbook.md) records a future procedure and stop conditions; it is not an executable cutover awaiting authorization.
+
+## Legacy S1 remote smoke and private fixtures
 
 Create a unique lowercase verification prefix and initialize the ignored private fixture manifest. `$EXACT_API_ORIGIN` must be the exact deployed API/Console HTTPS origin captured from Wrangler, not a constructed hostname:
 
@@ -190,8 +205,8 @@ Cleanup must never use a broad name or R2 prefix sweep. Preserve non-fixture row
 
 ## Accepted public risk
 
-Console catalog and Order routes remain intentionally anonymous through this teaching slice. Anonymous visitors can mutate catalog state, create Storefront Orders, record manual payments, fulfill, cancel, submit refund requests, view Customer/Order projections, and consume Worker, D1, and R2 quota; input bounds mitigate but do not remove abuse risk. This is not authenticated Owner access.
+The checked-out Console catalog and Order routes require authenticated Store membership. Storefront catalog and Order creation remain public, while Customer Order access uses the bearer capability. Input bounds mitigate public quota abuse but do not remove it.
 
 The Storefront's private Order capability remains only in the URL fragment and explicit API header. It is still a bearer secret: never log, publish, paste, or share a private Order URL or raw capability. Neither surface may expose delivery configuration, private object identity, the raw capability, or Console-only external payment evidence in public Customer output.
 
-These public `workers.dev` surfaces are anonymous demos, not a custom-domain, business-critical production, payment, or security claim. Real identity and permissions are S4. Automated payment verification and money return are S5. Receipts and MCP are S6.
+The current remote `workers.dev` deployment has not been migrated or smoke-tested in this work, so it may still expose the earlier anonymous Console behavior. Do not treat local S4 evidence as a remote security claim. Automated payment verification and money return are S5. Receipts and MCP are S6.

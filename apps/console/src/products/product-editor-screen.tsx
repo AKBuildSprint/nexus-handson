@@ -19,6 +19,7 @@ interface ProductEditorScreenProps {
     groups: ProductEditorFixture['groups'],
     variants: ProductEditorFixture['variants'],
   ) => Promise<ProductEditorFixture['variants'] | void>;
+  onSessionExpired?: () => void;
 }
 
 type FieldName = 'name' | 'basePrice' | 'currency' | 'accessTitle' | 'accessInstructions';
@@ -84,6 +85,7 @@ export function ProductEditorScreen({
   onPendingProductFileChange,
   onPendingVariantFileChange,
   onSchemaPreview,
+  onSessionExpired,
 }: ProductEditorScreenProps) {
   const [product, setProduct] = useState(() => cloneProduct(scenario.product));
   const productRef = useRef(product);
@@ -156,7 +158,10 @@ export function ProductEditorScreen({
   const regenerateSchema = useCallback((
     groups: ProductEditorFixture['groups'],
     variants: ProductEditorFixture['variants'],
-  ) => onSchemaPreview?.({ ...product, groups, variants }, groups, variants) ?? Promise.resolve(), [onSchemaPreview, product]);
+  ) => (onSchemaPreview?.({ ...product, groups, variants }, groups, variants) ?? Promise.resolve()).catch((error: unknown) => {
+    if (error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied')) onSessionExpired?.();
+    throw error;
+  }), [onSchemaPreview, onSessionExpired, product]);
 
 
   const validateOne = (field: FieldName) => {
@@ -196,6 +201,10 @@ export function ProductEditorScreen({
       setSaved(true);
       setFileResetKey((current) => current + 1);
     } catch (error) {
+      if (error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied')) {
+        onSessionExpired?.();
+        return;
+      }
       if (error instanceof ConsoleApiError) {
         setServerFieldErrors(error.fields.map((field) => ({ path: field.path, message: field.message })));
         const serverErrors: FieldErrors = {};

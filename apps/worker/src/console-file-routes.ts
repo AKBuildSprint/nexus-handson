@@ -5,6 +5,9 @@ import {
   putDeliveryFile,
 } from '@nexus/catalog/files/delivery-file';
 import { jsonError, jsonResponse } from './http-response';
+import type { ConsoleRequestContext } from './auth';
+import { evaluatePermission } from '@nexus/identity/permissions';
+import { CatalogReadAccessError, readProductRevision } from '@nexus/catalog/catalog-read';
 
 function revisionFromHeader(request: Request): number {
   const match = /^"([1-9]\d*)"$/.exec(request.headers.get('If-Match') ?? '');
@@ -25,6 +28,7 @@ function decoded(value: string): string | null {
 export async function routeConsoleFileRequest(
   request: Request,
   env: Pick<Cloudflare.Env, 'DB' | 'FILES'>,
+  context: ConsoleRequestContext,
 ): Promise<Response | null> {
   const path = new URL(request.url).pathname;
   const variantMatch = /^\/api\/console\/products\/([^/]+)\/variants\/([^/]+)\/delivery-file$/.exec(path);
@@ -35,6 +39,13 @@ export async function routeConsoleFileRequest(
   if (productId === null) return jsonError(404, 'product_not_found', 'Product not found.');
   if (variantMatch && variantId === null) return jsonError(404, 'variant_not_found', 'Variant not found.');
   try {
+    if (await readProductRevision(env.DB, context.identity, productId) === null) {
+      return jsonError(404, 'product_not_found', 'Product not found.');
+    }
+    const action = request.method === 'DELETE' ? 'catalog:remove' : 'catalog:file:write';
+    if (!evaluatePermission(context.identity, action, { storeId: context.store.id })) {
+      return jsonError(403, 'forbidden', 'You do not have permission to change delivery files.');
+    }
     const expectedRevision = revisionFromHeader(request);
     if (request.method === 'PUT') {
       if (request.headers.get('Content-Type')?.toLowerCase() !== 'application/octet-stream') {
@@ -43,6 +54,7 @@ export async function routeConsoleFileRequest(
       const result = await putDeliveryFile({
         db: env.DB,
         files: env.FILES,
+        identity: context.identity,
         productId,
         variantId,
         expectedRevision,
@@ -57,11 +69,12 @@ export async function routeConsoleFileRequest(
       if (contentLength !== null && contentLength !== '0') {
         throw new DeliveryFileError(422, 'validation_failed', 'Delivery file DELETE requests must not include a body.');
       }
-      const result = await deleteDeliveryFile({ db: env.DB, productId, variantId, expectedRevision });
+      const result = await deleteDeliveryFile({ db: env.DB, identity: context.identity, productId, variantId, expectedRevision });
       return jsonResponse(result, { headers: { ETag: `"${result.revision}"` } });
     }
     return null;
   } catch (error) {
+    if (error instanceof CatalogReadAccessError) return jsonError(403, 'store_access_denied', 'Current Store access is required.');
     if (error instanceof DeliveryFileError) return jsonError(error.status, error.code, error.message, [], error.incidentId);
     return jsonError(500, 'persistence_failed', 'The delivery file operation could not be completed.', [], crypto.randomUUID());
   }

@@ -1,5 +1,5 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
-import { relative, resolve, sep } from 'node:path';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cloudflare } from '@cloudflare/vite-plugin';
 import react from '@vitejs/plugin-react';
@@ -7,6 +7,18 @@ import { defineConfig, type Plugin } from 'vite';
 
 const consoleRoot = fileURLToPath(new URL('.', import.meta.url));
 const projectRoot = resolve(consoleRoot, '../..');
+
+function localPersistStatePath(): string {
+  const configured = process['env'].NEXUS_TEST_PERSIST_ROOT;
+  if (configured === undefined) return resolve(projectRoot, '.wrangler/state');
+  if (!isAbsolute(configured)) throw new TypeError('NEXUS_TEST_PERSIST_ROOT must be an absolute path.');
+  const wranglerRoot = resolve(projectRoot, '.wrangler');
+  const relativePath = relative(wranglerRoot, resolve(configured));
+  if (relativePath === '' || relativePath === '..' || relativePath.startsWith(`..${sep}`)) {
+    throw new TypeError('NEXUS_TEST_PERSIST_ROOT must be an isolated directory under the repository .wrangler directory.');
+  }
+  return resolve(configured);
+}
 
 function productionImportGraph(): Plugin {
   const metadataDirectory = resolve(projectRoot, '.nexus-build');
@@ -52,7 +64,7 @@ export default defineConfig({
   plugins: [
     cloudflare({
       configPath: resolve(projectRoot, 'wrangler.jsonc'),
-      persistState: { path: resolve(projectRoot, '.wrangler/state') },
+      persistState: { path: localPersistStatePath() },
     }),
     react(),
     productionImportGraph(),

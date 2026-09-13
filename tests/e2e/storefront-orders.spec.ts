@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
+import { type Locator, type Page } from '@playwright/test';
+import { expect, test } from '../support/console-auth-fixtures';
 
 const CONSOLE_ORIGIN = process.env.PLAYWRIGHT_API_CONSOLE_BASE_URL ?? 'http://127.0.0.1:5173';
 const STOREFRONT_ORIGIN = process.env.PLAYWRIGHT_STOREFRONT_BASE_URL ?? 'http://127.0.0.1:5174';
@@ -28,6 +29,12 @@ interface CustomerOrderResponse {
 
 function uniqueToken(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function testPersistRoot(): string {
+  const value = process['env'].NEXUS_TEST_PERSIST_ROOT;
+  if (!value) throw new Error('Missing required local E2E setting: NEXUS_TEST_PERSIST_ROOT.');
+  return value;
 }
 
 function visibleSave(page: Page) {
@@ -60,6 +67,7 @@ async function completeOrder(page: Page, reference: string) {
       Accept: 'application/json',
       'Content-Type': 'application/json',
       'Idempotency-Key': crypto.randomUUID(),
+      Origin: CONSOLE_ORIGIN,
       'X-Nexus-Order-Contract': '2',
     },
     data: { method: 'Bank transfer', reference: `WIRE-${reference.slice(-8)}` },
@@ -73,6 +81,7 @@ async function cancelOrder(page: Page, reference: string) {
       Accept: 'application/json',
       'Content-Type': 'application/json',
       'Idempotency-Key': crypto.randomUUID(),
+      Origin: CONSOLE_ORIGIN,
       'X-Nexus-Order-Contract': '2',
     },
     data: {},
@@ -191,25 +200,6 @@ async function tabUntilFocused(page: Page, locator: Locator, limit = 40) {
   await expect(locator).toBeFocused();
 }
 
-async function redactVisibleEmails(page: Page) {
-  await page.evaluate(() => {
-    for (const node of document.querySelectorAll('body *')) {
-      if (!node.childElementCount && /@/.test(node.textContent ?? '')) {
-        node.textContent = '[redacted-email]';
-      }
-    }
-    for (const field of document.querySelectorAll('input, textarea')) {
-      if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) continue;
-      if (/@/.test(field.value)) field.value = '[redacted-email]';
-    }
-  });
-}
-
-async function capturePage(page: Page, locator: Locator, testInfo: TestInfo, filename: string) {
-  await redactVisibleEmails(page);
-  await locator.screenshot({ path: testInfo.outputPath(filename) });
-}
-
 async function addCatalogLine(page: Page, input: { productName: string; quantity: string; variantLabel?: string }) {
   const product = page.locator('.catalog-row').filter({ hasText: input.productName });
   await expect(product).toBeVisible();
@@ -236,7 +226,7 @@ function queryLocalOrderGraph(reference: string): {
     FROM orders o WHERE o.reference = '${reference}'`;
   const output = execFileSync('npx', [
     'wrangler', 'd1', 'execute', 'nexus-s1-468cba-db',
-    '--local', '--config', 'wrangler.jsonc', '--json', '--command', sql,
+    '--local', '--persist-to', testPersistRoot(), '--config', 'wrangler.jsonc', '--json', '--command', sql,
   ], { encoding: 'utf8' });
   const parsed = JSON.parse(output.slice(output.indexOf('['))) as Array<{ results: Array<Record<string, unknown>> }>;
   const row = parsed[0]?.results[0];
@@ -303,22 +293,21 @@ async function placeOrder(
   return { body, capability, observedUrls };
 }
 
-test('creates a Simple Order with server authority, fragment-only private reload, and catalog visibility refetch', async ({ page, context }) => {
+test('creates a Simple Order with server authority, fragment-only private reload, and catalog visibility refetch', async ({ page, consoleOwnerPage }) => {
   const token = uniqueToken();
   const initialName = `Verify E2E Simple ${token}`;
   const editedName = `${initialName} Edited`;
-  const editorPath = await createSimpleProduct(page, initialName);
+  const editorPath = await createSimpleProduct(consoleOwnerPage, initialName);
 
   await page.goto(STOREFRONT_ORIGIN);
+  expect((await page.context().cookies(CONSOLE_ORIGIN)).filter((cookie) => cookie.name.endsWith('better-auth.session_token'))).toHaveLength(0);
   await expect(page.locator('.catalog-row').filter({ hasText: initialName })).toBeVisible();
 
-  const consolePage = await context.newPage();
-  await consolePage.bringToFront();
-  await consolePage.goto(`${CONSOLE_ORIGIN}${editorPath}`);
-  await expect(consolePage.getByLabel('Product name')).toHaveValue(initialName);
-  await consolePage.getByLabel('Product name').fill(editedName);
-  await visibleSave(consolePage).click();
-  await expect(consolePage.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
+  await consoleOwnerPage.goto(`${CONSOLE_ORIGIN}${editorPath}`);
+  await expect(consoleOwnerPage.getByLabel('Product name')).toHaveValue(initialName);
+  await consoleOwnerPage.getByLabel('Product name').fill(editedName);
+  await visibleSave(consoleOwnerPage).click();
+  await expect(consoleOwnerPage.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
 
   const catalogRefresh = page.waitForResponse((response) => {
     const url = new URL(response.url());
@@ -327,8 +316,6 @@ test('creates a Simple Order with server authority, fragment-only private reload
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   expect((await catalogRefresh).ok()).toBe(true);
   await expect(page.locator('.catalog-row').filter({ hasText: editedName })).toBeVisible();
-  await consolePage.close();
-
   const order = await placeOrder(page, { productName: editedName, quantity: '2' });
   expect(order.body.items[0].product.variant === null).toBe(true);
   expect(order.body.items[0].quantity).toBe(2);
@@ -337,22 +324,22 @@ test('creates a Simple Order with server authority, fragment-only private reload
   expect(order.body.currency).toBe('USD');
 
   const driftedName = `${editedName} Drift`;
-  await page.goto(`${CONSOLE_ORIGIN}${editorPath}`);
-  await expect(page.getByLabel('Product name')).toHaveValue(editedName);
-  await page.getByLabel('Product name').fill(driftedName);
-  await visibleSave(page).click();
-  await expect(page.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
-  await page.goto(`${CONSOLE_ORIGIN}/console/orders/${order.body.reference}`);
-  await expect(page.getByRole('heading', { name: order.body.reference })).toBeVisible();
-  await expect(page.locator('.order-items-table')).toContainText(editedName);
-  await expect(page.locator('.order-items-table')).not.toContainText(driftedName);
+  await consoleOwnerPage.goto(`${CONSOLE_ORIGIN}${editorPath}`);
+  await expect(consoleOwnerPage.getByLabel('Product name')).toHaveValue(editedName);
+  await consoleOwnerPage.getByLabel('Product name').fill(driftedName);
+  await visibleSave(consoleOwnerPage).click();
+  await expect(consoleOwnerPage.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
+  await consoleOwnerPage.goto(`${CONSOLE_ORIGIN}/console/orders/${order.body.reference}`);
+  await expect(consoleOwnerPage.getByRole('heading', { name: order.body.reference })).toBeVisible();
+  await expect(consoleOwnerPage.locator('.order-items-table')).toContainText(editedName);
+  await expect(consoleOwnerPage.locator('.order-items-table')).not.toContainText(driftedName);
 });
 
 
-test('creates an enabled Variant Order and keeps the 375px catalog and private Order within the viewport', async ({ page }) => {
+test('creates an enabled Variant Order and keeps the 375px catalog and private Order within the viewport', async ({ page, consoleOwnerPage }) => {
   const token = uniqueToken();
   const productName = `Verify E2E Variant ${token}`;
-  await createVariantProduct(page, productName, token);
+  await createVariantProduct(consoleOwnerPage, productName, token);
 
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto(STOREFRONT_ORIGIN);
@@ -370,21 +357,21 @@ test('creates an enabled Variant Order and keeps the 375px catalog and private O
   await expectNoHorizontalOverflow(page, 375);
 });
 
-test('does not show a refund form on pending or cancelled private Orders', async ({ page }) => {
+test('does not show a refund form on pending or cancelled private Orders', async ({ page, consoleOwnerPage }) => {
   const paidName = `Verify E2E Pending ${uniqueToken()}`;
   const zeroName = `Verify E2E Pending Zero ${uniqueToken()}`;
-  await createSimpleProduct(page, paidName);
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto(`${CONSOLE_ORIGIN}/console/products/new`);
-  await fillRequiredProduct(page, zeroName, '0.00');
-  await visibleSave(page).click();
-  await expect(page.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
+  await createSimpleProduct(consoleOwnerPage, paidName);
+  await consoleOwnerPage.setViewportSize({ width: 1280, height: 900 });
+  await consoleOwnerPage.goto(`${CONSOLE_ORIGIN}/console/products/new`);
+  await fillRequiredProduct(consoleOwnerPage, zeroName, '0.00');
+  await visibleSave(consoleOwnerPage).click();
+  await expect(consoleOwnerPage.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
 
   await page.goto(STOREFRONT_ORIGIN);
   const pendingPaid = await placeOrder(page, { productName: paidName, quantity: '1' });
   expect(pendingPaid.body.totalMinor).toBeGreaterThan(0);
   await expect(page.getByLabel('Reason for refund request')).toHaveCount(0);
-  await cancelOrder(page, pendingPaid.body.reference);
+  await cancelOrder(consoleOwnerPage, pendingPaid.body.reference);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.getByText('This Order has been canceled.')).toBeVisible();
   await expect(page.getByLabel('Reason for refund request')).toHaveCount(0);
@@ -393,18 +380,18 @@ test('does not show a refund form on pending or cancelled private Orders', async
   await page.goto(STOREFRONT_ORIGIN);
   const pendingZero = await placeOrder(page, { productName: zeroName, quantity: '1' });
   expect(pendingZero.body.totalMinor).toBe(0);
-  await cancelOrder(page, pendingZero.body.reference);
+  await cancelOrder(consoleOwnerPage, pendingZero.body.reference);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.getByText('This Order has been canceled.')).toBeVisible();
   await expect(page.getByLabel('Reason for refund request')).toHaveCount(0);
 });
 
-test('requests a refund on completed zero and paid Orders without overflowing 375px', async ({ page }) => {
+test('requests a refund on completed zero and paid Orders without overflowing 375px', async ({ page, consoleOwnerPage }) => {
   const paidName = `Verify E2E Refund Paid ${uniqueToken()}`;
-  await createSimpleProduct(page, paidName);
+  await createSimpleProduct(consoleOwnerPage, paidName);
   await page.goto(STOREFRONT_ORIGIN);
   const paid = await placeOrder(page, { productName: paidName, quantity: '1' });
-  await completeOrder(page, paid.body.reference);
+  await completeOrder(consoleOwnerPage, paid.body.reference);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.getByText('This Order is paid. This page does not deliver files or pay out a refund.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Payment next step' })).toHaveCount(0);
@@ -425,15 +412,15 @@ test('requests a refund on completed zero and paid Orders without overflowing 37
   await expect(page.getByLabel('Reason for refund request')).toHaveCount(0);
 
   const zeroName = `Verify E2E Refund Zero ${uniqueToken()}`;
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto(`${CONSOLE_ORIGIN}/console/products/new`);
-  await fillRequiredProduct(page, zeroName, '0.00');
-  await visibleSave(page).click();
-  await expect(page.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
+  await consoleOwnerPage.setViewportSize({ width: 1280, height: 900 });
+  await consoleOwnerPage.goto(`${CONSOLE_ORIGIN}/console/products/new`);
+  await fillRequiredProduct(consoleOwnerPage, zeroName, '0.00');
+  await visibleSave(consoleOwnerPage).click();
+  await expect(consoleOwnerPage.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
   await page.goto(STOREFRONT_ORIGIN);
   const zero = await placeOrder(page, { productName: zeroName, quantity: '1' });
   expect(zero.body.totalMinor).toBe(0);
-  await completeOrder(page, zero.body.reference);
+  await completeOrder(consoleOwnerPage, zero.body.reference);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.getByLabel('Reason for refund request')).toBeVisible();
   await page.setViewportSize({ width: 375, height: 812 });
@@ -443,12 +430,12 @@ test('requests a refund on completed zero and paid Orders without overflowing 37
   await expectNoHorizontalOverflow(page, 375);
 });
 
-test('canonicalizes a two-line refund reason and shows it on the Console pending filter', async ({ page }) => {
+test('canonicalizes a two-line refund reason and shows it on the Console pending filter', async ({ page, consoleOwnerPage }) => {
   const name = `Verify E2E Reason ${uniqueToken()}`;
-  await createSimpleProduct(page, name);
+  await createSimpleProduct(consoleOwnerPage, name);
   await page.goto(STOREFRONT_ORIGIN);
   const placed = await placeOrder(page, { productName: name, quantity: '1' });
-  await completeOrder(page, placed.body.reference);
+  await completeOrder(consoleOwnerPage, placed.body.reference);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.getByLabel('Reason for refund request')).toBeVisible();
 
@@ -465,23 +452,23 @@ test('canonicalizes a two-line refund reason and shows it on the Console pending
   await expect(page.getByText(canonical, { exact: true })).toBeVisible();
   await expect(page.getByLabel('Reason for refund request')).toHaveCount(0);
 
-  await page.goto(`${CONSOLE_ORIGIN}/console/orders`);
-  await page.getByLabel('Search Orders').fill(placed.body.reference);
-  await page.getByRole('button', { name: 'Search' }).click();
-  await page.getByLabel('Pending refund requests').check();
-  await expect(page.getByRole('link', { name: placed.body.reference })).toBeVisible();
-  await page.getByRole('link', { name: placed.body.reference }).click();
-  await expect(page.getByRole('heading', { name: placed.body.reference })).toBeVisible();
-  await expect(page.getByText(canonical, { exact: true })).toBeVisible();
-  await expect(page.getByText('Refund request pending').first()).toBeVisible();
+  await consoleOwnerPage.goto(`${CONSOLE_ORIGIN}/console/orders`);
+  await consoleOwnerPage.getByLabel('Search Orders').fill(placed.body.reference);
+  await consoleOwnerPage.getByRole('button', { name: 'Search' }).click();
+  await consoleOwnerPage.getByLabel('Pending refund requests').check();
+  await expect(consoleOwnerPage.getByRole('link', { name: placed.body.reference })).toBeVisible();
+  await consoleOwnerPage.getByRole('link', { name: placed.body.reference }).click();
+  await expect(consoleOwnerPage.getByRole('heading', { name: placed.body.reference })).toBeVisible();
+  await expect(consoleOwnerPage.getByText(canonical, { exact: true })).toBeVisible();
+  await expect(consoleOwnerPage.getByText('Refund request pending').first()).toBeVisible();
 });
 
-test('retries a committed refund after response loss without a second D1 row', async ({ page }) => {
+test('retries a committed refund after response loss without a second D1 row', async ({ page, consoleOwnerPage }) => {
   const name = `Verify E2E Refund Loss ${uniqueToken()}`;
-  await createSimpleProduct(page, name);
+  await createSimpleProduct(consoleOwnerPage, name);
   await page.goto(STOREFRONT_ORIGIN);
   const placed = await placeOrder(page, { productName: name, quantity: '1' });
-  await completeOrder(page, placed.body.reference);
+  await completeOrder(consoleOwnerPage, placed.body.reference);
   await page.reload({ waitUntil: 'domcontentloaded' });
 
   const keys: string[] = [];
@@ -521,29 +508,27 @@ test('retries a committed refund after response loss without a second D1 row', a
   expect(queryLocalOrderGraph(placed.body.reference)).toEqual(afterCommit);
 });
 
-test('reaches the refund textarea by keyboard on 375px without overflow', async ({ page }, testInfo) => {
+test('reaches the refund textarea by keyboard on 375px without overflow', async ({ page, consoleOwnerPage }) => {
   const name = `Verify E2E Keys ${uniqueToken()}`;
-  await createSimpleProduct(page, name);
+  await createSimpleProduct(consoleOwnerPage, name);
   await page.goto(STOREFRONT_ORIGIN);
   const placed = await placeOrder(page, { productName: name, quantity: '1' });
-  await completeOrder(page, placed.body.reference);
+  await completeOrder(consoleOwnerPage, placed.body.reference);
   await page.setViewportSize({ width: 375, height: 812 });
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.getByLabel('Reason for refund request').focus();
   await expect(page.getByLabel('Reason for refund request')).toBeFocused();
   await page.keyboard.type('Keyboard path.');
   await expectNoHorizontalOverflow(page, 375);
-  await redactVisibleEmails(page);
-  await page.locator('.order-ledger').screenshot({ path: testInfo.outputPath('ui-01-storefront-refund-375.png') });
 });
 
-test('places one Order with a Simple and Variant Product, then Marks Paid, Fulfills, and canonicalizes a Customer refund', async ({ page }, testInfo) => {
+test('places one Order with a Simple and Variant Product, then Marks Paid, Fulfills, and canonicalizes a Customer refund', async ({ page, consoleOwnerPage }) => {
   test.setTimeout(180_000);
   const token = uniqueToken();
   const simpleName = `Verify E2E Two Simple ${token}`;
   const variantName = `Verify E2E Two Variant ${token}`;
-  await createSimpleProduct(page, simpleName);
-  await createVariantProduct(page, variantName, token);
+  await createSimpleProduct(consoleOwnerPage, simpleName);
+  await createVariantProduct(consoleOwnerPage, variantName, token);
 
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(STOREFRONT_ORIGIN);
@@ -555,13 +540,11 @@ test('places one Order with a Simple and Variant Product, then Marks Paid, Fulfi
   await tabUntilFocused(page, page.getByLabel('Name'));
   await tabUntilFocused(page, page.getByLabel('Email'));
   await expectNoHorizontalOverflow(page, 1280);
-  await capturePage(page, page.locator('.purchase-ledger'), testInfo, 'ui-02-storefront-cart-1280.png');
 
   await page.setViewportSize({ width: 375, height: 812 });
   await expect(page.locator('#checkout-cart')).toContainText(simpleName);
   await expect(page.locator('#checkout-cart')).toContainText(variantName);
   await expectNoHorizontalOverflow(page, 375);
-  await capturePage(page, page.locator('.purchase-ledger'), testInfo, 'ui-02-storefront-cart-375.png');
 
   await page.setViewportSize({ width: 1280, height: 900 });
   const createPosts: string[] = [];
@@ -595,7 +578,6 @@ test('places one Order with a Simple and Variant Product, then Marks Paid, Fulfi
   await expect(page.getByText(body.paymentReference)).toBeVisible();
   await expect(page.locator('.total-line')).toContainText('$59.45');
   await expectNoHorizontalOverflow(page, 1280);
-  await capturePage(page, page.locator('.order-ledger'), testInfo, 'ui-02-storefront-private-1280.png');
   const privateUrl = new URL(page.url());
   const capability = new URLSearchParams(privateUrl.hash.slice(1)).get('capability') ?? '';
   expect(privateUrl.origin).toBe(STOREFRONT_ORIGIN);
@@ -605,55 +587,49 @@ test('places one Order with a Simple and Variant Product, then Marks Paid, Fulfi
   await page.setViewportSize({ width: 375, height: 812 });
   await expect(page.locator('.order-item-list')).toContainText(simpleName);
   await expectNoHorizontalOverflow(page, 375);
-  await capturePage(page, page.locator('.order-ledger'), testInfo, 'ui-02-storefront-private-375.png');
 
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto(`${CONSOLE_ORIGIN}/console/orders`);
-  await expect(page.getByRole('heading', { name: 'Orders' })).toBeVisible();
-  await page.getByLabel('Search Orders').fill(body.reference);
-  await page.getByRole('button', { name: 'Search' }).click();
-  await expect(page.getByRole('link', { name: body.reference })).toBeVisible();
-  await expect(page.locator('.orders-table, .order-summary-card').first()).toContainText('+ 1 more');
-  await expect(page.getByText(body.paymentReference).first()).toBeVisible();
-  await capturePage(page, page.locator('.page-stack'), testInfo, 'ui-02-console-inbox-1280.png');
+  await consoleOwnerPage.setViewportSize({ width: 1280, height: 900 });
+  await consoleOwnerPage.goto(`${CONSOLE_ORIGIN}/console/orders`);
+  await expect(consoleOwnerPage.getByRole('heading', { name: 'Orders' })).toBeVisible();
+  await consoleOwnerPage.getByLabel('Search Orders').fill(body.reference);
+  await consoleOwnerPage.getByRole('button', { name: 'Search' }).click();
+  await expect(consoleOwnerPage.getByRole('link', { name: body.reference })).toBeVisible();
+  await expect(consoleOwnerPage.locator('.orders-table, .order-summary-card').first()).toContainText('+ 1 more');
+  await expect(consoleOwnerPage.getByText(body.paymentReference).first()).toBeVisible();
 
-  await page.getByRole('link', { name: body.reference }).click();
-  await expect(page.getByRole('heading', { name: body.reference })).toBeVisible();
-  await expectUsableOrderItemSnapshots(page, orderItemLines(body));
-  await expect(page.getByText(body.paymentReference).first()).toBeVisible();
-  await expect(page.locator('.order-total').first()).toContainText('$59.45');
-  await tabUntilFocused(page, page.getByRole('button', { name: 'Record manual payment' }));
-  await page.keyboard.press('Enter');
-  await expect(page.getByRole('heading', { name: 'Record manual payment' })).toBeVisible();
-  await tabUntilFocused(page, page.getByLabel('Payment method'));
-  await page.getByLabel('Payment method').fill('Bank transfer');
-  await tabUntilFocused(page, page.getByLabel('External payment reference'));
-  await page.getByLabel('External payment reference').fill(`WIRE-${body.reference.slice(-8)}`);
-  await tabUntilFocused(page, page.getByLabel('I confirm an external receipt exists for this exact total and currency.'));
-  await page.keyboard.press('Space');
-  await expectNoHorizontalOverflow(page, 1280);
-  await capturePage(page, page.locator('.page-stack'), testInfo, 'ui-03-console-detail-1280.png');
-  await page.getByRole('button', { name: 'Mark Paid' }).click();
-  await expect(page.locator('.status-tag.status-active')).toContainText('Paid');
-  await page.getByRole('button', { name: 'Fulfill' }).click();
-  await expect(page.getByRole('heading', { name: 'Confirm Fulfill' })).toBeVisible();
-  await page.getByRole('button', { name: 'Confirm Fulfill' }).click();
-  await expect(page.locator('.status-tag.status-active')).toContainText('Fulfilled');
-  await expect(page.getByText('This is an operational status change only')).toHaveCount(0);
-  await capturePage(page, page.locator('.page-stack'), testInfo, 'ui-02-console-fulfilled-1280.png');
+  await consoleOwnerPage.getByRole('link', { name: body.reference }).click();
+  await expect(consoleOwnerPage.getByRole('heading', { name: body.reference })).toBeVisible();
+  await expectUsableOrderItemSnapshots(consoleOwnerPage, orderItemLines(body));
+  await expect(consoleOwnerPage.getByText(body.paymentReference).first()).toBeVisible();
+  await expect(consoleOwnerPage.locator('.order-total').first()).toContainText('$59.45');
+  await tabUntilFocused(consoleOwnerPage, consoleOwnerPage.getByRole('button', { name: 'Record manual payment' }));
+  await consoleOwnerPage.keyboard.press('Enter');
+  await expect(consoleOwnerPage.getByRole('heading', { name: 'Record manual payment' })).toBeVisible();
+  await tabUntilFocused(consoleOwnerPage, consoleOwnerPage.getByLabel('Payment method'));
+  await consoleOwnerPage.getByLabel('Payment method').fill('Bank transfer');
+  await tabUntilFocused(consoleOwnerPage, consoleOwnerPage.getByLabel('External payment reference'));
+  await consoleOwnerPage.getByLabel('External payment reference').fill(`WIRE-${body.reference.slice(-8)}`);
+  await tabUntilFocused(consoleOwnerPage, consoleOwnerPage.getByLabel('I confirm an external receipt exists for this exact total and currency.'));
+  await consoleOwnerPage.keyboard.press('Space');
+  await expectNoHorizontalOverflow(consoleOwnerPage, 1280);
+  await consoleOwnerPage.getByRole('button', { name: 'Mark Paid' }).click();
+  await expect(consoleOwnerPage.locator('.status-tag.status-active')).toContainText('Paid');
+  await consoleOwnerPage.getByRole('button', { name: 'Fulfill' }).click();
+  await expect(consoleOwnerPage.getByRole('heading', { name: 'Confirm Fulfill' })).toBeVisible();
+  await consoleOwnerPage.getByRole('button', { name: 'Confirm Fulfill' }).click();
+  await expect(consoleOwnerPage.locator('.status-tag.status-active')).toContainText('Fulfilled');
+  await expect(consoleOwnerPage.getByText('This is an operational status change only')).toHaveCount(0);
 
-  await page.setViewportSize({ width: 375, height: 812 });
-  await page.goto(`${CONSOLE_ORIGIN}/console/orders`);
-  await page.getByLabel('Search Orders').fill(body.reference);
-  await page.getByRole('button', { name: 'Search' }).click();
-  await expect(page.getByRole('link', { name: body.reference })).toBeVisible();
-  await expectNoHorizontalOverflow(page, 375);
-  await capturePage(page, page.locator('.page-stack'), testInfo, 'ui-02-console-inbox-375.png');
-  await page.getByRole('link', { name: body.reference }).click();
-  await expect(page.getByRole('heading', { name: body.reference })).toBeVisible();
-  await expectUsableOrderItemSnapshots(page, orderItemLines(body));
-  await expectNoHorizontalOverflow(page, 375);
-  await capturePage(page, page.locator('.page-stack'), testInfo, 'ui-03-console-detail-375.png');
+  await consoleOwnerPage.setViewportSize({ width: 375, height: 812 });
+  await consoleOwnerPage.goto(`${CONSOLE_ORIGIN}/console/orders`);
+  await consoleOwnerPage.getByLabel('Search Orders').fill(body.reference);
+  await consoleOwnerPage.getByRole('button', { name: 'Search' }).click();
+  await expect(consoleOwnerPage.getByRole('link', { name: body.reference })).toBeVisible();
+  await expectNoHorizontalOverflow(consoleOwnerPage, 375);
+  await consoleOwnerPage.getByRole('link', { name: body.reference }).click();
+  await expect(consoleOwnerPage.getByRole('heading', { name: body.reference })).toBeVisible();
+  await expectUsableOrderItemSnapshots(consoleOwnerPage, orderItemLines(body));
+  await expectNoHorizontalOverflow(consoleOwnerPage, 375);
 
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${STOREFRONT_ORIGIN}/orders/${encodeURIComponent(body.reference)}#capability=${encodeURIComponent(capability)}`);
@@ -670,13 +646,11 @@ test('places one Order with a Simple and Variant Product, then Marks Paid, Fulfi
   await expect(page.getByRole('heading', { name: 'Refund request pending' })).toBeVisible();
   await expect(page.getByText(refundReason)).toBeVisible();
   await expect(page.getByLabel('Reason for refund request')).toHaveCount(0);
-  await capturePage(page, page.locator('.order-ledger'), testInfo, 'ui-02-storefront-refund-1280.png');
 
-  await page.goto(`${CONSOLE_ORIGIN}/console/orders/${body.reference}`);
-  await expect(page.getByRole('heading', { name: body.reference })).toBeVisible();
-  await expect(page.getByText(refundReason, { exact: true })).toBeVisible();
-  await expect(page.getByText('Refund request pending').first()).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Request refund for Customer' })).toHaveCount(0);
-  await expect(page.locator('#console-refund-reason')).toHaveCount(0);
-  await capturePage(page, page.locator('.page-stack'), testInfo, 'ui-02-console-existing-refund-1280.png');
+  await consoleOwnerPage.goto(`${CONSOLE_ORIGIN}/console/orders/${body.reference}`);
+  await expect(consoleOwnerPage.getByRole('heading', { name: body.reference })).toBeVisible();
+  await expect(consoleOwnerPage.getByText(refundReason, { exact: true })).toBeVisible();
+  await expect(consoleOwnerPage.getByText('Refund request pending').first()).toBeVisible();
+  await expect(consoleOwnerPage.getByRole('button', { name: 'Request refund for Customer' })).toHaveCount(0);
+  await expect(consoleOwnerPage.locator('#console-refund-reason')).toHaveCount(0);
 });

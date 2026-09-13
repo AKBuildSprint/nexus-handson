@@ -10,8 +10,8 @@ import {
 import { createOrder } from '@nexus/orders/commands/order-write';
 import { routeConsoleOrderRequest } from '../../apps/worker/src/console-order-routes';
 import { digestOrderCapability, findOrderIdByCapability } from '@nexus/orders/private-access';
-import { BOOTSTRAP_STORE_ID } from '@nexus/catalog/catalog-read';
-import { OrderPersistenceError, OrderValidationError } from '@nexus/orders/order-types';
+import { PUBLIC_STORE_ID as BOOTSTRAP_STORE_ID } from '@nexus/catalog/public-store';
+import { OrderPersistenceError, OrderValidationError, type OrderContext } from '@nexus/orders/order-types';
 import {
   parseCancelOrderInput,
   parseFulfillOrderInput,
@@ -20,10 +20,11 @@ import {
 } from '@nexus/orders/order-validation';
 import {
   catalogMigrations,
+  consoleRequest,
+  getConsoleIdentity,
   resetCatalog,
   resetCatalogThrough,
   SIMPLE_CORE,
-  workerRequest,
 } from '../support/catalog-test-env';
 
 const CAPABILITY_A = 'A'.repeat(43);
@@ -32,13 +33,37 @@ const KEY_PAID = 'command-paid-000001';
 const KEY_CANCEL = 'command-cancel-0001';
 const KEY_REFUND = 'command-refund-0001';
 const KEY_FULFILL = 'command-fulfill-0001';
-const STOREFRONT_CONTEXT = { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'storefront' as const, id: null } };
-const OWNER_CONTEXT = { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'bootstrap_owner' as const, id: null } };
+const STOREFRONT_CONTEXT = {
+  storeId: BOOTSTRAP_STORE_ID,
+  actor: { source: 'storefront' as const, id: null },
+  identity: { kind: 'public' as const },
+};
+let OWNER_CONTEXT: OrderContext;
+const OWNER_REQUEST_CONTEXT = {
+  identity: {
+    kind: 'console' as const,
+    userId: 'owner_test',
+    storeId: BOOTSTRAP_STORE_ID,
+    membershipId: 'membership_owner_test',
+    role: 'owner' as const,
+    membershipStatus: 'active' as const,
+  },
+  user: { id: 'owner_test', name: 'Test Owner' },
+  store: { id: BOOTSTRAP_STORE_ID, name: 'Nexus' },
+};
 
-beforeEach(resetCatalog);
+beforeEach(async () => {
+  await resetCatalog();
+  const identity = await getConsoleIdentity();
+  OWNER_CONTEXT = {
+    storeId: identity.storeId,
+    actor: { source: 'user', id: identity.userId },
+    identity,
+  };
+});
 
 async function createSimple(): Promise<ProductDetailResponse> {
-  const response = await workerRequest('/api/console/products', {
+  const response = await consoleRequest('/api/console/products', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ product: SIMPLE_CORE, schema: null, previewHash: null }),
@@ -99,7 +124,11 @@ async function storefrontCustomer(orderId: string) {
   const customerId = await env.DB.prepare('SELECT customer_id FROM orders WHERE id = ?')
     .bind(orderId).first<string>('customer_id');
   expect(customerId).toBeTruthy();
-  return { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'storefront' as const, id: customerId as string } };
+  return {
+    storeId: BOOTSTRAP_STORE_ID,
+    actor: { source: 'storefront' as const, id: customerId as string },
+    identity: { kind: 'customer' as const, storeId: BOOTSTRAP_STORE_ID, customerId: customerId as string },
+  };
 }
 
 function payBody(reference: string, method = 'Bank transfer') {
@@ -313,8 +342,8 @@ describe('order domain commands', () => {
       currency: 'USD',
       source: 'manual',
       status: 'succeeded',
-      recorded_actor_source: 'bootstrap_owner',
-      recorded_actor_id: null,
+      recorded_actor_source: 'user',
+      recorded_actor_id: OWNER_CONTEXT.actor.id,
     })]);
     expect(snapshot.history.map((row) => row.action)).toEqual(['order_created', 'order_paid', 'order_fulfilled']);
     expect(await markPaid({
@@ -510,6 +539,7 @@ describe('order domain commands', () => {
           throw new Error('d1 unavailable');
         },
       }),
+      OWNER_REQUEST_CONTEXT,
     );
     expect(response?.status).toBe(500);
     const body = await response!.json() as { error: { code: string; incidentId: string | null } };
@@ -903,28 +933,28 @@ describe('order domain commands', () => {
     })).rejects.toMatchObject({ code: 'validation_failed', status: 422 });
     await expect(markPaid({
       database: env.DB,
-      context: { storeId: 'store_other', actor: { source: 'bootstrap_owner', id: null } },
+      context: { storeId: 'store_other', actor: { source: 'bootstrap_owner', id: null }, identity: null },
       orderId: pendingId,
       body: payBody('WIRE-OTHER-STORE'),
       idempotencyKey: 'command-paid-wrongstore',
     })).rejects.toMatchObject({ code: 'not_found', status: 404 });
     await expect(markPaid({
       database: env.DB,
-      context: { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'user', id: 'usr_forged' } },
+      context: { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'user', id: 'usr_forged' }, identity: null },
       orderId: pendingId,
       body: payBody('WIRE-USER-1'),
       idempotencyKey: 'command-paid-user00001',
     })).rejects.toMatchObject({ code: 'validation_failed', status: 422 });
     await expect(fulfillOrder({
       database: env.DB,
-      context: { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'system', id: null } },
+      context: { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'system', id: null }, identity: null },
       orderId: pendingId,
       body: {},
       idempotencyKey: 'command-fulfill-sys001',
     })).rejects.toMatchObject({ code: 'validation_failed', status: 422 });
     await expect(createRefundRequest({
       database: env.DB,
-      context: { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'system', id: null } },
+      context: { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'system', id: null }, identity: null },
       orderId: pendingId,
       body: { reason: 'System may not request' },
       idempotencyKey: 'command-refund-sys0001',
@@ -987,14 +1017,14 @@ describe('order domain commands', () => {
 
     await expect(markPaid({
       database: env.DB,
-      context: { storeId: 'store_other', actor: { source: 'bootstrap_owner', id: null } },
+      context: { storeId: 'store_other', actor: { source: 'bootstrap_owner', id: null }, identity: null },
       orderId: pendingId,
       body: { method: 1, extra: true },
       idempotencyKey: 'not-a-valid-key',
     })).rejects.toMatchObject({ code: 'not_found', status: 404 });
     await expect(cancelOrder({
       database: env.DB,
-      context: { storeId: 'store_other', actor: { source: 'bootstrap_owner', id: null } },
+      context: { storeId: 'store_other', actor: { source: 'bootstrap_owner', id: null }, identity: null },
       orderId: pendingId,
       body: { reason: 'nope' },
       idempotencyKey: 1,
@@ -1016,7 +1046,7 @@ describe('order domain commands', () => {
 
     await expect(markPaid({
       database: env.DB,
-      context: { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'bootstrap_owner', id: 'own_forged' } },
+      context: { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'bootstrap_owner', id: 'own_forged' }, identity: null },
       orderId: pendingId,
       body: payBody('WIRE-OWNER-FORGE'),
       idempotencyKey: 'command-paid-ownforge1',
@@ -1031,7 +1061,11 @@ describe('order domain commands', () => {
     });
     await expect(createRefundRequest({
       database: env.DB,
-      context: { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'storefront', id: 'cust_forged_other' } },
+      context: {
+        storeId: BOOTSTRAP_STORE_ID,
+        actor: { source: 'storefront', id: 'cust_forged_other' },
+        identity: { kind: 'customer', storeId: BOOTSTRAP_STORE_ID, customerId: 'cust_forged_other' },
+      },
       orderId: pendingId,
       body: { reason: 'Wrong customer' },
       idempotencyKey: 'command-refund-wrongcst',
@@ -1215,6 +1249,12 @@ describe('order domain commands', () => {
       ).bind(hash),
     ]);
     await applyD1Migrations(env.DB, catalogMigrations.slice(5));
+    const migratedIdentity = await getConsoleIdentity();
+    OWNER_CONTEXT = {
+      storeId: migratedIdentity.storeId,
+      actor: { source: 'user', id: migratedIdentity.userId },
+      identity: migratedIdentity,
+    };
 
     const before = await env.DB.prepare(
       'SELECT id, total_minor, currency, status FROM orders WHERE id = ?',

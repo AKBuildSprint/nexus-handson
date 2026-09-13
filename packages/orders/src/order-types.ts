@@ -1,6 +1,15 @@
+import type { IdentityContext } from '@nexus/identity/identity-types';
+
 export type OrderStatus = 'pending' | 'paid' | 'fulfilled' | 'canceled';
 
-export type OrderCommandAction = 'cancel' | 'request_refund' | 'mark_paid' | 'fulfill';
+export type OrderCommandAction =
+  | 'assign'
+  | 'cancel'
+  | 'request_refund'
+  | 'approve_refund'
+  | 'reject_refund'
+  | 'mark_paid'
+  | 'fulfill';
 
 export type OrderHistoryAction =
   | 'order_created'
@@ -9,7 +18,10 @@ export type OrderHistoryAction =
   | 'order_paid'
   | 'order_fulfilled'
   | 'order_canceled'
-  | 'refund_requested';
+  | 'refund_requested'
+  | 'refund_approved'
+  | 'refund_rejected'
+  | 'assigned';
 
 export type OrderAuditSource = 'console' | 'customer_capability' | 'bootstrap_owner' | 'storefront' | 'user' | 'system';
 
@@ -23,6 +35,7 @@ export interface OrderActor {
 export interface OrderContext {
   storeId: string;
   actor: OrderActor;
+  identity: IdentityContext | null;
 }
 
 export type PaymentSource = 'manual';
@@ -55,18 +68,40 @@ export interface ConsoleOrderSummary {
 
 export interface RefundRequestProjection {
   id: string;
-  status: 'pending';
+  status: 'pending' | 'approved' | 'rejected';
   reason: string;
   createdAt: string;
+  decidedAt: string | null;
 }
 
-export interface OrderCommandResult {
+export interface ConsoleRefundRequestProjection extends RefundRequestProjection {
+  decidedByUserId: string | null;
+}
+
+interface OrderCommandResultBase {
   reference: string;
-  action: OrderCommandAction;
   status: OrderStatus;
   occurredAt: string;
+}
+
+export interface OrderTransitionCommandResult extends OrderCommandResultBase {
+  action: Exclude<OrderCommandAction, 'assign'>;
   paymentId: string | null;
   refundRequest: RefundRequestProjection | null;
+}
+
+export interface OrderAssignmentCommandResult extends OrderCommandResultBase {
+  action: 'assign';
+  paymentId: null;
+  refundRequest: null;
+  assignment: { assigneeUserId: string; eventId: string };
+}
+
+export type OrderCommandResult = OrderTransitionCommandResult | OrderAssignmentCommandResult;
+
+export interface StaffCandidateProjection {
+  userId: string;
+  name: string;
 }
 
 export interface OrderFieldError {
@@ -157,7 +192,7 @@ export interface ConsoleOrderProjection extends OrderProjection {
     name: string;
     email: string;
   };
-  refundRequestStatus: 'pending' | null;
+  refundRequestStatus: RefundRequestProjection['status'] | null;
 }
 
 export interface ConsoleOrderHistoryEntry {
@@ -172,8 +207,11 @@ export interface ConsoleOrderHistoryEntry {
 }
 
 export interface ConsoleOrderDetailProjection extends ConsoleOrderProjection {
-  refundRequest: RefundRequestProjection | null;
-  allowedActions: Array<'cancel' | 'mark_paid' | 'fulfill' | 'request_refund'>;
+  assignment: { assigneeUserId: string } | null;
+  refundRequest: ConsoleRefundRequestProjection | null;
+  allowedActions: Array<
+    'cancel' | 'mark_paid' | 'fulfill' | 'request_refund' | 'approve_refund' | 'reject_refund'
+  >;
   history: ConsoleOrderHistoryEntry[];
   payment: PaymentLedgerProjection | null;
   paymentRecordState: PaymentRecordState;

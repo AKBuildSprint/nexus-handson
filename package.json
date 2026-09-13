@@ -3,7 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "engines": {
     "node": ">=22"
   },
@@ -31,18 +34,25 @@
     "verification:ledger:check": "tsx scripts/verification/evidence-ledger.ts check",
     "verification:ledger:summary": "tsx scripts/verification/evidence-ledger.ts summary",
     "verification:fixtures": "tsx scripts/verification/verification-fixtures.ts",
-    "verification:remote:smoke": "tsx tests/integration/remote-contract-smoke.ts"
+    "verification:remote:smoke": "tsx tests/integration/remote-contract-smoke.ts",
+    "verification:s4-rehearsal:test": "vitest run --config vitest.node.config.ts tests/node/s4-populated-rehearsal.test.ts",
+    "verification:s4-rehearsal": "tsx scripts/verification/s4-populated-rehearsal.ts",
+    "verification:s4-fixtures": "tsx scripts/verification/s4-private-fixtures.ts",
+    "verification:s4-remote:smoke": "tsx scripts/verification/s4-remote-smoke.ts",
+    "provision:s4-identities": "tsx scripts/provision-s4-identities.ts"
   },
   "dependencies": {
+    "better-auth": "1.7.4",
     "papaparse": "5.7.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
-    "@nexus/catalog": "0.0.0",
-    "@nexus/orders": "0.0.0",
     "@cloudflare/vite-plugin": "1.54.0",
     "@cloudflare/vitest-pool-workers": "0.22.0",
+    "@nexus/catalog": "0.0.0",
+    "@nexus/identity": "0.0.0",
+    "@nexus/orders": "0.0.0",
     "@playwright/test": "1.62.1",
     "@types/node": "24.13.3",
     "@types/papaparse": "5.5.2",
@@ -50,6 +60,7 @@
     "@types/react-dom": "19.2.5",
     "@vitejs/plugin-react": "6.1.0",
     "@vitest/browser-playwright": "4.1.11",
+    "better-call": "1.4.0",
     "tsx": "4.20.6",
     "typescript": "7.0.2",
     "vite": "8.2.2",

@@ -10,6 +10,7 @@ interface ProductListScreenProps {
   onDownloadTemplate: () => Promise<void> | void;
   onRetry: () => void;
   onCriteriaChange?: (query: string, status: 'all' | 'draft' | 'active' | 'archived') => void;
+  readOnly?: boolean;
 }
 
 const FILTERS: ReadonlyArray<'All' | ProductStatus> = ['All', 'Draft', 'Active', 'Archived'];
@@ -83,6 +84,7 @@ export function ProductListScreen({
   onDownloadTemplate,
   onRetry,
   onCriteriaChange,
+  readOnly = false,
 }: ProductListScreenProps) {
   const initialCriteria = readListCriteria();
   const [query, setQuery] = useState(initialCriteria.query);
@@ -174,9 +176,11 @@ export function ProductListScreen({
         <div className="page-header-copy">
           <p className="page-kicker">Catalog operations · Nexus</p>
           <h1>Products</h1>
-          <p>Find, create, and import the digital Products available in this Store.</p>
+          <p>{readOnly
+            ? 'Read-only Product catalog for this Store.'
+            : 'Find, create, and import the digital Products available in this Store.'}</p>
         </div>
-        <div className="page-actions" aria-label="Product list actions">
+        {!readOnly ? <div className="page-actions" aria-label="Product list actions">
           <button className="button" type="button" onClick={onImportCsv}>
             Import CSV
           </button>
@@ -186,7 +190,7 @@ export function ProductListScreen({
           <button className="button button-primary" type="button" onClick={onAddProduct}>
             Add Product
           </button>
-        </div>
+        </div> : null}
       </header>
 
       {state !== 'loading' && state !== 'error' ? (
@@ -303,16 +307,16 @@ export function ProductListScreen({
 
         {state === 'empty' ? (
           <div className="empty-state">
-            <h3>Create your first Product or import a prepared CSV.</h3>
-            <p>Start with one Product in the editor, or use the fixed Nexus template for a prepared catalog.</p>
-            <div className="inline-actions">
+            <h3>{readOnly ? 'No Products are available in this Store.' : 'Create your first Product or import a prepared CSV.'}</h3>
+            <p>{readOnly ? 'An Owner can add or import Products.' : 'Start with one Product in the editor, or use the fixed Nexus template for a prepared catalog.'}</p>
+            {!readOnly ? <div className="inline-actions">
               <button className="button button-primary" type="button" onClick={onAddProduct}>
                 Add Product
               </button>
               <button className="button" type="button" onClick={onImportCsv}>
                 Import CSV
               </button>
-            </div>
+            </div> : null}
           </div>
         ) : null}
 
@@ -364,7 +368,7 @@ export function ProductListScreen({
                         <button className="text-button" type="button" disabled aria-label={`Opening ${product.name}`}>
                           Opening Product…
                         </button>
-                      ) : (
+                      ) : readOnly ? <strong>{product.name}</strong> : (
                         <a
                           className="product-link"
                           href={`/console/products/${encodeURIComponent(product.slug ?? product.id)}`}
@@ -395,7 +399,7 @@ export function ProductListScreen({
                     <button className="text-button" type="button" disabled aria-label={`Opening ${product.name}`}>
                       Opening Product…
                     </button>
-                  ) : (
+                  ) : readOnly ? <strong>{product.name}</strong> : (
                     <a
                       className="product-link"
                       href={`/console/products/${encodeURIComponent(product.slug ?? product.id)}`}

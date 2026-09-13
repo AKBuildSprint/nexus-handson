@@ -1,4 +1,4 @@
-import { BOOTSTRAP_STORE_ID } from '@nexus/catalog/catalog-read';
+import { PUBLIC_STORE_ID } from '@nexus/catalog/public-store';
 import { createRefundRequest } from '@nexus/orders/commands/order-commands';
 import { readCustomerOrderById } from '@nexus/orders/queries/order-read';
 import { createOrder } from '@nexus/orders/commands/order-write';
@@ -25,7 +25,13 @@ type CustomerOrderResponse = CustomerOrderProjection & {
 };
 
 function storefrontContext(customerId: string | null = null): OrderContext {
-  return { storeId: BOOTSTRAP_STORE_ID, actor: { source: 'storefront', id: customerId } };
+  return {
+    storeId: PUBLIC_STORE_ID,
+    actor: { source: 'storefront', id: customerId },
+    identity: customerId === null
+      ? { kind: 'public' }
+      : { kind: 'customer', storeId: PUBLIC_STORE_ID, customerId },
+  };
 }
 
 function customerResponse(order: CustomerOrderProjection): CustomerOrderResponse {
@@ -122,7 +128,7 @@ export async function routeStorefrontOrderRequest(
     try {
       orderId = await findOrderIdByCapability({
         database,
-        storeId: BOOTSTRAP_STORE_ID,
+        storeId: PUBLIC_STORE_ID,
         reference,
         capability: request.headers.get('X-Nexus-Order-Capability'),
       });
@@ -144,7 +150,7 @@ export async function routeStorefrontOrderRequest(
     try {
       const customerId = await database.prepare(
         'SELECT customer_id FROM orders WHERE store_id = ? AND id = ?',
-      ).bind(BOOTSTRAP_STORE_ID, orderId).first<string>('customer_id');
+      ).bind(PUBLIC_STORE_ID, orderId).first<string>('customer_id');
       if (customerId === null) {
         response = privateNotFound();
       } else {
@@ -173,7 +179,7 @@ export async function routeStorefrontOrderRequest(
     try {
       const orderId = await findOrderIdByCapability({
         database,
-        storeId: BOOTSTRAP_STORE_ID,
+        storeId: PUBLIC_STORE_ID,
         reference,
         capability: request.headers.get('X-Nexus-Order-Capability'),
       });
@@ -184,7 +190,7 @@ export async function routeStorefrontOrderRequest(
       } else {
         const order = await readCustomerOrderById({
           database,
-          storeId: BOOTSTRAP_STORE_ID,
+          storeId: PUBLIC_STORE_ID,
           orderId,
         });
         response = order === null
