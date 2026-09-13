@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
-import { putDeliveryFile } from '@nexus/catalog/files/delivery-file';
+import { deleteDeliveryFile, putDeliveryFile } from '@nexus/catalog/files/delivery-file';
 import {
   consoleRequest,
   getConsoleIdentity,
@@ -165,6 +165,125 @@ describe('delivery replacement and compensation', () => {
     expect(await removed.json()).toMatchObject({ file: { present: false }, revision: 4 });
     expect(await env.DB.prepare('SELECT delivery_file_key FROM products WHERE id=?').bind(productId).first<string | null>('delivery_file_key')).toBeNull();
     await expect(env.FILES.get(secondKey ?? '')).resolves.not.toBeNull();
+  });
+
+  it('reports a losing DELETE race as a revision conflict and keeps the association', async () => {
+    const productId = await createSimple();
+    const identity = await getConsoleIdentity();
+    expect((await consoleRequest(`/api/console/products/${productId}/delivery-file`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/octet-stream', 'If-Match': '"1"', 'X-Nexus-Filename': 'raced.pdf' },
+      body: pdfBytes('raced'),
+    })).status).toBe(200);
+    const key = await env.DB.prepare('SELECT delivery_file_key FROM products WHERE id=?')
+      .bind(productId).first<string>('delivery_file_key');
+    let raced = false;
+    const racing = {
+      prepare: env.DB.prepare.bind(env.DB),
+      batch: async (statements: D1PreparedStatement[]) => {
+        if (!raced) {
+          raced = true;
+          await env.DB.prepare('UPDATE products SET revision=revision+1 WHERE store_id=? AND id=?')
+            .bind(identity.storeId, productId).run();
+        }
+        return env.DB.batch(statements);
+      },
+    } as unknown as D1Database;
+
+    await expect(deleteDeliveryFile({
+      db: racing, identity, productId, variantId: null, expectedRevision: 2,
+    })).rejects.toMatchObject({ code: 'revision_conflict', status: 409 });
+    expect(raced).toBe(true);
+    expect(await env.DB.prepare('SELECT delivery_file_key FROM products WHERE id=?')
+      .bind(productId).first<string>('delivery_file_key')).toBe(key);
+    expect(await env.DB.prepare('SELECT revision FROM products WHERE id=?')
+      .bind(productId).first<number>('revision')).toBe(3);
+    await expect(env.FILES.get(key ?? '')).resolves.not.toBeNull();
+  });
+
+  it('reports a losing DELETE race on an already empty slot as a revision conflict', async () => {
+    const productId = await createSimple();
+    const identity = await getConsoleIdentity();
+    let raced = false;
+    const racing = {
+      prepare: env.DB.prepare.bind(env.DB),
+      batch: async (statements: D1PreparedStatement[]) => {
+        if (!raced) {
+          raced = true;
+          await env.DB.prepare('UPDATE products SET revision=revision+1 WHERE store_id=? AND id=?')
+            .bind(identity.storeId, productId).run();
+        }
+        return env.DB.batch(statements);
+      },
+    } as unknown as D1Database;
+
+    await expect(deleteDeliveryFile({
+      db: racing, identity, productId, variantId: null, expectedRevision: 1,
+    })).rejects.toMatchObject({ code: 'revision_conflict', status: 409 });
+    expect(raced).toBe(true);
+    expect(await env.DB.prepare('SELECT revision FROM products WHERE id=?')
+      .bind(productId).first<number>('revision')).toBe(2);
+  });
+
+  it('reports a DELETE that loses to a competing removal as a revision conflict', async () => {
+    const productId = await createSimple();
+    const identity = await getConsoleIdentity();
+    expect((await consoleRequest(`/api/console/products/${productId}/delivery-file`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/octet-stream', 'If-Match': '"1"', 'X-Nexus-Filename': 'contended.pdf' },
+      body: pdfBytes('contended'),
+    })).status).toBe(200);
+    const key = await env.DB.prepare('SELECT delivery_file_key FROM products WHERE id=?')
+      .bind(productId).first<string>('delivery_file_key');
+    let raced = false;
+    const racing = {
+      prepare: env.DB.prepare.bind(env.DB),
+      batch: async (statements: D1PreparedStatement[]) => {
+        if (!raced) {
+          raced = true;
+          await deleteDeliveryFile({ db: env.DB, identity, productId, variantId: null, expectedRevision: 2 });
+        }
+        return env.DB.batch(statements);
+      },
+    } as unknown as D1Database;
+
+    await expect(deleteDeliveryFile({
+      db: racing, identity, productId, variantId: null, expectedRevision: 2,
+    })).rejects.toMatchObject({ code: 'revision_conflict', status: 409 });
+    expect(raced).toBe(true);
+    expect(await env.DB.prepare('SELECT revision FROM products WHERE id=?')
+      .bind(productId).first<number>('revision')).toBe(3);
+    expect(await env.DB.prepare('SELECT delivery_file_key FROM products WHERE id=?')
+      .bind(productId).first<string | null>('delivery_file_key')).toBeNull();
+    await expect(env.FILES.get(key ?? '')).resolves.not.toBeNull();
+  });
+
+  it('reports an unconfirmed DELETE commit as reconciliation and retains the stored object', async () => {
+    const productId = await createSimple();
+    const identity = await getConsoleIdentity();
+    expect((await consoleRequest(`/api/console/products/${productId}/delivery-file`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/octet-stream', 'If-Match': '"1"', 'X-Nexus-Filename': 'unconfirmed.pdf' },
+      body: pdfBytes('unconfirmed'),
+    })).status).toBe(200);
+    const key = await env.DB.prepare('SELECT delivery_file_key FROM products WHERE id=?')
+      .bind(productId).first<string>('delivery_file_key');
+    const committedThenFailed = {
+      prepare: env.DB.prepare.bind(env.DB),
+      batch: async (statements: D1PreparedStatement[]) => {
+        await env.DB.batch(statements);
+        throw new Error('response channel failed after commit');
+      },
+    } as unknown as D1Database;
+
+    await expect(deleteDeliveryFile({
+      db: committedThenFailed, identity, productId, variantId: null, expectedRevision: 2,
+    })).rejects.toMatchObject({ code: 'persistence_failed', status: 500, incidentId: expect.any(String) });
+    expect(await env.DB.prepare('SELECT delivery_file_key FROM products WHERE id=?')
+      .bind(productId).first<string | null>('delivery_file_key')).toBeNull();
+    expect(await env.DB.prepare('SELECT revision FROM products WHERE id=?')
+      .bind(productId).first<number>('revision')).toBe(3);
+    await expect(env.FILES.get(key ?? '')).resolves.not.toBeNull();
   });
 
   it('deletes only the new object when D1 association fails', async () => {

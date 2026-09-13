@@ -194,6 +194,20 @@ async function isCurrentOwner(db: D1Database, identity: ConsoleIdentityContext):
   ).bind(identity.membershipId, identity.storeId, identity.userId).first<number>('authorized') === 1;
 }
 
+/**
+ * Every guarded delivery batch pins the expected revision and the caller's Owner membership inside a
+ * `CASE ... ELSE NULL END` over a NOT NULL column (`products.name` for the row being mutated,
+ * `stores.name` for the commit assertion). D1 answers a lost prestate with a NOT NULL constraint
+ * failure on exactly those columns, which is proof that the statement was rejected and the whole batch
+ * rolled back. Any other failure (transport loss, unknown fault) leaves the commit outcome ambiguous.
+ */
+function isGuardedRollback(error: unknown): boolean {
+  for (let current: unknown = error; current instanceof Error; current = current.cause) {
+    if (/NOT NULL constraint failed: (?:products|stores)\.name\b/.test(current.message)) return true;
+  }
+  return false;
+}
+
 export interface DeliveryFileMutationResult {
   productId: string;
   variantId?: string;
@@ -410,7 +424,7 @@ export async function deleteDeliveryFile(input: {
   } catch (error) {
     if (error instanceof DeliveryFileError) throw error;
     const currentRevision = await readProductRevision(input.db, input.identity, input.productId);
-    if (currentRevision === input.expectedRevision + 1) {
+    if (!isGuardedRollback(error) && currentRevision === input.expectedRevision + 1) {
       throw new DeliveryFileError(500, 'persistence_failed', 'The delivery file outcome requires reconciliation.', crypto.randomUUID());
     }
     if (!await isCurrentOwner(input.db, input.identity)) {
