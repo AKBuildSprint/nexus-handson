@@ -586,6 +586,75 @@ describe('assigned-only Order access', () => {
     expect(await env.DB.prepare("SELECT count(*) AS count FROM order_commands WHERE action='assign'").first<number>('count')).toBe(2);
   });
 
+  it('replans a stale no-op assignment when a different assignee commits first', async () => {
+    const { owner, staff, order } = await fixture();
+    const other = await createConsoleSession({ email: 'phase5-stale-2@example.test', name: 'Phase 5 Staff 4', role: 'staff' });
+    const ownerIdentity = await consoleIdentity(owner.userId);
+    const orderId = await env.DB.prepare('SELECT id FROM orders WHERE reference=?').bind(order.reference).first<string>('id') as string;
+    await assignOrder({
+      database: env.DB, identity: ownerIdentity, orderId,
+      body: { assigneeUserId: staff.userId }, idempotencyKey: key('phase5-stale-base'),
+    });
+    let intercepted = false;
+    const racing = interceptBatch(env.DB, async (statements, real) => {
+      if (!intercepted) {
+        intercepted = true;
+        await assignOrder({
+          database: real, identity: ownerIdentity, orderId,
+          body: { assigneeUserId: other.userId }, idempotencyKey: key('phase5-stale-winner'),
+        });
+      }
+      return real.batch(statements);
+    });
+    const replanned = await assignOrder({
+      database: racing, identity: ownerIdentity, orderId,
+      body: { assigneeUserId: staff.userId }, idempotencyKey: key('phase5-stale-replan'),
+    });
+    expect(intercepted).toBe(true);
+    expect(replanned.assignment.assigneeUserId).toBe(staff.userId);
+    expect(await env.DB.prepare(
+      'SELECT assignee_user_id, history_id FROM order_assignments WHERE store_id=? AND order_id=?',
+    ).bind(ownerIdentity.storeId, orderId).first<{ assignee_user_id: string; history_id: string }>()).toMatchObject({
+      assignee_user_id: staff.userId,
+      history_id: replanned.assignment.eventId,
+    });
+    expect(await env.DB.prepare("SELECT count(*) AS count FROM order_history WHERE action='assigned'").first<number>('count')).toBe(3);
+  });
+
+  it('rejects a persistently churning assignment race as a conflict without binding a command', async () => {
+    const { owner, staff, order } = await fixture();
+    const other = await createConsoleSession({ email: 'phase5-churn-2@example.test', name: 'Phase 5 Staff 5', role: 'staff' });
+    const ownerIdentity = await consoleIdentity(owner.userId);
+    const orderId = await env.DB.prepare('SELECT id FROM orders WHERE reference=?').bind(order.reference).first<string>('id') as string;
+    await assignOrder({
+      database: env.DB, identity: ownerIdentity, orderId,
+      body: { assigneeUserId: staff.userId }, idempotencyKey: key('phase5-churn-base'),
+    });
+    let races = 0;
+    const racing = interceptBatch(env.DB, async (statements, real) => {
+      if (races < 2) {
+        races += 1;
+        for (const [label, assigneeUserId] of [['away', other.userId], ['back', staff.userId]] as const) {
+          await assignOrder({
+            database: real, identity: ownerIdentity, orderId,
+            body: { assigneeUserId }, idempotencyKey: key(`phase5-churn-${label}-${races}`),
+          });
+        }
+      }
+      return real.batch(statements);
+    });
+    const requestKey = key('phase5-churn-victim');
+    await expect(assignOrder({
+      database: racing, identity: ownerIdentity, orderId,
+      body: { assigneeUserId: staff.userId }, idempotencyKey: requestKey,
+    })).rejects.toMatchObject({ code: 'order_state_conflict', status: 409 });
+    expect(races).toBe(2);
+    expect(await env.DB.prepare('SELECT count(*) AS count FROM order_commands WHERE request_key=?')
+      .bind(requestKey).first<number>('count')).toBe(0);
+    expect(await env.DB.prepare('SELECT assignee_user_id FROM order_assignments WHERE store_id=? AND order_id=?')
+      .bind(ownerIdentity.storeId, orderId).first<string>('assignee_user_id')).toBe(staff.userId);
+  });
+
   it('rolls back every assignment statement boundary on an arbitrary D1 fault', async () => {
     const { owner, staff, order } = await fixture();
     const ownerIdentity = await consoleIdentity(owner.userId);
