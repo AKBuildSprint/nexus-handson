@@ -1,9 +1,13 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
-import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cloudflare } from '@cloudflare/vite-plugin';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
+import {
+  resolveConsoleWorkerIsolation,
+  resolveIsolatedPersistRoot,
+} from '../../scripts/verification/e2e-worker-environment';
 
 const consoleRoot = fileURLToPath(new URL('.', import.meta.url));
 const projectRoot = resolve(consoleRoot, '../..');
@@ -11,14 +15,14 @@ const projectRoot = resolve(consoleRoot, '../..');
 function localPersistStatePath(): string {
   const configured = process['env'].NEXUS_TEST_PERSIST_ROOT;
   if (configured === undefined) return resolve(projectRoot, '.wrangler/state');
-  if (!isAbsolute(configured)) throw new TypeError('NEXUS_TEST_PERSIST_ROOT must be an absolute path.');
-  const wranglerRoot = resolve(projectRoot, '.wrangler');
-  const relativePath = relative(wranglerRoot, resolve(configured));
-  if (relativePath === '' || relativePath === '..' || relativePath.startsWith(`..${sep}`)) {
-    throw new TypeError('NEXUS_TEST_PERSIST_ROOT must be an isolated directory under the repository .wrangler directory.');
-  }
-  return resolve(configured);
+  return resolveIsolatedPersistRoot({
+    projectRoot,
+    persistRoot: configured,
+    label: 'NEXUS_TEST_PERSIST_ROOT',
+  });
 }
+
+const workerIsolation = resolveConsoleWorkerIsolation(process['env'], projectRoot);
 
 function productionImportGraph(): Plugin {
   const metadataDirectory = resolve(projectRoot, '.nexus-build');
@@ -61,10 +65,19 @@ function productionImportGraph(): Plugin {
 export default defineConfig({
   root: consoleRoot,
   cacheDir: resolve(projectRoot, 'node_modules/.vite-console'),
+  server: { strictPort: true },
   plugins: [
     cloudflare({
       configPath: resolve(projectRoot, 'wrangler.jsonc'),
       persistState: { path: localPersistStatePath() },
+      // The root Wrangler config stays canonical. Under local E2E isolation the Worker only
+      // takes its origins and auth secret from the harness, and `userConfigPath` moves the
+      // `.dev.vars` / `.env` lookup into the isolated persistence root so a developer's own
+      // repository-root secrets are neither read nor modified.
+      config: workerIsolation && {
+        userConfigPath: workerIsolation.workerConfigPath,
+        vars: workerIsolation.vars,
+      },
     }),
     react(),
     productionImportGraph(),

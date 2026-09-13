@@ -1,7 +1,8 @@
 import { createServer } from 'node:net';
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getPlatformProxy } from 'wrangler';
+import { resolveIsolatedPersistRoot } from './e2e-worker-environment';
 
 export interface LocalBindingOptions {
   configPath: string;
@@ -26,23 +27,12 @@ export interface LocalBindingContext extends ResolvedLocalBindingContext {
 }
 
 export function resolveLocalBindingContext(options: LocalBindingOptions): ResolvedLocalBindingContext {
-  if (!isAbsolute(options.persistRoot)) {
-    throw new TypeError('persistRoot must be an absolute path.');
-  }
-  const cliPersistRoot = resolve(options.persistRoot);
-  if (basename(cliPersistRoot) === 'v3') {
-    throw new TypeError('persistRoot must be the Wrangler CLI root, without the v3 suffix.');
-  }
   const configPath = resolve(options.configPath);
-  const wranglerStateRoot = resolve(dirname(configPath), '.wrangler');
-  const relativePersistRoot = relative(wranglerStateRoot, cliPersistRoot);
-  if (
-    relativePersistRoot === '' ||
-    relativePersistRoot === '..' ||
-    relativePersistRoot.startsWith(`..${sep}`)
-  ) {
-    throw new TypeError('persistRoot must be an isolated directory under the repository .wrangler directory.');
-  }
+  const cliPersistRoot = resolveIsolatedPersistRoot({
+    projectRoot: dirname(configPath),
+    persistRoot: options.persistRoot,
+    label: 'persistRoot',
+  });
   return {
     configPath,
     cliPersistRoot,

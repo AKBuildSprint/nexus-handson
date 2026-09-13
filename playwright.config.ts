@@ -1,47 +1,22 @@
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { defineConfig } from '@playwright/test';
+import {
+  resolveLoopbackServer,
+  WORKER_ISOLATION_FLAG,
+} from './scripts/verification/e2e-worker-environment';
 import { resolveLocalBindingContext } from './scripts/verification/local-binding-context';
-
-interface LocalServer {
-  origin: string;
-  hostname: string;
-  port: number;
-}
-
-function localServer(environmentValue: string | undefined, fallback: string, label: string): LocalServer {
-  const url = new URL(environmentValue ?? fallback);
-  if (
-    url.protocol !== 'http:' ||
-    (url.hostname !== '127.0.0.1' && url.hostname !== 'localhost') ||
-    url.username ||
-    url.password ||
-    url.pathname !== '/' ||
-    url.search ||
-    url.hash
-  ) {
-    throw new Error(`${label} must be an http loopback origin without credentials, a path, query, or fragment.`);
-  }
-
-  return {
-    origin: url.origin,
-    hostname: url.hostname,
-    port: Number(url.port || '80'),
-  };
-}
 
 function shellArgument(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
-const apiConsoleServer = localServer(
-  process['env'].PLAYWRIGHT_API_CONSOLE_BASE_URL,
-  'http://127.0.0.1:5173',
+const apiConsoleServer = resolveLoopbackServer(
+  process['env'].PLAYWRIGHT_API_CONSOLE_BASE_URL ?? 'http://127.0.0.1:5173',
   'PLAYWRIGHT_API_CONSOLE_BASE_URL',
 );
-const storefrontServer = localServer(
-  process['env'].PLAYWRIGHT_STOREFRONT_BASE_URL,
-  'http://127.0.0.1:5174',
+const storefrontServer = resolveLoopbackServer(
+  process['env'].PLAYWRIGHT_STOREFRONT_BASE_URL ?? 'http://127.0.0.1:5174',
   'PLAYWRIGHT_STOREFRONT_BASE_URL',
 );
 const apiBaseURL = process['env'].PLAYWRIGHT_API_BASE_URL ?? apiConsoleServer.origin;
@@ -59,6 +34,7 @@ const authSecret = process['env'].NEXUS_TEST_AUTH_SECRET
   ?? `nexus-local-e2e-${randomUUID()}-${randomUUID()}`;
 const authRuntime = {
   PLAYWRIGHT_API_CONSOLE_BASE_URL: apiConsoleServer.origin,
+  PLAYWRIGHT_STOREFRONT_BASE_URL: storefrontServer.origin,
   NEXUS_TEST_PERSIST_ROOT: persistContext.cliPersistRoot,
   NEXUS_TEST_AUTH_SECRET: authSecret,
   BETTER_AUTH_SECRET: authSecret,
@@ -111,7 +87,12 @@ export default defineConfig({
       url: apiConsoleServer.origin,
       env: {
         ...authRuntime,
-        CLOUDFLARE_INCLUDE_PROCESS_ENV: 'true',
+        // The launched Worker takes its origins and auth secret from this harness only.
+        // Wrangler must not fall back to the developer's `.dev.vars`, `.env`, or the rest of
+        // the parent process environment, so both dotenv sources stay off for this server.
+        [WORKER_ISOLATION_FLAG]: 'true',
+        CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: 'false',
+        CLOUDFLARE_INCLUDE_PROCESS_ENV: 'false',
       },
       reuseExistingServer: false,
     },
