@@ -18,6 +18,7 @@ import type {
   OrderHistoryAction,
   OrderItemView,
   OrderStatus,
+  RefundRequestView,
 } from './order-ui-types';
 
 interface OrderDetailScreenProps {
@@ -86,6 +87,18 @@ const HISTORY_SOURCE_LABEL: Record<OrderAuditSource, string> = {
   storefront: 'Customer',
   user: 'User (recorded identity; not a signed-in Console account)',
   system: 'System (recorded identity; not a signed-in Console account)',
+};
+
+const REFUND_REQUEST_LABEL: Record<RefundRequestView['status'], string> = {
+  pending: 'Refund request pending',
+  approved: 'Refund request approved',
+  rejected: 'Refund request rejected',
+};
+
+const REFUND_REQUEST_COPY: Record<RefundRequestView['status'], string> = {
+  pending: 'Manual refunds require confirmation of an external return in a later step. Money has not been returned.',
+  approved: 'This approval records a final decision and awaits external execution. This Console has not returned money.',
+  rejected: 'This rejection records a final decision. No money was returned.',
 };
 
 const CONSOLE_ORDER_SYNC = 'nexus-console-orders';
@@ -264,6 +277,11 @@ function refundHistoryActor(order: ConsoleOrderDetailView): string | null {
   return requested ? historySourceLabel(requested.source, requested.actorLabel) : null;
 }
 
+function refundDecisionActor(order: ConsoleOrderDetailView): string | null {
+  const decided = [...order.history].reverse().find((event) => event.action === 'refund_approved' || event.action === 'refund_rejected');
+  return decided ? historySourceLabel(decided.source, decided.actorLabel) : null;
+}
+
 export function OrderDetailScreen({
   reference,
   routeGeneration,
@@ -291,6 +309,8 @@ export function OrderDetailScreen({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const attemptRef = useRef<FrozenAttempt | null>(null);
   const inFlightRef = useRef(false);
+  const roleActionBusyRef = useRef(false);
+  const noticeRef = useRef<DetailNotice | null>(null);
   const loadOrderRef = useRef<(generation: number, capturedReference: string, signal: AbortSignal, mode?: 'page' | 'refresh') => void>(() => undefined);
   const loadAbortRef = useRef<AbortController | null>(null);
   const mutationAbortRef = useRef<AbortController | null>(null);
@@ -304,6 +324,15 @@ export function OrderDetailScreen({
   generationRef.current = routeGeneration;
   referenceRef.current = reference;
   inFlightRef.current = inFlight;
+  roleActionBusyRef.current = roleActionBusy;
+  noticeRef.current = notice;
+
+  // Notice drives the command gates, which run outside render; keep the ref and
+  // the state in lockstep so a gate never reads a superseded notice.
+  const applyNotice = (next: DetailNotice | null) => {
+    noticeRef.current = next;
+    setNotice(next);
+  };
 
   const stillCurrent = (generation: number, capturedReference: string) => (
     generationRef.current === generation && referenceRef.current === capturedReference
@@ -317,10 +346,12 @@ export function OrderDetailScreen({
       if (epoch !== readEpochRef.current) return;
       if (!stillCurrent(generation, capturedReference)) return;
       setOrder(response.order);
-      setAssigneeUserId(response.order.assignment?.assigneeUserId ?? '');
+      if (roleAttemptRef.current?.action !== 'assign') {
+        setAssigneeUserId(response.order.assignment?.assigneeUserId ?? '');
+      }
       setState('ready');
-      setNotice((current) => current?.kind === 'read-after-write' ? null : current);
-      if (mode === 'refresh' && !inFlightRef.current) {
+      if (noticeRef.current?.kind === 'read-after-write') applyNotice(null);
+      if (mode === 'refresh' && !inFlightRef.current && !roleActionBusyRef.current) {
         const actions = response.order.allowedActions;
         setPanel((current) => (current && !actions.includes(current) ? null : current));
         setLockedAction((current) => (current && !actions.includes(current) ? null : current));
@@ -337,7 +368,7 @@ export function OrderDetailScreen({
         setLockedAction(null);
         setPanel(null);
         setPaymentAcknowledged(false);
-        setNotice({ kind: 'outdated' });
+        applyNotice({ kind: 'outdated' });
         setState((current) => current === 'ready' ? current : 'error');
         return;
       }
@@ -370,9 +401,11 @@ export function OrderDetailScreen({
     setPaymentAcknowledged(false);
     setRefundReason('');
     setFieldError(null);
+    inFlightRef.current = false;
+    roleActionBusyRef.current = false;
     setInFlight(false);
     setRoleActionBusy(false);
-    setNotice(null);
+    applyNotice(null);
     setLockedAction(null);
     loadOrder(generation, capturedReference, controller.signal);
     return () => {
@@ -400,7 +433,7 @@ export function OrderDetailScreen({
   useEffect(() => {
     const refresh = () => {
       if (document.visibilityState === 'hidden') return;
-      if (inFlightRef.current) return;
+      if (inFlightRef.current || roleActionBusyRef.current) return;
       const generation = generationRef.current;
       const capturedReference = referenceRef.current;
       loadAbortRef.current?.abort();
@@ -438,6 +471,17 @@ export function OrderDetailScreen({
 
   const fieldsLocked = Boolean(attemptRef.current) && notice?.kind === 'unknown';
 
+  // A pending recovery step makes every further command unsafe: an outdated
+  // client must reload, and an acknowledged write must be followed by an
+  // authoritative read before the next command can be judged.
+  const recoveryPending = () => {
+    const current = noticeRef.current;
+    return current?.kind === 'outdated' || current?.kind === 'read-after-write';
+  };
+  // Exactly one command may be in flight, whether it is an Order transition or
+  // a role-aware command.
+  const commandLockHeld = () => inFlightRef.current || roleActionBusyRef.current;
+
   const closePanel = () => {
     if (inFlight) return;
     restoreTriggerRef.current = true;
@@ -450,8 +494,9 @@ export function OrderDetailScreen({
 
   const openPanel = (action: OrderAction, trigger: HTMLButtonElement) => {
     if (lockedAction && lockedAction !== action) return;
+    if (recoveryPending() || commandLockHeld()) return;
     triggerRef.current = trigger;
-    setNotice(null);
+    if (noticeRef.current?.kind !== 'unknown') applyNotice(null);
     setFieldError(null);
     if (!attemptRef.current || attemptRef.current.action !== action) {
       setPaymentAcknowledged(false);
@@ -475,7 +520,7 @@ export function OrderDetailScreen({
       if (!stillCurrent(generation, capturedReference)) return;
       setOrder(response.order);
       setState('ready');
-      if (mode === 'acknowledged') setNotice(null);
+      if (mode === 'acknowledged') applyNotice(null);
     } catch (error) {
       if (epoch !== readEpochRef.current) return;
       if (!stillCurrent(generation, capturedReference) || isAbortError(error)) return;
@@ -484,22 +529,30 @@ export function OrderDetailScreen({
         return;
       }
       if (error instanceof ConsoleApiError && error.code === 'client_contract_outdated') {
-        setNotice((current) => ({
+        const current = noticeRef.current;
+        applyNotice({
           kind: 'outdated',
           failedCommandMessage: mode === 'after-failure' && current?.kind === 'error' ? current.message : undefined,
-        }));
+        });
         return;
       }
       // Other refresh failures do not change the outcome of a definitively failed command.
       if (mode === 'after-failure') return;
-      setNotice({ kind: 'read-after-write' });
+      applyNotice({ kind: 'read-after-write' });
     }
   };
 
   const confirmAction = async (action: OrderAction) => {
-    if (inFlight || notice?.kind === 'outdated') return;
+    if (commandLockHeld() || recoveryPending()) return;
     const generation = generationRef.current;
     const capturedReference = referenceRef.current;
+    if (noticeRef.current?.kind === 'unknown') {
+      // Only the frozen attempt behind the unknown outcome may be retried, and
+      // never while a role-aware command is also unresolved.
+      const frozen = attemptRef.current;
+      if (roleAttemptRef.current) return;
+      if (!frozen || frozen.action !== action || frozen.orderReference !== capturedReference) return;
+    }
     let attempt = attemptRef.current;
     if (!attempt || attempt.orderReference !== capturedReference || attempt.action !== action) {
       if (action === 'mark_paid') {
@@ -543,9 +596,12 @@ export function OrderDetailScreen({
     const controller = new AbortController();
     mutationAbortRef.current = controller;
     const deadline = deadlineSignal(controller.signal, MUTATION_DEADLINE_MS);
+    // Claim the lock before awaiting so a second click in the same tick, which
+    // would still read the pre-render state, cannot send a competing command.
+    inFlightRef.current = true;
     setInFlight(true);
     setLockedAction(action);
-    setNotice(null);
+    applyNotice(null);
     setFieldError(null);
     try {
       if (attempt.action === 'mark_paid') {
@@ -580,7 +636,7 @@ export function OrderDetailScreen({
         setLockedAction(null);
         setPanel(null);
         setPaymentAcknowledged(false);
-        setNotice({ kind: 'outdated' });
+        applyNotice({ kind: 'outdated' });
         return;
       }
       if (error instanceof ConsoleApiError && error.status === 409) {
@@ -589,7 +645,7 @@ export function OrderDetailScreen({
         setLockedAction(null);
         setPanel(null);
         setPaymentAcknowledged(false);
-        setNotice({ kind: 'conflict', idempotency: error.code === 'idempotency_conflict', reload: legacyKey });
+        applyNotice({ kind: 'conflict', idempotency: error.code === 'idempotency_conflict', reload: legacyKey });
         onInvalidateList();
         publishConsoleOrderChange(capturedReference);
         loadAbortRef.current?.abort();
@@ -603,23 +659,26 @@ export function OrderDetailScreen({
         setLockedAction(null);
         const first = error.fields[0];
         setFieldError(first ? { path: first.path, message: first.message } : { path: '', message: error.message });
-        setNotice({ kind: 'error', message: error.message });
+        applyNotice({ kind: 'error', message: error.message });
         return;
       }
       if (error instanceof ConsoleApiError && error.status !== 408 && error.status !== 429 && error.status < 500) {
         attemptRef.current = null;
         setLockedAction(null);
-        setNotice({ kind: 'error', message: error.message });
+        applyNotice({ kind: 'error', message: error.message });
         return;
       }
       if (isOutcomeUnknown(error)) {
-        setNotice({ kind: 'unknown' });
+        applyNotice({ kind: 'unknown' });
         return;
       }
-      setNotice({ kind: 'error', message: 'The Order operation could not be completed.' });
+      applyNotice({ kind: 'error', message: 'The Order operation could not be completed.' });
     } finally {
       deadline.dispose();
-      if (stillCurrent(generation, capturedReference)) setInFlight(false);
+      if (stillCurrent(generation, capturedReference)) {
+        inFlightRef.current = false;
+        setInFlight(false);
+      }
     }
   };
 
@@ -629,14 +688,22 @@ export function OrderDetailScreen({
     loadAbortRef.current?.abort();
     const controller = new AbortController();
     loadAbortRef.current = controller;
-    setNotice((current) => current?.kind === 'read-after-write' ? current : null);
+    if (noticeRef.current?.kind !== 'read-after-write' && noticeRef.current?.kind !== 'unknown') applyNotice(null);
     loadOrder(generation, capturedReference, controller.signal);
   };
 
   const assignOrderToStaff = async () => {
-    if (!order || !assigneeUserId || roleActionBusy) return;
+    if (!order || !assigneeUserId) return;
+    if (commandLockHeld() || recoveryPending()) return;
     const generation = generationRef.current;
     const capturedReference = referenceRef.current;
+    if (noticeRef.current?.kind === 'unknown') {
+      // Only the frozen attempt behind the unknown outcome may be retried, and
+      // never while an Order transition is also unresolved.
+      const frozen = roleAttemptRef.current;
+      if (attemptRef.current) return;
+      if (!frozen || frozen.action !== 'assign' || frozen.orderReference !== capturedReference || frozen.assigneeUserId !== assigneeUserId) return;
+    }
     const existing = roleAttemptRef.current;
     const attempt = existing?.action === 'assign' && existing.orderReference === capturedReference && existing.assigneeUserId === assigneeUserId
       ? existing
@@ -645,12 +712,13 @@ export function OrderDetailScreen({
     roleActionAbortRef.current?.abort();
     const controller = new AbortController();
     roleActionAbortRef.current = controller;
+    roleActionBusyRef.current = true;
     setRoleActionBusy(true);
     try {
       await assignConsoleOrder(order.reference, attempt.assigneeUserId, attempt.key, controller.signal);
       if (!stillCurrent(generation, capturedReference)) return;
       roleAttemptRef.current = null;
-      setNotice(null);
+      applyNotice(null);
       onInvalidateList();
       await refetchAfterWrite(generation, capturedReference);
     } catch (error) {
@@ -659,22 +727,33 @@ export function OrderDetailScreen({
         roleAttemptRef.current = null;
         onSessionExpired?.();
       } else if (isOutcomeUnknown(error)) {
-        setNotice({ kind: 'unknown' });
+        applyNotice({ kind: 'unknown' });
       } else {
         roleAttemptRef.current = null;
-        setNotice({ kind: 'error', message: error instanceof Error ? error.message : 'Assignment failed.' });
+        applyNotice({ kind: 'error', message: error instanceof Error ? error.message : 'Assignment failed.' });
         await refetchAfterWrite(generation, capturedReference, 'after-failure');
       }
     } finally {
-      if (stillCurrent(generation, capturedReference)) setRoleActionBusy(false);
+      if (stillCurrent(generation, capturedReference)) {
+        roleActionBusyRef.current = false;
+        setRoleActionBusy(false);
+      }
     }
   };
 
   const decideRefund = async (decision: 'approve' | 'reject') => {
-    if (!order?.refundRequest || roleActionBusy) return;
+    if (!order?.refundRequest) return;
+    if (commandLockHeld() || recoveryPending()) return;
     const generation = generationRef.current;
     const capturedReference = referenceRef.current;
     const requestId = order.refundRequest.id;
+    if (noticeRef.current?.kind === 'unknown') {
+      // Only the frozen attempt behind the unknown outcome may be retried, and
+      // never while an Order transition is also unresolved.
+      const frozen = roleAttemptRef.current;
+      if (attemptRef.current) return;
+      if (!frozen || frozen.action !== decision || frozen.orderReference !== capturedReference || frozen.requestId !== requestId) return;
+    }
     const existing = roleAttemptRef.current;
     const attempt = existing && existing.action === decision && existing.orderReference === capturedReference && existing.requestId === requestId
       ? existing
@@ -683,12 +762,13 @@ export function OrderDetailScreen({
     roleActionAbortRef.current?.abort();
     const controller = new AbortController();
     roleActionAbortRef.current = controller;
+    roleActionBusyRef.current = true;
     setRoleActionBusy(true);
     try {
       await decideConsoleRefundRequest(order.reference, requestId, decision, attempt.key, controller.signal);
       if (!stillCurrent(generation, capturedReference)) return;
       roleAttemptRef.current = null;
-      setNotice(null);
+      applyNotice(null);
       onInvalidateList();
       await refetchAfterWrite(generation, capturedReference);
     } catch (error) {
@@ -697,14 +777,17 @@ export function OrderDetailScreen({
         roleAttemptRef.current = null;
         onSessionExpired?.();
       } else if (isOutcomeUnknown(error)) {
-        setNotice({ kind: 'unknown' });
+        applyNotice({ kind: 'unknown' });
       } else {
         roleAttemptRef.current = null;
-        setNotice({ kind: 'error', message: error instanceof Error ? error.message : 'Refund decision failed.' });
+        applyNotice({ kind: 'error', message: error instanceof Error ? error.message : 'Refund decision failed.' });
         await refetchAfterWrite(generation, capturedReference, 'after-failure');
       }
     } finally {
-      if (stillCurrent(generation, capturedReference)) setRoleActionBusy(false);
+      if (stillCurrent(generation, capturedReference)) {
+        roleActionBusyRef.current = false;
+        setRoleActionBusy(false);
+      }
     }
   };
 
@@ -719,6 +802,19 @@ export function OrderDetailScreen({
   const displayedReason = fieldsLocked && attemptRef.current?.action === 'request_refund' ? attemptRef.current.reason : refundReason;
   const paymentActor = order ? paidHistoryActor(order) : null;
   const refundActor = order ? refundHistoryActor(order) : null;
+  const refundDecidedActor = order?.refundRequest && order.refundRequest.status !== 'pending' ? refundDecisionActor(order) : null;
+  const unknownOutcome = notice?.kind === 'unknown';
+  const orderRetryAction = unknownOutcome ? attemptRef.current?.action ?? null : null;
+  const recoveryBlocked = notice?.kind === 'outdated' || notice?.kind === 'read-after-write';
+  const commandsBusy = inFlight || roleActionBusy;
+  // Order transitions and role-aware commands share one lock, and neither may
+  // start while a recovery step or another command's outcome is unresolved.
+  const orderCommandsBlocked = commandsBusy || recoveryBlocked || (unknownOutcome && roleAttemptRef.current !== null);
+  const roleCommandsBlocked = commandsBusy || recoveryBlocked || (unknownOutcome && attemptRef.current !== null);
+  const assignRetry = unknownOutcome && roleAttemptRef.current?.action === 'assign' && roleAttemptRef.current.assigneeUserId === assigneeUserId;
+  const assignBlocked = roleCommandsBlocked || (unknownOutcome && !assignRetry);
+  const approveRetry = unknownOutcome && roleAttemptRef.current?.action === 'approve';
+  const rejectRetry = unknownOutcome && roleAttemptRef.current?.action === 'reject';
 
   return (
     <div className="page-stack">
@@ -760,7 +856,7 @@ export function OrderDetailScreen({
             </div>
             <div className="page-actions">
               <span className={status?.className}>{status?.label}</span>
-              {order.refundRequestStatus ? <span className="refund-badge">Refund request {order.refundRequestStatus}</span> : null}
+              {order.refundRequestStatus ? <span className="refund-badge">{REFUND_REQUEST_LABEL[order.refundRequestStatus]}</span> : null}
             </div>
           </header>
           {notice?.kind === 'unknown' ? (
@@ -810,24 +906,26 @@ export function OrderDetailScreen({
           {canAssign && staff.length > 0 ? (
             <section className="notice notice-info" aria-label="Order assignment">
               <h2>Assignment</h2>
-              <label htmlFor="order-assignee">Assign Order</label>
-              <select id="order-assignee" aria-label="Assign Order" value={assigneeUserId} disabled={roleActionBusy} onChange={(event) => setAssigneeUserId(event.target.value)}>
-                <option value="" disabled>Select active Staff</option>
-                {staff.map((candidate) => <option key={candidate.userId} value={candidate.userId}>{candidate.name}</option>)}
-              </select>
-              <button className="button button-primary" type="button" disabled={roleActionBusy || !assigneeUserId || assigneeUserId === order.assignment?.assigneeUserId} onClick={() => { void assignOrderToStaff(); }}>
-                {roleAttemptRef.current?.action === 'assign' && notice?.kind === 'unknown' ? 'Retry assignment' : 'Assign'}
+              <div className="field">
+                <label htmlFor="order-assignee">Assign Order</label>
+                <select id="order-assignee" aria-label="Assign Order" value={assigneeUserId} disabled={commandsBusy || recoveryBlocked || unknownOutcome} onChange={(event) => setAssigneeUserId(event.target.value)}>
+                  <option value="" disabled>Select active Staff</option>
+                  {staff.map((candidate) => <option key={candidate.userId} value={candidate.userId}>{candidate.name}</option>)}
+                </select>
+              </div>
+              <button className="button button-primary" type="button" disabled={assignBlocked || !assigneeUserId || (!assignRetry && assigneeUserId === order.assignment?.assigneeUserId)} onClick={() => { void assignOrderToStaff(); }}>
+                {assignRetry ? 'Retry assignment' : 'Assign'}
               </button>
             </section>
           ) : null}
 
-          {order.refundRequest?.status === 'pending' && (order.allowedActions.includes('approve_refund') || order.allowedActions.includes('reject_refund')) ? (
+          {(approveRetry || rejectRetry || (order.refundRequest?.status === 'pending' && (order.allowedActions.includes('approve_refund') || order.allowedActions.includes('reject_refund')))) ? (
             <section className="notice notice-info" aria-label="Refund decision">
               <h2>Refund decision</h2>
               <p>Approval records a final decision and awaits external execution. This Console does not return money.</p>
               <div className="inline-actions">
-                {order.allowedActions.includes('approve_refund') ? <button className="button button-primary" type="button" disabled={roleActionBusy} onClick={() => { void decideRefund('approve'); }}>{roleAttemptRef.current?.action === 'approve' && notice?.kind === 'unknown' ? 'Retry approve refund' : 'Approve refund'}</button> : null}
-                {order.allowedActions.includes('reject_refund') ? <button className="button" type="button" disabled={roleActionBusy} onClick={() => { void decideRefund('reject'); }}>{roleAttemptRef.current?.action === 'reject' && notice?.kind === 'unknown' ? 'Retry reject refund' : 'Reject refund'}</button> : null}
+                {order.allowedActions.includes('approve_refund') || approveRetry ? <button className="button button-primary" type="button" disabled={roleCommandsBlocked || (unknownOutcome && !approveRetry)} onClick={() => { void decideRefund('approve'); }}>{approveRetry ? 'Retry approve refund' : 'Approve refund'}</button> : null}
+                {order.allowedActions.includes('reject_refund') || rejectRetry ? <button className="button" type="button" disabled={roleCommandsBlocked || (unknownOutcome && !rejectRetry)} onClick={() => { void decideRefund('reject'); }}>{rejectRetry ? 'Retry reject refund' : 'Reject refund'}</button> : null}
               </div>
             </section>
           ) : null}
@@ -891,8 +989,8 @@ export function OrderDetailScreen({
                 </label>
                 {fieldError?.path === '/ack' ? <p className="field-error">{fieldError.message}</p> : null}
                 <div className="inline-actions">
-                  <button className="button button-primary" type="submit" disabled={inFlight || !paymentAcknowledged || notice?.kind === 'outdated'}>
-                    {notice?.kind === 'unknown' ? 'Retry Mark Paid' : 'Mark Paid'}
+                  <button className="button button-primary" type="submit" disabled={orderCommandsBlocked || !paymentAcknowledged || (unknownOutcome && orderRetryAction !== 'mark_paid')}>
+                    {orderRetryAction === 'mark_paid' ? 'Retry Mark Paid' : 'Mark Paid'}
                   </button>
                   <button className="button" type="button" disabled={inFlight} onClick={closePanel}>Back to Order</button>
                 </div>
@@ -911,10 +1009,10 @@ export function OrderDetailScreen({
                 <button
                   className="button button-primary"
                   type="button"
-                  disabled={inFlight || notice?.kind === 'outdated'}
+                  disabled={orderCommandsBlocked || (unknownOutcome && orderRetryAction !== 'fulfill')}
                   onClick={() => { void confirmAction('fulfill'); }}
                 >
-                  {notice?.kind === 'unknown' ? 'Retry Fulfill' : 'Confirm Fulfill'}
+                  {orderRetryAction === 'fulfill' ? 'Retry Fulfill' : 'Confirm Fulfill'}
                 </button>
                 <button className="button" type="button" disabled={inFlight} onClick={closePanel}>Back to Order</button>
               </div>
@@ -932,10 +1030,10 @@ export function OrderDetailScreen({
                 <button
                   className="button button-danger"
                   type="button"
-                  disabled={inFlight || notice?.kind === 'outdated'}
+                  disabled={orderCommandsBlocked || (unknownOutcome && orderRetryAction !== 'cancel')}
                   onClick={() => { void confirmAction('cancel'); }}
                 >
-                  {notice?.kind === 'unknown' ? 'Retry Cancel' : 'Confirm Cancel'}
+                  {orderRetryAction === 'cancel' ? 'Retry Cancel' : 'Confirm Cancel'}
                 </button>
                 <button className="button" type="button" disabled={inFlight} onClick={closePanel}>Back to Order</button>
               </div>
@@ -972,8 +1070,8 @@ export function OrderDetailScreen({
                   {fieldError?.path === '/reason' ? <span id="console-refund-reason-error" className="field-error">{fieldError.message}</span> : null}
                 </div>
                 <div className="inline-actions">
-                  <button className="button button-primary" type="submit" disabled={inFlight || notice?.kind === 'outdated'}>
-                    {notice?.kind === 'unknown' ? 'Retry refund request' : 'Submit refund request'}
+                  <button className="button button-primary" type="submit" disabled={orderCommandsBlocked || (unknownOutcome && orderRetryAction !== 'request_refund')}>
+                    {orderRetryAction === 'request_refund' ? 'Retry refund request' : 'Submit refund request'}
                   </button>
                   <button className="button" type="button" disabled={inFlight} onClick={closePanel}>Back to Order</button>
                 </div>
@@ -987,7 +1085,7 @@ export function OrderDetailScreen({
                 <button
                   className="button button-primary"
                   type="button"
-                  disabled={inFlight || (lockedAction !== null && lockedAction !== 'mark_paid')}
+                  disabled={orderCommandsBlocked || (lockedAction !== null && lockedAction !== 'mark_paid')}
                   onClick={(event: MouseEvent<HTMLButtonElement>) => openPanel('mark_paid', event.currentTarget)}
                 >
                   Record manual payment
@@ -997,7 +1095,7 @@ export function OrderDetailScreen({
                 <button
                   className="button button-primary"
                   type="button"
-                  disabled={inFlight || (lockedAction !== null && lockedAction !== 'fulfill')}
+                  disabled={orderCommandsBlocked || (lockedAction !== null && lockedAction !== 'fulfill')}
                   onClick={(event: MouseEvent<HTMLButtonElement>) => openPanel('fulfill', event.currentTarget)}
                 >
                   Fulfill
@@ -1007,7 +1105,7 @@ export function OrderDetailScreen({
                 <button
                   className="button button-danger"
                   type="button"
-                  disabled={inFlight || (lockedAction !== null && lockedAction !== 'cancel')}
+                  disabled={orderCommandsBlocked || (lockedAction !== null && lockedAction !== 'cancel')}
                   onClick={(event: MouseEvent<HTMLButtonElement>) => openPanel('cancel', event.currentTarget)}
                 >
                   Cancel
@@ -1017,7 +1115,7 @@ export function OrderDetailScreen({
                 <button
                   className="button"
                   type="button"
-                  disabled={inFlight || (lockedAction !== null && lockedAction !== 'request_refund')}
+                  disabled={orderCommandsBlocked || (lockedAction !== null && lockedAction !== 'request_refund')}
                   onClick={(event: MouseEvent<HTMLButtonElement>) => openPanel('request_refund', event.currentTarget)}
                 >
                   Request refund for Customer
@@ -1060,13 +1158,19 @@ export function OrderDetailScreen({
             <h2 id="order-refund-title">Refund request</h2>
             {order.refundRequest ? (
               <>
-                <p><span className="refund-badge">Refund request pending</span></p>
+                <p><span className="refund-badge">{REFUND_REQUEST_LABEL[order.refundRequest.status]}</span></p>
                 <p className="order-reason">{order.refundRequest.reason}</p>
                 <p className="meta-text">
-                  {new Date(order.refundRequest.createdAt).toLocaleString()}
+                  Requested {new Date(order.refundRequest.createdAt).toLocaleString()}
                   {refundActor ? ` · ${refundActor}` : ''}
                 </p>
-                <p>Manual refunds require confirmation of an external return in a later step. Money has not been returned.</p>
+                {order.refundRequest.decidedAt ? (
+                  <p className="meta-text">
+                    Decided {new Date(order.refundRequest.decidedAt).toLocaleString()}
+                    {refundDecidedActor ? ` · ${refundDecidedActor}` : ''}
+                  </p>
+                ) : null}
+                <p>{REFUND_REQUEST_COPY[order.refundRequest.status]}</p>
               </>
             ) : (
               <p>No refund request is open. Manual refunds require confirmation of an external return in a later step.</p>

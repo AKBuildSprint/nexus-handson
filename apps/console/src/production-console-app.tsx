@@ -246,10 +246,14 @@ export function ProductionConsoleApp() {
   const [authState, setAuthState] = useState<'resolving' | 'signed-out' | 'signed-in'>('resolving');
   const [session, setSession] = useState<ConsoleSessionView | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [sessionRevalidating, setSessionRevalidating] = useState(false);
+  const [sessionGeneration, setSessionGeneration] = useState(0);
+  const sessionRef = useRef<ConsoleSessionView | null>(null);
   const identityGenerationRef = useRef(0);
   const authOperationRef = useRef(0);
   const logoutInProgressRef = useRef(false);
   const sessionRequestRef = useRef<AbortController | null>(null);
+  const sessionCheckRef = useRef<Promise<void> | null>(null);
   const privateAbortRef = useRef(new AbortController());
   const [route, setRoute] = useState<ConsoleRoute>(() => parseRoute(window.location.pathname));
   const dirtyRef = useRef(false);
@@ -286,6 +290,7 @@ export function ProductionConsoleApp() {
     privateAbortRef.current.abort();
     privateAbortRef.current = new AbortController();
     identityGenerationRef.current += 1;
+    setSessionGeneration((current) => current + 1);
     dirtyRef.current = false;
     setListItems([]);
     setListState('loading');
@@ -313,14 +318,31 @@ export function ProductionConsoleApp() {
   }, []);
 
   const endSession = useCallback((expired: boolean) => {
+    authOperationRef.current += 1;
+    sessionRequestRef.current?.abort();
     clearPrivateState();
+    sessionRef.current = null;
+    setSessionRevalidating(false);
     setSession(null);
     setSessionExpired(expired);
     setAuthState('signed-out');
   }, [clearPrivateState]);
 
   const activateSession = useCallback((nextSession: ConsoleSessionView) => {
-    clearPrivateState();
+    const current = sessionRef.current;
+    const sameAccess = current !== null
+      && current.user.id === nextSession.user.id
+      && current.store.id === nextSession.store.id
+      && current.role === nextSession.role
+      && current.allowedActions.length === nextSession.allowedActions.length
+      && current.allowedActions.every((action) => nextSession.allowedActions.includes(action));
+    if (!sameAccess) clearPrivateState();
+    else {
+      orderRouteGenerationRef.current += 1;
+      setOrderRouteGeneration(orderRouteGenerationRef.current);
+    }
+    sessionRef.current = nextSession;
+    setSessionRevalidating(false);
     setSession(nextSession);
     setSessionExpired(false);
     setAuthState('signed-in');
@@ -336,24 +358,26 @@ export function ProductionConsoleApp() {
     authOperationRef.current = operation;
     sessionRequestRef.current?.abort();
     if (options.quarantine) {
-      clearPrivateState();
-      setSession(null);
-      setAuthState('resolving');
+      // Keep drafts mounted but inaccessible until the current access has been checked.
+      setSessionRevalidating(true);
+      if (sessionRef.current === null) setAuthState('resolving');
     }
     const controller = new AbortController();
     sessionRequestRef.current = controller;
-    try {
-      const nextSession = await fetchConsoleSession(controller.signal);
+    const check = fetchConsoleSession(controller.signal).then((nextSession) => {
       if (controller.signal.aborted || authOperationRef.current !== operation || logoutInProgressRef.current) return;
       activateSession(nextSession);
       if (options.publishOnSuccess) publishConsoleAuthChange();
-    } catch (error) {
+    }).catch((error: unknown) => {
       if (controller.signal.aborted || authOperationRef.current !== operation || logoutInProgressRef.current) return;
       endSession(options.expiredOnDenial && error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied'));
-    } finally {
+    }).finally(() => {
       if (sessionRequestRef.current === controller) sessionRequestRef.current = null;
-    }
-  }, [activateSession, clearPrivateState, endSession]);
+      if (sessionCheckRef.current === check) sessionCheckRef.current = null;
+    });
+    sessionCheckRef.current = check;
+    await check;
+  }, [activateSession, endSession]);
 
   useEffect(() => {
     void resolveSession({ quarantine: false, expiredOnDenial: false, publishOnSuccess: true });
@@ -447,7 +471,7 @@ export function ProductionConsoleApp() {
       else setListState('error');
     });
     return () => controller.abort();
-  }, [authState, criteria, endSession, route.kind]);
+  }, [authState, criteria, endSession, route.kind, sessionGeneration]);
 
   useEffect(() => {
     if (authState !== 'signed-in' || route.kind !== 'orders') return;
@@ -533,7 +557,7 @@ export function ProductionConsoleApp() {
       setRevision(null);
       setDetailLifecycle('create');
     }
-  }, [authState, loadDetail, route]);
+  }, [authState, loadDetail, route, sessionGeneration]);
 
   const summaries = useMemo(() => listItems.map(listSummary), [listItems]);
   const editorScenario = useMemo<ProductEditorScenario>(() => ({
@@ -558,6 +582,7 @@ export function ProductionConsoleApp() {
       product: coreFields(product),
       schema,
     }, signal);
+    while (sessionCheckRef.current) await sessionCheckRef.current;
     if (identityGenerationRef.current !== identityGeneration) throw new DOMException('The identity changed.', 'AbortError');
     previewHashRef.current = preview.previewHash;
     const existingFixtures = detail ? detailFixture(detail).variants : [];
@@ -582,7 +607,12 @@ export function ProductionConsoleApp() {
   const saveProduct = useCallback(async (product: ProductEditorFixture) => {
     const identityGeneration = identityGenerationRef.current;
     const signal = privateAbortRef.current.signal;
-    const identityChanged = () => identityGenerationRef.current !== identityGeneration;
+    const assertSaveIdentity = async () => {
+      while (sessionCheckRef.current) await sessionCheckRef.current;
+      if (identityGenerationRef.current !== identityGeneration) {
+        throw new DOMException('The Console session was rechecked before the save finished. Reload the Product before retrying.', 'AbortError');
+      }
+    };
     const currentDetail = detail ?? createdDetailRef.current;
     const core = coreFields(product);
     const schema = product.groups.length === 0 && currentDetail?.type !== 'variant' ? null : buildSchema(product, currentDetail);
@@ -599,11 +629,11 @@ export function ProductionConsoleApp() {
           product: core,
           schema,
         }, signal)).previewHash;
-      if (identityChanged()) return;
+      await assertSaveIdentity();
       previewHashRef.current = previewHash;
       if (schema !== null && previewHash === null) throw new Error('Generate the Variant matrix preview before saving this Product.');
       const result = await createProduct({ product: core, schema, previewHash }, signal);
-      if (identityChanged()) return;
+      await assertSaveIdentity();
       saved = result.product;
       nextRevision = result.revision;
       createdDetailRef.current = saved;
@@ -618,10 +648,10 @@ export function ProductionConsoleApp() {
           product: core,
           schema,
         }, signal)).previewHash;
-        if (identityChanged()) return;
+        await assertSaveIdentity();
         previewHashRef.current = previewHash;
         const result = await applyProductSchema(currentDetail.id, revision, { product: core, schema, previewHash }, signal);
-        if (identityChanged()) return;
+        await assertSaveIdentity();
         saved = result.product;
         nextRevision = result.revision;
       } else {
@@ -654,26 +684,26 @@ export function ProductionConsoleApp() {
           };
         });
         const result = await updateProduct(currentDetail.id, revision, { product: core, optionLabels, variantEdits }, signal);
-        if (identityChanged()) return;
+        await assertSaveIdentity();
         saved = result.product;
         nextRevision = result.revision;
       }
     }
 
-    if (identityChanged()) return;
+    await assertSaveIdentity();
     setRevision(nextRevision);
     let fileMutated = false;
     const productFileChange = pendingProductFileRef.current;
     if (productFileChange instanceof File) {
       nextRevision = await replaceDeliveryFile({ productId: saved.id, variantId: null, revision: nextRevision, file: productFileChange }, signal);
-      if (identityChanged()) return;
+      await assertSaveIdentity();
       fileMutated = true;
       pendingProductFileRef.current = null;
       saved = { ...saved, revision: nextRevision };
       setRevision(nextRevision);
     } else if (productFileChange === 'remove') {
       nextRevision = await removeDeliveryFile({ productId: saved.id, variantId: null, revision: nextRevision }, signal);
-      if (identityChanged()) return;
+      await assertSaveIdentity();
       fileMutated = true;
       pendingProductFileRef.current = null;
       saved = { ...saved, revision: nextRevision };
@@ -699,7 +729,7 @@ export function ProductionConsoleApp() {
       nextRevision = change instanceof File
         ? await replaceDeliveryFile({ productId: saved.id, variantId: savedVariant.id, revision: nextRevision, file: change }, signal)
         : await removeDeliveryFile({ productId: saved.id, variantId: savedVariant.id, revision: nextRevision }, signal);
-      if (identityChanged()) return;
+      await assertSaveIdentity();
       fileMutated = true;
       pendingVariantFilesRef.current.delete(localVariantId);
       saved = { ...saved, revision: nextRevision };
@@ -708,7 +738,7 @@ export function ProductionConsoleApp() {
 
     if (fileMutated) {
       const refreshed = await fetchProductBySlug(saved.slug, signal);
-      if (identityChanged()) return;
+      await assertSaveIdentity();
       saved = refreshed.product;
       nextRevision = refreshed.revision;
     }
@@ -743,6 +773,8 @@ export function ProductionConsoleApp() {
     logoutInProgressRef.current = true;
     sessionRequestRef.current?.abort();
     clearPrivateState();
+    sessionRef.current = null;
+    setSessionRevalidating(false);
     setSession(null);
     setSessionExpired(false);
     setAuthState('resolving');
@@ -761,16 +793,17 @@ export function ProductionConsoleApp() {
     }
   }, [clearPrivateState, endSession, resolveSession]);
 
+  const renderedIdentityGeneration = identityGenerationRef.current;
+  const expireRenderedIdentity = useCallback(() => {
+    if (identityGenerationRef.current === renderedIdentityGeneration) endSession(true);
+  }, [endSession, renderedIdentityGeneration]);
+
   if (authState === 'resolving') {
     return <main className="console-auth-page"><p role="status">Checking Console session…</p></main>;
   }
   if (authState === 'signed-out' || session === null) {
     return <SignInScreen expired={sessionExpired} onSignIn={handleSignIn} />;
   }
-  const renderedIdentityGeneration = identityGenerationRef.current;
-  const expireRenderedIdentity = () => {
-    if (identityGenerationRef.current === renderedIdentityGeneration) endSession(true);
-  };
 
   let content;
   if (route.kind === 'orders') {
@@ -833,7 +866,16 @@ export function ProductionConsoleApp() {
         if (slug) navigate({ kind: 'edit', slug });
       }}
       onImportCsv={() => { navigate({ kind: 'import' }); }}
-      onDownloadTemplate={() => downloadCsvTemplate(privateAbortRef.current.signal)}
+      onDownloadTemplate={async () => {
+        try {
+          await downloadCsvTemplate(privateAbortRef.current.signal);
+        } catch (error) {
+          if (error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied')) {
+            expireRenderedIdentity();
+          }
+          throw error;
+        }
+      }}
       onRetry={() => setCriteria((current) => ({ ...current }))}
       onCriteriaChange={updateCriteria}
       readOnly={session.role === 'staff'}
@@ -859,12 +901,17 @@ export function ProductionConsoleApp() {
   }
 
   const ordersDestination = route.kind === 'orders' || route.kind === 'order-detail';
-  return <ConsoleShell
+  return <>
+    {sessionRevalidating ? <main className="console-auth-page"><p role="status">Checking Console session…</p></main> : null}
+    <div key={sessionGeneration} hidden={sessionRevalidating} inert={sessionRevalidating}>
+      <ConsoleShell
     activeDestination={ordersDestination ? 'Orders' : 'Products'}
     railNote={ordersDestination ? 'Review safe Customer Order projections.' : 'Manage Product pricing, Variants, and private delivery files.'}
     onOpenProducts={() => navigate({ kind: 'list' })}
     onOpenOrders={() => navigate({ kind: 'orders' })}
     identity={{ userName: session.user.name, storeName: session.store.name, role: session.role }}
     onSignOut={handleSignOut}
-  >{content}</ConsoleShell>;
+      >{content}</ConsoleShell>
+    </div>
+  </>;
 }

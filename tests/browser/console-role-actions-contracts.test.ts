@@ -25,6 +25,14 @@ const detailB = {
   refundRequest: { id: 'rrq_22222222222222222222222222222222', status: 'pending', reason: 'Wrong item', createdAt: '2026-09-12T00:00:00.000Z', decidedAt: null, decidedByUserId: null },
 };
 
+const decidedDetail = {
+  ...detail,
+  refundRequestStatus: 'approved',
+  refundRequest: { ...detail.refundRequest, status: 'approved', decidedAt: '2026-09-12T02:00:00.000Z', decidedByUserId: 'owner_1' },
+  allowedActions: [],
+  history: [{ action: 'refund_approved', source: 'console', actorId: 'owner_1', actorLabel: 'Owner One', contractVersion: 2, fromStatus: 'paid', toStatus: 'paid', createdAt: '2026-09-12T02:00:00.000Z' }],
+};
+
 function json(body: unknown): Response {
   return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }
@@ -226,5 +234,234 @@ describe('Console role-aware Order controls', () => {
     await waitUntil(() => (container.textContent ?? '').includes('The action succeeded, but the latest Order could not be loaded.'));
 
     expect(container.textContent).toContain('The action succeeded, but the latest Order could not be loaded.');
+  });
+
+  it('reconciles a frozen assignment after passive reads of both old and committed targets', async () => {
+    const keys: string[] = [];
+    const targets: string[] = [];
+    let gets = 0;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = pathOf(input);
+      if (path === '/api/console/staff') return json({ staff: [{ userId: 'staff_1', name: 'Staff One' }, { userId: 'staff_2', name: 'Staff Two' }] });
+      if (path.endsWith('/assignment')) {
+        keys.push(new Headers(init?.headers).get('Idempotency-Key') ?? '');
+        targets.push(JSON.parse(String(init?.body)).assigneeUserId);
+        return keys.length === 1
+          ? fail(503, 'order_operation_failed', 'Outcome unknown.')
+          : json({ action: 'assign', reference: detail.reference, status: 'paid', occurredAt: '2026-09-12T01:00:00.000Z', paymentId: null, refundRequest: null, assignment: { assigneeUserId: 'staff_2', eventId: 'event_2' } });
+      }
+      if (path === `/api/console/orders/${detail.reference}`) {
+        gets += 1;
+        return json({ order: { ...detail, assignment: { assigneeUserId: gets < 3 ? 'staff_1' : 'staff_2' } } });
+      }
+      return json({});
+    }));
+    await renderDetail(detail.reference, 1, true);
+    await waitUntil(() => Boolean(container.querySelector('#order-assignee')));
+    await act(async () => {
+      const select = (container.querySelector('#order-assignee') as HTMLSelectElement | null)!;
+      select.value = 'staff_2';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await act(async () => buttonByName('Assign')?.click());
+    await waitUntil(() => Boolean(buttonByName('Retry assignment')));
+    for (const readCount of [2, 3]) {
+      await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+      await waitUntil(() => gets >= readCount);
+      await flush();
+      expect((container.querySelector('#order-assignee') as HTMLSelectElement | null)?.value).toBe('staff_2');
+      expect(buttonByName('Retry assignment')?.disabled).toBe(false);
+    }
+    await act(async () => buttonByName('Retry assignment')?.click());
+    await waitUntil(() => buttonByName('Retry assignment') === undefined);
+    expect(keys).toHaveLength(2);
+    expect(keys[1]).toBe(keys[0]);
+    expect(targets).toEqual(['staff_2', 'staff_2']);
+  });
+
+  it('keeps competing assignment blocked when an unresolved Cancel panel is reopened', async () => {
+    const keys: string[] = [];
+    let assignments = 0;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = pathOf(input);
+      if (path === '/api/console/staff') return json({ staff: [{ userId: 'staff_1', name: 'Staff One' }, { userId: 'staff_2', name: 'Staff Two' }] });
+      if (path.endsWith('/assignment')) { assignments += 1; return fail(503, 'order_operation_failed', 'Unknown.'); }
+      if (path.endsWith('/cancel')) {
+        keys.push(new Headers(init?.headers).get('Idempotency-Key') ?? '');
+        return keys.length === 1
+          ? fail(503, 'order_operation_failed', 'Unknown.')
+          : json({ action: 'cancel', reference: detail.reference, status: 'canceled', occurredAt: '2026-09-12T01:00:00.000Z', paymentId: null, refundRequest: null });
+      }
+      return json({ order: { ...detail, status: keys.length === 2 ? 'canceled' : 'pending', refundRequest: null, refundRequestStatus: null, allowedActions: keys.length === 2 ? [] : ['cancel'] } });
+    }));
+    await renderDetail(detail.reference, 1, true);
+    await waitUntil(() => Boolean(container.querySelector('#order-assignee')));
+    await act(async () => {
+      const select = (container.querySelector('#order-assignee') as HTMLSelectElement | null)!;
+      select.value = 'staff_2';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await act(async () => buttonByName('Cancel')?.click());
+    await act(async () => buttonByName('Confirm Cancel')?.click());
+    await waitUntil(() => Boolean(buttonByName('Retry Cancel')));
+    await act(async () => buttonByName('Back to Order')?.click());
+    await act(async () => buttonByName('Cancel')?.click());
+    expect(buttonByName('Assign')?.disabled).toBe(true);
+    expect(buttonByName('Retry Cancel')?.disabled).toBe(false);
+    await act(async () => {
+      buttonByName('Assign')?.click();
+      buttonByName('Retry Cancel')?.click();
+    });
+    await waitUntil(() => keys.length === 2);
+    expect(assignments).toBe(0);
+    expect(keys[1]).toBe(keys[0]);
+  });
+
+  it('sends one refund decision when the control is clicked twice before the busy state renders', async () => {
+    let posts = 0;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const path = pathOf(input);
+      if (path.endsWith('/approve')) {
+        posts += 1;
+        return json({ action: 'approve_refund', reference: detail.reference, status: 'paid', occurredAt: '2026-09-12T01:00:00.000Z', paymentId: null, refundRequest: { ...detail.refundRequest, status: 'approved', decidedAt: '2026-09-12T02:00:00.000Z' } });
+      }
+      if (path === `/api/console/orders/${detail.reference}`) return json({ order: detail });
+      return json({});
+    }));
+
+    await renderDetail(detail.reference, 1);
+    await waitUntil(() => Boolean(buttonByName('Approve refund')));
+    await act(async () => {
+      buttonByName('Approve refund')?.click();
+      buttonByName('Approve refund')?.click();
+    });
+    await flush();
+
+    expect(posts).toBe(1);
+  });
+
+  it('refuses any further command once a failed refund decision exposes an outdated client', async () => {
+    let gets = 0;
+    let posts = 0;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const path = pathOf(input);
+      if (path === '/api/console/staff') return json({ staff: [{ userId: 'staff_1', name: 'Staff One' }, { userId: 'staff_2', name: 'Staff Two' }] });
+      if (path.endsWith('/approve')) {
+        posts += 1;
+        return fail(422, 'refund_request_not_pending', 'This refund request was already decided.');
+      }
+      if (path === `/api/console/orders/${detail.reference}`) {
+        gets += 1;
+        return gets === 1 ? json({ order: detail }) : fail(409, 'client_contract_outdated', 'Reload the Console.');
+      }
+      return json({});
+    }));
+
+    await renderDetail(detail.reference, 1, true);
+    await waitUntil(() => Boolean(buttonByName('Approve refund')));
+    await act(async () => { buttonByName('Approve refund')?.click(); });
+    await waitUntil(() => (container.textContent ?? '').includes('This Console is out of date.'));
+
+    expect(buttonByName('Approve refund')?.disabled).toBe(true);
+    expect(buttonByName('Reject refund')?.disabled).toBe(true);
+    expect((container.querySelector('select[aria-label="Assign Order"]') as HTMLSelectElement | null)?.disabled).toBe(true);
+    await act(async () => {
+      buttonByName('Approve refund')?.click();
+      buttonByName('Reject refund')?.click();
+    });
+    await flush();
+
+    expect(posts).toBe(1);
+  });
+
+  it('blocks new decisions after an acknowledged decision whose refresh failed until the authoritative read lands', async () => {
+    let gets = 0;
+    let posts = 0;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const path = pathOf(input);
+      if (path.endsWith('/approve')) {
+        posts += 1;
+        return json({ action: 'approve_refund', reference: detail.reference, status: 'paid', occurredAt: '2026-09-12T01:00:00.000Z', paymentId: null, refundRequest: { ...detail.refundRequest, status: 'approved', decidedAt: '2026-09-12T02:00:00.000Z' } });
+      }
+      if (path === `/api/console/orders/${detail.reference}`) {
+        gets += 1;
+        if (gets === 1) return json({ order: detail });
+        if (gets === 2) return fail(503, 'upstream_unavailable', 'The Order could not be read.');
+        return json({ order: decidedDetail });
+      }
+      return json({});
+    }));
+
+    await renderDetail(detail.reference, 1);
+    await waitUntil(() => Boolean(buttonByName('Approve refund')));
+    await act(async () => { buttonByName('Approve refund')?.click(); });
+    await waitUntil(() => (container.textContent ?? '').includes('The action succeeded, but the latest Order could not be loaded.'));
+
+    expect(buttonByName('Approve refund')?.disabled).toBe(true);
+    await act(async () => { buttonByName('Approve refund')?.click(); });
+    await flush();
+    expect(posts).toBe(1);
+
+    await act(async () => { buttonByName('Retry loading Order')?.click(); });
+    await waitUntil(() => (container.textContent ?? '').includes('Refund request approved'));
+
+    expect(container.textContent).not.toContain('The action succeeded, but the latest Order could not be loaded.');
+    expect(container.textContent).not.toContain('Refund request pending');
+    expect(buttonByName('Approve refund')).toBeUndefined();
+  });
+
+  it('retries an unknown refund decision with the same idempotency key', async () => {
+    const keys: string[] = [];
+    let gets = 0;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = pathOf(input);
+      if (path.endsWith('/approve')) {
+        keys.push(new Headers(init?.headers).get('Idempotency-Key') ?? '');
+        if (keys.length === 1) return fail(503, 'order_operation_failed', 'The Order operation could not be completed.');
+        return json({ action: 'approve_refund', reference: detail.reference, status: 'paid', occurredAt: '2026-09-12T01:00:00.000Z', paymentId: null, refundRequest: { ...detail.refundRequest, status: 'approved', decidedAt: '2026-09-12T02:00:00.000Z' } });
+      }
+      if (path === `/api/console/orders/${detail.reference}`) {
+        gets += 1;
+        return gets === 1 ? json({ order: detail }) : json({ order: decidedDetail });
+      }
+      return json({});
+    }));
+
+    await renderDetail(detail.reference, 1);
+    await waitUntil(() => Boolean(buttonByName('Approve refund')));
+    await act(async () => { buttonByName('Approve refund')?.click(); });
+    await waitUntil(() => Boolean(buttonByName('Retry approve refund')));
+
+    expect(buttonByName('Retry approve refund')?.disabled).toBe(false);
+    await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+    await waitUntil(() => (container.textContent ?? '').includes('Refund request approved'));
+    expect(buttonByName('Reject refund')).toBeUndefined();
+    await act(async () => { buttonByName('Retry approve refund')?.click(); });
+    await waitUntil(() => keys.length === 2);
+    await waitUntil(() => (container.textContent ?? '').includes('Refund request approved'));
+
+    expect(keys[0]).toBe(keys[1]);
+    expect(keys[0]?.length).toBeGreaterThanOrEqual(16);
+  });
+
+  it('renders rejection as final without offering another decision', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const path = pathOf(input);
+      if (path === `/api/console/orders/${detail.reference}`) return json({ order: {
+        ...decidedDetail,
+        refundRequestStatus: 'rejected',
+        refundRequest: { ...decidedDetail.refundRequest, status: 'rejected' },
+        history: decidedDetail.history.map((event) => ({ ...event, action: 'refund_rejected' })),
+      } });
+      return json({});
+    }));
+
+    await renderDetail(detail.reference, 1);
+    await waitUntil(() => (container.textContent ?? '').includes('Refund request rejected'));
+
+    expect(container.textContent).not.toContain('Refund request pending');
+    expect(container.textContent).toContain('No money was returned.');
+    expect(buttonByName('Approve refund')).toBeUndefined();
+    expect(buttonByName('Reject refund')).toBeUndefined();
   });
 });

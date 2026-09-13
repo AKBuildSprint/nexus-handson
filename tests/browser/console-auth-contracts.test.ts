@@ -2,6 +2,7 @@ import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProductionConsoleApp } from '../../apps/console/src/production-console-app';
+import { CSV_HEADER, CSV_EXAMPLE_ROWS } from '@nexus/catalog/shared/csv-contract';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -148,15 +149,12 @@ describe('Console authentication and role contracts', () => {
     expect(container.textContent).not.toContain('Store operator');
   });
 
-  it('starts Google OAuth without loading private data before the callback session exists', async () => {
+  it('keeps private reads blocked while Google sign-in is pending', async () => {
     const calls: Array<{ path: string; init?: RequestInit }> = [];
     stubFetch((path, init) => {
       calls.push({ path, init });
       if (path === '/api/console/session') return authError();
-      if (path === '/api/auth/sign-in/social') return json({
-        url: 'https://accounts.google.com/o/oauth2/v2/auth?state=test-state',
-        redirect: true,
-      });
+      if (path === '/api/auth/sign-in/social') return new Promise<Response>(() => {});
       if (path.startsWith('/api/console/products')) return json({ products: [] });
       return json({ error: { code: 'route_not_found' } }, 404);
     });
@@ -287,6 +285,172 @@ describe('Console authentication and role contracts', () => {
     await waitUntil(() => container.textContent?.includes('Staff Alpha') ?? false, 'the replacement identity');
     expect(container.textContent).not.toContain('Owner private Product');
     expect(container.textContent).toContain('Read-only Product catalog');
+  });
+
+  it('preserves a quarantined Product draft and selected file when the same access is confirmed', async () => {
+    window.history.replaceState({}, '', '/console/products/new');
+    let resolveRevalidation!: (response: Response) => void;
+    const revalidation = new Promise<Response>((resolve) => { resolveRevalidation = resolve; });
+    let sessionReads = 0;
+    stubFetch((path) => {
+      if (path === '/api/console/session') return ++sessionReads === 1 ? json(ownerSession) : revalidation;
+      return json({ products: [] });
+    });
+    await renderApp();
+    await waitUntil(() => Boolean(container.querySelector('#product-name')), 'Product editor');
+    await enter(container.querySelector('#product-name') as HTMLInputElement, 'Unsaved Product');
+    const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]');
+    if (!fileInput) throw new Error('Missing private file input.');
+    await act(async () => {
+      const transfer = new DataTransfer();
+      transfer.items.add(new File(['%PDF-1.7\nprivate draft'], 'draft.pdf', { type: 'application/pdf' }));
+      fileInput.files = transfer.files;
+      fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await waitUntil(() => Boolean(buttonNamed(/remove selected file/i)), 'selected delivery file');
+
+    await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+    expect(container.querySelector('#product-name')?.checkVisibility()).toBe(false);
+    expect(container.textContent).toContain('Checking Console session');
+    resolveRevalidation(json({ ...ownerSession, allowedActions: [...ownerSession.allowedActions].reverse() }));
+    await waitUntil(() => container.querySelector('#product-name')?.checkVisibility() ?? false, 'restored editor');
+    expect((container.querySelector('#product-name') as HTMLInputElement).value).toBe('Unsaved Product');
+    expect(container.textContent).toContain('draft.pdf');
+    expect(buttonNamed(/remove selected file/i)).toBeDefined();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    await act(async () => buttonNamed(/^back to products$/i)?.click());
+    expect(confirm).toHaveBeenCalled();
+    expect(window.location.pathname).toBe('/console/products/new');
+  });
+
+  it('retains an in-flight Product read across same-session revalidation', async () => {
+    window.history.replaceState({}, '', '/console/products/retained-product');
+    let resolveOldRead!: (response: Response) => void;
+    const oldRead = new Promise<Response>((resolve) => { resolveOldRead = resolve; });
+    let productReads = 0;
+    const product = {
+      id: 'prod_retained', slug: 'retained-product', name: 'Retained Product', status: 'draft', type: 'simple',
+      currency: 'USD', basePriceMinor: 1200, publicDescription: '',
+      delivery: { accessTitle: 'Download', accessInstructions: 'Open the file', file: { present: false } },
+      optionGroups: [], variants: [], updatedAt: '2026-09-12T00:00:00.000Z', revision: 1,
+    };
+    stubFetch((path) => {
+      if (path === '/api/console/session') return json(ownerSession);
+      if (path.includes('/products/by-slug/')) {
+        return ++productReads === 1 ? oldRead : json(product);
+      }
+      return json({});
+    });
+    await renderApp();
+    await waitUntil(() => productReads === 1, 'initial Product request');
+    await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+    resolveOldRead(json(product));
+    await waitUntil(() => Boolean(container.querySelector('#product-name')), 'resumed Product read');
+    expect((container.querySelector('#product-name') as HTMLInputElement).value).toBe('Retained Product');
+  });
+
+  it('waits for same-session proof before continuing an acknowledged Product save', async () => {
+    window.history.replaceState({}, '', '/console/products/new');
+    let resolveCreate!: (response: Response) => void;
+    let resolveRevalidation!: (response: Response) => void;
+    const create = new Promise<Response>((resolve) => { resolveCreate = resolve; });
+    const revalidation = new Promise<Response>((resolve) => { resolveRevalidation = resolve; });
+    let sessionReads = 0;
+    let creates = 0;
+    stubFetch((path, init) => {
+      if (path === '/api/console/session') return ++sessionReads === 1 ? json(ownerSession) : revalidation;
+      if (path === '/api/console/products' && init?.method === 'POST') {
+        creates += 1;
+        return create;
+      }
+      return json({});
+    });
+    await renderApp();
+    await waitUntil(() => Boolean(container.querySelector('#product-name')), 'Product editor');
+    for (const [selector, value] of [
+      ['#product-name', 'Retained Product'],
+      ['#base-price', '12.00'],
+      ['#delivery-access-title', 'Download'],
+      ['#delivery-access-instructions', 'Open the file'],
+    ]) {
+      await enter(container.querySelector(selector) as HTMLInputElement | HTMLTextAreaElement, value);
+    }
+    await act(async () => buttonNamed(/^save product$/i)?.click());
+    await waitUntil(() => creates === 1, 'pending Product save');
+    await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+    resolveCreate(json({ product: {
+      id: 'prod_retained', slug: 'retained-product', name: 'Retained Product', status: 'draft', type: 'simple',
+      currency: 'USD', basePriceMinor: 1200, publicDescription: '',
+      delivery: { accessTitle: 'Download', accessInstructions: 'Open the file', file: { present: false } },
+      optionGroups: [], variants: [], updatedAt: '2026-09-12T00:00:00.000Z', revision: 1,
+    }, revision: 1 }));
+    await flush();
+    expect(window.location.pathname).toBe('/console/products/new');
+    expect(container.querySelector('#product-name')?.checkVisibility()).toBe(false);
+    resolveRevalidation(json(ownerSession));
+    await waitUntil(() => window.location.pathname === '/console/products/retained-product', 'acknowledged Product');
+    expect((container.querySelector('#product-name') as HTMLInputElement).value).toBe('Retained Product');
+    expect(buttonNamed(/^discard changes$/i)).toBeUndefined();
+    expect(creates).toBe(1);
+  });
+
+  it('finishes CSV inspection retained across same-session revalidation', async () => {
+    window.history.replaceState({}, '', '/console/products/import');
+    stubFetch((path) => path === '/api/console/session' ? json(ownerSession) : json({ products: [] }));
+    await renderApp();
+    await waitUntil(() => container.querySelector<HTMLInputElement>('#csv-file')?.disabled === false, 'CSV selection');
+    const bytes = new TextEncoder().encode([
+      CSV_HEADER.join(','),
+      CSV_HEADER.map((column) => CSV_EXAMPLE_ROWS[0][column]).join(','),
+    ].join('\n'));
+    let finishInspection!: (bytes: ArrayBuffer) => void;
+    const inspection = new Promise<ArrayBuffer>((resolve) => { finishInspection = resolve; });
+    const file = new File([bytes], 'retained.csv', { type: 'text/csv' });
+    vi.spyOn(file, 'arrayBuffer').mockReturnValue(inspection);
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    await act(async () => {
+      const input = container.querySelector<HTMLInputElement>('#csv-file')!;
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+    finishInspection(bytes.buffer);
+    await waitUntil(() => buttonNamed(/^import products$/i)?.disabled === false, 'retained CSV validation');
+    expect(container.textContent).toContain('retained.csv');
+  });
+
+  it('discards retained drafts when the same user loses Owner access', async () => {
+    window.history.replaceState({}, '', '/console/products/new');
+    let currentSession = ownerSession;
+    stubFetch((path) => path === '/api/console/session' ? json(currentSession) : json({ products: [] }));
+    await renderApp();
+    await waitUntil(() => Boolean(container.querySelector('#product-name')), 'Owner editor');
+    await enter(container.querySelector('#product-name') as HTMLInputElement, 'Owner-only draft');
+    currentSession = { ...ownerSession, role: 'staff', allowedActions: staffSession.allowedActions };
+    await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+    await waitUntil(() => window.location.pathname === '/console/products', 'Staff route');
+    expect(container.querySelector('#product-name')).toBeNull();
+    expect(container.textContent).not.toContain('Owner-only draft');
+    expect(container.textContent).toContain('Read-only Product catalog');
+  });
+
+  it('clears the private Product list when template download detects revoked Store access', async () => {
+    stubFetch((path) => {
+      if (path === '/api/console/session') return json(ownerSession);
+      if (path === '/api/console/imports/template') return authError(403, 'store_access_denied');
+      return json({ products: [{
+        id: 'prod_private', slug: 'private-product', name: 'Private Product', status: 'draft', type: 'simple', currency: 'USD',
+        minimumEffectivePriceMinor: 100, maximumEffectivePriceMinor: 100, enabledVariantCount: null,
+        updatedAt: '2026-09-12T00:00:00.000Z', revision: 1,
+      }] });
+    });
+    await renderApp();
+    await waitUntil(() => container.textContent?.includes('Private Product') ?? false, 'private catalog');
+    await act(async () => buttonNamed(/download.*template/i)?.click());
+    await waitUntil(() => Boolean(buttonNamed(/^continue with google$/i)), 'signed-out screen');
+    expect(container.textContent).not.toContain('Private Product');
+    expect(container.textContent).not.toContain('Owner Alpha');
   });
 
   it('waits for sign-out cookie deletion before exposing a replacement sign-in form', async () => {
