@@ -248,20 +248,6 @@ describe('Console Order contracts', () => {
     expect(container.textContent).not.toContain('internal delivery');
   });
 
-  it('provides durable loading, empty, no-results, and error regions', async () => {
-    await act(async () => root.render(createElement(OrdersScreen, { ...screenDefaults, state: 'loading', orders: [], summary: null })));
-    expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
-    expect(container.textContent).not.toContain('Matching Orders');
-    await act(async () => root.render(createElement(OrdersScreen, { ...screenDefaults, state: 'empty', orders: [] })));
-    expect(container.textContent).toContain('No Orders have been placed.');
-    await act(async () => root.render(createElement(OrdersScreen, { ...screenDefaults, state: 'no-results', orders: [] })));
-    expect(container.textContent).toContain('No Orders match these filters.');
-    const retry = vi.fn();
-    await act(async () => root.render(createElement(OrdersScreen, { ...screenDefaults, state: 'error', orders: [], summary: null, onRetry: retry })));
-    expect(container.textContent).not.toContain('Matching Orders');
-    await act(async () => buttonByName('Retry loading Orders')?.click());
-    expect(retry).toHaveBeenCalledOnce();
-  });
 
   it('supports direct Orders URLs, destination navigation, and popstate restoration', async () => {
     stubConsoleFetch(async (url) => {

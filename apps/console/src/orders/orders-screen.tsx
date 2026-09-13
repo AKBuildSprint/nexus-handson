@@ -179,7 +179,7 @@ function OrderListPager({
       <p className="pager-range">
         Showing {start}–{end} of {total}
         <span aria-hidden="true"> · </span>
-        Page {page} of {totalPages}
+        Page {page}{page <= totalPages ? <> of {totalPages}</> : null}
       </p>
       <div className="pager-actions">
         <button className="button" type="button" disabled={!hasPreviousPage} onClick={onPrevious}>Previous</button>
@@ -355,8 +355,8 @@ export function OrdersScreen({
 
         {state === 'no-results' ? (
           <div className="empty-state">
-            <h3>No Orders match these filters.</h3>
-            <p>Clear filters or return to the first page to continue reviewing Orders.</p>
+            <h3>{total > 0 ? 'No Orders remain on this page.' : 'No Orders match these filters.'}</h3>
+            <p>{total > 0 ? 'The result set changed. Return to the previous or first page to review matching Orders.' : 'Clear filters or return to the first page to continue reviewing Orders.'}</p>
             <div className="inline-actions">
               <button className="button" type="button" onClick={onClearFilters}>Clear filters</button>
               {hasPreviousPage ? <button className="button" type="button" onClick={onFirstPage}>First page</button> : null}
