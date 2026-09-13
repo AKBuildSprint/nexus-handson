@@ -62,7 +62,7 @@ async function provisionLocalAuthFixture(): Promise<ConsoleAuthFixture> {
     },
     {
       email: staffEmail,
-      name: 'E2E Nexus Staff',
+      name: `E2E Nexus Staff Nguyễn 東京 ${'LongName'.repeat(8)}`,
       googleSubject: `e2e-google-staff:${staffEmail}`,
       role: 'staff' as const,
     },

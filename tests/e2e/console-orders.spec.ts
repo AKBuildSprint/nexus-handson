@@ -146,8 +146,8 @@ async function tabUntilFocused(page: Page, locator: Locator, limit = 40) {
   await expect(locator).toBeFocused();
 }
 
-test('keeps Console search, filters, pager, and confirmation reachable by keyboard without overflow', async ({ page: storefrontPage, consoleOwnerPage: page }) => {
-  const name = `Verify Console Keys ${uniqueToken()}`;
+test('keeps Console search, filters, pager, and confirmation reachable by keyboard without overflow', async ({ page: storefrontPage, consoleOwnerPage: page, consoleAuth }) => {
+  const name = `Verify Console Keys ${uniqueToken()} ${'Reference'.repeat(6)}`;
   await createSimpleProduct(page, name, '9.50');
   await storefrontPage.goto(STOREFRONT_ORIGIN);
   const order = await placeOrder(storefrontPage, name);
@@ -202,6 +202,19 @@ test('keeps Console search, filters, pager, and confirmation reachable by keyboa
   await expect(page.getByRole('button', { name: 'Mark Paid' })).toBeEnabled();
 
   await page.setViewportSize({ width: 375, height: 812 });
+  await expectNoHorizontalOverflow(page, 375);
+  await page.getByRole('combobox', { name: 'Assign Order' }).selectOption(consoleAuth.staff.userId);
+  const assign = page.getByRole('button', { name: 'Assign', exact: true });
+  await tabUntilFocused(page, assign);
+  const assignmentResponse = page.waitForResponse((response) =>
+    response.request().method() === 'POST'
+    && new URL(response.url()).pathname.startsWith(`/api/console/orders/${order.body.reference}/`));
+  await page.keyboard.press('Enter');
+  expect((await assignmentResponse).status()).toBe(200);
+  await expect(assign).toBeDisabled();
+  await page.reload();
+  await expect(page.getByRole('combobox', { name: 'Assign Order' })).toHaveValue(consoleAuth.staff.userId);
+  await expectNoHorizontalOverflow(page, 375);
   await page.goto(`${CONSOLE_ORIGIN}/console/orders`);
   await expect(page.getByRole('heading', { name: 'Orders' })).toBeVisible();
   await expectNoHorizontalOverflow(page, 375);

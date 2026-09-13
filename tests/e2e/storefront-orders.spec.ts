@@ -338,7 +338,7 @@ test('creates a Simple Order with server authority, fragment-only private reload
 
 test('creates an enabled Variant Order and keeps the 375px catalog and private Order within the viewport', async ({ page, consoleOwnerPage }) => {
   const token = uniqueToken();
-  const productName = `Verify E2E Variant ${token}`;
+  const productName = `Verify E2E Variant ${token} <script>window.s4Injected=true</script>`;
   await createVariantProduct(consoleOwnerPage, productName, token);
 
   await page.setViewportSize({ width: 375, height: 812 });

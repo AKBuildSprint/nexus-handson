@@ -293,6 +293,7 @@ p { line-height: 1.6; text-wrap: pretty; }
 .catalog-row {
   display: grid;
   align-content: start;
+  overflow-wrap: anywhere;
   gap: var(--space-3);
   padding: var(--space-4);
   border-radius: var(--radius);
@@ -362,6 +363,7 @@ p { line-height: 1.6; text-wrap: pretty; }
 
 .purchase-ledger, .order-ledger {
   min-width: 0;
+  overflow-wrap: anywhere;
   border-radius: var(--radius);
   background: var(--color-surface);
   box-shadow: var(--shadow-panel);

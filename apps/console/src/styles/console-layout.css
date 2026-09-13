@@ -384,6 +384,7 @@ textarea:disabled {
 
 .page-stack {
   gap: var(--space-8);
+  overflow-wrap: anywhere;
 }
 
 .section-stack {
