@@ -10,6 +10,7 @@ It does not approve backend endpoints, DTOs, database fields, or persistence. Do
 - A Product can have 0 to 5 **option groups**, with at most 10 values per group.
 - Generated combinations are normal from 0 to 10, require confirmation from 11 to 30, and are blocked at 31 or more.
 - Product pricing has one currency and a decimal base price. A Variant may show a decimal price override in the same currency.
+- Display stored minor-unit amounts using each currency's fraction digits: VND has 0, USD has 2. Never assume every currency uses cents.
 - Product delivery has an access title, access instructions, and an optional private PDF or ZIP file up to 25 MB.
 - CSV import uses one fixed template, is additive exact-match, and is limited to 1 MB and 500 data rows.
 

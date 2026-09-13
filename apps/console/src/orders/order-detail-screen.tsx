@@ -25,6 +25,7 @@ import {
   clearPendingRoleCommands, readPendingRoleCommand, removePendingRoleCommand,
   roleCommandScope, savePendingRoleCommand, type FrozenRoleAttempt,
 } from './pending-role-command';
+import { formatMoney } from './format-money';
 
 interface OrderDetailScreenProps {
   session: ConsoleSessionView;
@@ -134,10 +135,6 @@ function detailIntro(order: ConsoleOrderDetailView): string {
     return 'Review the stored Customer Order snapshot. This Order is fulfilled. Fulfillment is an operational status and does not grant Product Access.';
   }
   return 'Review the stored Customer Order snapshot. This Order is paid. Fulfill records an operational status change and does not grant Product Access.';
-}
-
-function formatMoney(minor: number, currency: string): string {
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(minor / 100);
 }
 
 function statusPresentation(status: string): { label: string; className: string } {
