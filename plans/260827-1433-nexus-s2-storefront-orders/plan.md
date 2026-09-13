@@ -42,6 +42,8 @@ Independent Storefront static app
 |---|---|---|
 | Baseline only | [`Nexus S1 Product Catalog`](../260826-0041-nexus-s1-product-catalog/plan.md) | Checked-in S1 catalog interfaces are consumed as they exist; no future S1 plan output is required to begin S2. |
 
+2026-09-12 overlap note: [S4 identity cutover](../260911-1753-nexus-s4-identity-store-isolation/plan.md) consumes the checked-in S3-reconciled Order baseline; it is not blocked on this historical remote-verification record. S4 supersedes anonymous Console checks for future reruns while preserving public/capability contracts. Do not redeploy old S2 writers after the S4 cutover; no historical phase completion is inferred here.
+
 ## Phases
 
 | Phase | Name | Status | Dependency |

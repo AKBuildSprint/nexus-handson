@@ -189,7 +189,7 @@ At 375 px: rail becomes the topbar; tables become summary cards; Storefront grid
 - Account chip uses the bootstrap Store name **Nexus**. No Faire, North Studio, or fake tenant switcher.
 - Deskbar kicker: `Nexus Operations Console · {Products\|Orders}`.
 - Compact: skip link, `Nexus · {destination}`, Menu returns focus to its trigger.
-- Do not add Inventory, Analytics, Retailers, login, or custom-domain controls.
+- Do not add Inventory, Analytics, Retailers, signup, Store switching, or custom-domain controls.
 
 Storefront chrome: **Nexus** / STOREFRONT, Catalog pill, cream canvas. Hero snapshot and metric numbers are live catalog counts.
 
@@ -433,7 +433,7 @@ Do not introduce controls, navigation, empty states, placeholders, or fake data 
 
 - inventory, stock, warehouses, or quantity fulfillment;
 - sales analytics, revenue dashboards, or invented wholesale terms (Net-60, MOQ, boutiques);
-- users, login, sessions, profile menus, Owner/Staff roles, or authorization claims;
+- signup, user/team administration, role switching, or session-management settings;
 - Store switching or multi-Store administration;
 - custom domains or deployment configuration;
 - CSV update, overwrite, upsert, merge strategy, or field mapping;
@@ -442,7 +442,7 @@ Do not introduce controls, navigation, empty states, placeholders, or fake data 
 - import history dashboard or background jobs;
 - Faire, Atelier, or other third-party marketplace branding.
 
-The Storefront catalog, checkout, and Console Orders list are in scope. Do not imply authentication exists. Metric cards must not invent revenue.
+The Storefront catalog, checkout, provisioned Console sign-in, role-aware Products, and assigned Orders are in scope. Metric cards must not invent revenue.
 
 
 ## 8. Phase 2 implementation gate
