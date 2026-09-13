@@ -12,7 +12,7 @@ import {
   getConsoleIdentity, oneVariantSchema, resetCatalog, SIMPLE_CORE, TEST_STOREFRONT_ORIGIN, workerRequest,
 } from '../support/catalog-test-env';
 import { TEST_BETTER_AUTH_SECRET } from '../support/identity-test-env';
-import { CSV_CONTENT_TYPE, CSV_FILENAME_HEADER, CSV_TEMPLATE } from '@nexus/catalog/shared/csv-contract';
+import { CSV_CONTENT_TYPE, CSV_FILENAME, CSV_FILENAME_HEADER, CSV_TEMPLATE } from '@nexus/catalog/shared/csv-contract';
 
 beforeEach(async () => {
   await resetCatalog();
@@ -120,6 +120,14 @@ describe('private catalog Store isolation and roles', () => {
       body: CSV_TEMPLATE,
     });
     expect(staffImport.status).toBe(403);
+    const staffTemplate = await requestAs(staffA, '/api/console/imports/template');
+    expect(staffTemplate.status).toBe(403);
+    expect(await staffTemplate.json()).toMatchObject({ error: { code: 'forbidden' } });
+    const ownerTemplate = await requestAs(ownerA, '/api/console/imports/template');
+    expect(ownerTemplate.status).toBe(200);
+    expect(ownerTemplate.headers.get('Content-Type')).toBe(CSV_CONTENT_TYPE);
+    expect(ownerTemplate.headers.get('Content-Disposition')).toBe(`attachment; filename="${CSV_FILENAME}"`);
+    expect(await ownerTemplate.text()).toBe(CSV_TEMPLATE);
     const staffFile = await requestAs(staffA, `/api/console/products/${productA.id}/delivery-file`, {
       method: 'PUT',
       headers: {

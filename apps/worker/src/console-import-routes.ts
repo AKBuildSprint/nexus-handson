@@ -37,6 +37,9 @@ export async function routeConsoleImportRequest(
 ): Promise<Response | null> {
   const pathname = new URL(request.url).pathname;
   if (pathname === '/api/console/imports/template' && request.method === 'GET') {
+    if (!evaluatePermission(context.identity, 'catalog:import', { storeId: context.store.id })) {
+      return jsonError(403, 'forbidden', 'You do not have permission to import Products.');
+    }
     return new Response(CSV_TEMPLATE, {
       status: 200,
       headers: {
