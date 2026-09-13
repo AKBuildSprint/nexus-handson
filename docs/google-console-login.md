@@ -48,4 +48,8 @@ Local provisioning remains dry-run-first and remote apply remains blocked. Suppl
 
 The Console exposes only Google sign-in, the Google callback, and sign-out under `/api/auth`. Email/password signup and sign-in are unavailable. The callback must match a prebound Google subject, verified provider email, stored user email, and active membership. Every later Console request resolves the membership again, so revoking it removes access without changing the Google account.
 
+On visibility, back-forward restoration, or a sibling-tab auth change, the Console hides and disables private content while checking the session. If the user, Store, role, and allowed actions are unchanged, Product drafts, selected delivery files, and CSV work remain mounted. A changed identity or access scope discards that state. Product save continuations wait for the session check before applying an acknowledgement or sending the next step.
+
+A private endpoint returning `401` or `store_access_denied`, including CSV template download, clears the rendered identity and returns to sign-in. An older identity's delayed response cannot clear or restore the current identity.
+
 Storefront routes do not require Google configuration. Automated tests stub the Google provider callback; a real Google consent smoke remains required before reporting a deployment ready.

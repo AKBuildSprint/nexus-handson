@@ -1,0 +1,603 @@
+{
+  "checkedAt": "2026-09-14T00:18:33.637717+07:00",
+  "scenarioSource": "plans/reports/scenario-260912-0041-nexus-s4-identity-store-isolation.md",
+  "verdict": "S4 not fully passing: two reproducible mobile failures; remaining partial evidence is explicitly distinguished from application defects.",
+  "statusDefinitions": {
+    "pass_local": "Expected local invariants covered by freshly exercised existing suites and/or supplemental browser/HTTP probes; does not imply deployment or every variant in one combined journey.",
+    "partial": "Some evidence exists, but the named exact variant or external boundary has not been fully verified. This is not an assertion that the repository has no corresponding test.",
+    "fail": "An expected outcome failed in an exercised real browser scenario."
+  },
+  "counts": {
+    "pass_local": 26,
+    "partial": 21,
+    "fail": 2
+  },
+  "environment": {
+    "node": "22.23.2",
+    "worker": "local workerd / isolated D1 and R2",
+    "browser": "Chromium",
+    "originsChecked": [
+      "http://127.0.0.1:5593",
+      "http://127.0.0.1:5594",
+      "http://localhost:5793",
+      "http://localhost:5794"
+    ],
+    "visualCaptureOrigins": [
+      "http://127.0.0.1:5693",
+      "http://127.0.0.1:5694"
+    ],
+    "remoteChanges": false,
+    "externalGoogleOAuthLoginExercised": false
+  },
+  "runs": [
+    {
+      "command": "npm run typecheck && npm test",
+      "node": "22.23.2",
+      "typecheck": "pass",
+      "workerTestsPassed": 236,
+      "chromiumContractTestsPassed": 80
+    },
+    {
+      "command": "npx vitest run --config vitest.node.config.ts",
+      "testsPassed": 10,
+      "includes": "real raw-Wrangler populated migration/provisioning/fault/reapply rehearsal"
+    },
+    {
+      "command": "npm run test:e2e",
+      "testsPassed": 28,
+      "testsFailed": 4,
+      "interpretation": "30 existing tests plus 2 temporary scenarios. Two existing Storefront mobile tests fail with long-text stress catalog. Two initial temporary-fixture failures were corrected and are not application defects.",
+      "existingFailingTests": [
+        "tests/e2e/storefront-orders.spec.ts:339",
+        "tests/e2e/storefront-orders.spec.ts:525"
+      ]
+    },
+    {
+      "command": "npm run test:e2e -- tests/e2e/console-s4-recheck.spec.ts",
+      "testsPassed": 1,
+      "testsFailed": 1,
+      "interpretation": "Cross-Store identity replacement passed. Business journey completed all three branches; its only final failures are three soft assertions recording the same 375-to-547 Console overflow. Primary color assertions passed."
+    },
+    {
+      "command": "npx vitest run tests/integration/s4-recheck-extra.test.ts --reporter=verbose --silent=false",
+      "testsPassed": 4,
+      "covers": [
+        "membership-outage fail-closed and credential-log probe",
+        "full unassigned/other-assigned processing denial matrix and additional Staff catalog routes",
+        "forged authority/malformed paths/SQL fragments/public Store forgery",
+        "invalid sign-in limiter"
+      ]
+    },
+    {
+      "command": "npm run test:e2e -- tests/e2e/console-auth.spec.ts",
+      "origins": "localhost:5793/5794",
+      "testsPassed": 3
+    },
+    {
+      "command": "npx vitest run tests/integration/order-assignment-performance.test.ts --reporter=verbose --silent=false",
+      "testsPassed": 1,
+      "datasetOrders": 10000,
+      "assignedOrders": 200,
+      "samples": 20,
+      "domainListP95Ms": {
+        "staff": 17,
+        "owner": 17
+      },
+      "rawMeasurements": {
+        "list": {
+          "staffP95Ms": 1,
+          "ownerP95Ms": 1,
+          "staffRowsRead": 1500,
+          "ownerRowsRead": 26
+        },
+        "customerNameSearch": {
+          "staffP95Ms": 2,
+          "ownerP95Ms": 1,
+          "staffRowsRead": 1500,
+          "ownerRowsRead": 26
+        },
+        "summary": {
+          "staffP95Ms": 1,
+          "ownerP95Ms": 1,
+          "staffRowsRead": 799,
+          "ownerRowsRead": 10000
+        }
+      },
+      "caveat": "Raw customer-name search misses proposed <=1.25x relative budget (2x); absolute values are small. Staff reads 1500 vs Owner 26 rows on this sparse ordered search. Payment-reference search remains unmeasured. No full S4-15 pass claimed."
+    }
+  ],
+  "confirmedFailures": [
+    {
+      "scenarioIds": [
+        "S4-06"
+      ],
+      "surface": "Storefront catalog",
+      "viewportWidth": 375,
+      "documentWidth": 430,
+      "reproduction": [
+        "Create an active Product with a valid long unbroken text segment, e.g. S4 <script>window.s4Injected=true</script> followed by a UUID.",
+        "Open Storefront at 375px. The script-like text is safely escaped but the title crosses the viewport."
+      ],
+      "observedElement": ".catalog-name clientWidth 311, scrollWidth 398, overflow-wrap normal",
+      "sourceRefs": [
+        "apps/storefront/src/styles.css:341"
+      ],
+      "screenshot": "plans/260911-1753-nexus-s4-identity-store-isolation/reports/s4-scenario-recheck-260914-0018-storefront-mobile.png"
+    },
+    {
+      "scenarioIds": [
+        "S4-06",
+        "S4-21"
+      ],
+      "surface": "Console Order detail",
+      "viewportWidth": 375,
+      "documentWidth": 547,
+      "reproduction": [
+        "Provision local Staff with a long valid Unicode name such as Nguyễn 東京 Staff followed by a UUID.",
+        "Assign a real Order to that Staff; open Owner Order detail at 375px with assignment/payment/refund content."
+      ],
+      "observedElement": ".page-stack clientWidth 343, scrollWidth 531; assignment section and detail content extend beyond viewport",
+      "sourceRefs": [
+        "apps/console/src/styles/console-layout.css:375",
+        "apps/console/src/orders/order-detail-screen.tsx:910"
+      ],
+      "rootCauseBoundary": "Actual overflow is proven. Exact leaf min-content constraint has not been isolated; no application CSS fix was made.",
+      "primaryActionColors": "pass: enabled action matches color-accent fill and color-accent-ink text",
+      "screenshot": "plans/260911-1753-nexus-s4-identity-store-isolation/reports/s4-scenario-recheck-260914-0018-console-mobile.png"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "S4-01",
+      "dimension": "User Types",
+      "scenario": "Existing Store A Owner signs in for the first time after S4 migration and opens an old paid Order and its history.",
+      "priority": "High",
+      "expected": "The same Store A records, IDs, snapshots, and payment evidence are accessible. Sign-in does not create a replacement Store or reseed data.",
+      "status": "partial",
+      "assessment": "Populated raw migration and preservation passed. No fresh browser login against that exact migrated paid-Order fixture was captured."
+    },
+    {
+      "id": "S4-02",
+      "dimension": "User Types",
+      "scenario": "New Store A Staff has no assignments, then Owner assigns one pending Order; Staff reloads Orders and Products.",
+      "priority": "High",
+      "expected": "Initially show an empty assigned inbox, not all Store Orders. After assignment show that Order and accurate totals; Products remain read-only.",
+      "status": "pass_local",
+      "assessment": "Real Staff starts with zero assignments and read-only Products; Owner assignment unlocks processing."
+    },
+    {
+      "id": "S4-03",
+      "dimension": "User Types",
+      "scenario": "A valid authenticated account has no membership, a removed membership, or a membership pointing to an unavailable Store.",
+      "priority": "Critical",
+      "expected": "Deny private access without bootstrap fallback or selecting the first Store. Do not create membership automatically from email or successful login.",
+      "status": "partial",
+      "assessment": "Absent, revoked and ambiguous membership paths are covered. Unavailable-Store membership variant was not independently exercised."
+    },
+    {
+      "id": "S4-04",
+      "dimension": "User Types",
+      "scenario": "Tutor provisioning attempts to reuse an existing login identity for a different Store/role, or a guest calls account-creation endpoints directly.",
+      "priority": "Critical",
+      "expected": "Provisioning must not silently repurpose or elevate an account. Public signup is disabled; credential identity alone never grants Store membership. Explicitly configured multi-membership, if supported, requires validated Store selection.",
+      "status": "pass_local",
+      "assessment": "Provisioning identity reuse/conflicts and disabled public account-creation paths passed existing suites and Node rehearsal."
+    },
+    {
+      "id": "S4-05",
+      "dimension": "Input Extremes",
+      "scenario": "Assignment/decision requests contain missing IDs, nulls, malformed percent-encoding, unknown action strings, or unsupported extra fields.",
+      "priority": "High",
+      "expected": "Reject invalid commands with bounded errors and no assignment, decision, or audit mutation. Follow existing error contracts; never reinterpret missing Store identity as Store A.",
+      "status": "partial",
+      "assessment": "Extra HTTP probes rejected null/missing/forged assignment bodies, malformed encoded paths and unknown decision action; full decision-body variant matrix was not separately replayed."
+    },
+    {
+      "id": "S4-06",
+      "dimension": "Input Extremes",
+      "scenario": "A person name, Product title, or existing Refund reason contains long Unicode text, bidirectional characters, or the maximum supported length.",
+      "priority": "Medium",
+      "expected": "Render safe text without breaking controls or 375 px layout. Preserve existing valid data; enforce declared limits on new input without inventing arbitrary truncation.",
+      "status": "fail",
+      "assessment": "Valid long Product text overflows Storefront: viewport 375, document 430. Console stress content also overflows. Payload renders as text, not script."
+    },
+    {
+      "id": "S4-07",
+      "dimension": "Input Extremes",
+      "scenario": "Staff submits Owner role, another actor ID, Store A ID while signed into B, or approved status inside a normal Order-edit payload.",
+      "priority": "Critical",
+      "expected": "Authority comes exclusively from verified identity/membership and the named domain action. Reject unsupported authority/state fields; no mass-assignment bypass.",
+      "status": "partial",
+      "assessment": "Forged authority fields on assignment and forged public storeId were rejected without writes. Not every Store-B/Staff mutation variant was replayed."
+    },
+    {
+      "id": "S4-08",
+      "dimension": "Input Extremes",
+      "scenario": "Attacker supplies SQL fragments in IDs/search/cursors and HTML/script payloads in names or Refund reasons, then views them in both apps.",
+      "priority": "Critical",
+      "expected": "Treat query values as data and rendered content as text. No broadened result scope, executed script, leaked session, or state change from malformed input.",
+      "status": "partial",
+      "assessment": "SQL-fragment ID/search probes did not widen visibility; HTML/script names and reasons did not execute in either real app. SQL-fragment cursor variant not independently replayed."
+    },
+    {
+      "id": "S4-09",
+      "dimension": "Timing",
+      "scenario": "Staff A1 loads an assigned Order, Owner reassigns it to A2, and A1 submits fulfillment while the reassignment is committing.",
+      "priority": "Critical",
+      "expected": "Use a coherent atomic ordering: A1 may succeed only if its authorized mutation commits before reassignment. Once reassignment wins, A1 cannot mutate; no read-check/unconditional-write gap.",
+      "status": "partial",
+      "assessment": "Commit-boundary assignment-loss guards pass. Exact two-client A1-to-A2 reassignment racing fulfillment was not independently captured."
+    },
+    {
+      "id": "S4-10",
+      "dimension": "Timing",
+      "scenario": "Two Owner sessions submit Approve and Reject for the same pending Refund Request concurrently using different command keys.",
+      "priority": "Critical",
+      "expected": "Exactly one decision and one decision audit event persist. The conflicting request fails without overwriting the winner; Order/payment state does not change.",
+      "status": "pass_local",
+      "assessment": "Concurrent opposite final decisions and atomic single-winner ledger/history tests passed."
+    },
+    {
+      "id": "S4-11",
+      "dimension": "Timing",
+      "scenario": "A decision commits but its response is lost; the Owner retries the same command repeatedly, then reuses its key with a different decision/body.",
+      "priority": "High",
+      "expected": "Authorized identical retries return the recorded outcome without duplicate effects. Reusing a key for changed intent conflicts and cannot alter the original decision.",
+      "status": "pass_local",
+      "assessment": "Repeated same-key exact replay and same-key opposite-decision conflict passed; one command/history result preserved."
+    },
+    {
+      "id": "S4-12",
+      "dimension": "Timing",
+      "scenario": "Membership revocation or Owner-to-Staff demotion commits between session resolution and a protected write from an already-open tab.",
+      "priority": "Critical",
+      "expected": "A protected write must not rely on a stale role snapshot after revocation wins. Enforce the current membership at the mutation boundary and invalidate subsequent privileged actions.",
+      "status": "partial",
+      "assessment": "Revocation at protected catalog/Order write boundaries passed. Owner-to-Staff demotion at the boundary was not independently injected."
+    },
+    {
+      "id": "S4-13",
+      "dimension": "Scale",
+      "scenario": "Staff paginates/searches an inbox containing many other assignments; a cursor copied from Owner or Store B is submitted as Staff.",
+      "priority": "Critical",
+      "expected": "Every page and filtered summary uses current Store and assignment visibility. A foreign/tampered cursor cannot broaden access; do not reveal other users’ counts or use stale authorization embedded in a cursor.",
+      "status": "partial",
+      "assessment": "Sparse Staff visibility, filtering and principal-bound cursor tests passed. Copied Owner and Store-B cursor variants were not independently replayed."
+    },
+    {
+      "id": "S4-14",
+      "dimension": "Scale",
+      "scenario": "Assigned inbox has zero Orders, one Order, exactly a page, and one more than a page; the last item is reassigned away between requests.",
+      "priority": "High",
+      "expected": "Empty/next/previous states remain usable and current counts reflect authorized rows. No inaccessible phantom detail or permanent pagination trap after reassignment.",
+      "status": "partial",
+      "assessment": "Zero/one assigned Order and pagination behavior covered. Exact 25/26 plus reassignment of the final visible item was not independently replayed."
+    },
+    {
+      "id": "S4-15",
+      "dimension": "Scale",
+      "scenario": "A large populated Store is queried with a sparse Staff assignment and payment-reference search.",
+      "priority": "High",
+      "expected": "Scope/filter before pagination, use bounded requests, and keep summaries server-derived. Planning must define a representative volume and latency target; no performance pass is claimed without measurement.",
+      "status": "partial",
+      "assessment": "10,000 Orders/200 assignments: domain list p95 Staff 17ms, Owner 17ms. Raw customer-name search 2ms vs 1ms exceeds proposed 1.25x relative budget; payment-reference search is not measured. No full scenario pass claimed."
+    },
+    {
+      "id": "S4-16",
+      "dimension": "Scale",
+      "scenario": "Automated clients send repeated invalid sign-ins and public Order submissions while Owner and Staff are working.",
+      "priority": "High",
+      "expected": "Use the selected auth library’s configured abuse controls and preserve existing public input/idempotency limits. Return explicit bounded failures rather than unbounded work or private fallback; public access must not require a Console session.",
+      "status": "partial",
+      "assessment": "Repeated invalid social sign-in reaches 429 with Retry-After and no sessions. Mixed public-Order abuse while Owner/Staff work was not load-tested."
+    },
+    {
+      "id": "S4-17",
+      "dimension": "State Transitions",
+      "scenario": "Owner A signs out and Staff B signs in in the same browser while an old A detail request is still in flight; the user also uses Back.",
+      "priority": "Critical",
+      "expected": "Clear A private state and discard old-generation responses. B must not see A content resurrected by a response, client cache, or restored page; fresh requests enforce B scope.",
+      "status": "pass_local",
+      "assessment": "Real browser held Owner-A response, switched to Staff-B, released response, used Back: no old Owner evidence restored; crossed Product read 404."
+    },
+    {
+      "id": "S4-18",
+      "dimension": "State Transitions",
+      "scenario": "A formerly assigned Staff member replays a previously successful command key after reassignment or session expiry.",
+      "priority": "Critical",
+      "expected": "Check present identity and resource authorization before looking up/returning a stored result. Do not leak the old result or repeat its effect; existing durable history remains intact.",
+      "status": "pass_local",
+      "assessment": "Replayed command authorization after assignment/session loss passed existing integration and browser contracts."
+    },
+    {
+      "id": "S4-19",
+      "dimension": "State Transitions",
+      "scenario": "After rejection, Customer and Console-on-behalf both try another Refund submission; repeat after approval.",
+      "priority": "High",
+      "expected": "Both paths retain the original request and final decision, with no second request or renewed pending state. Authorized submission retries return the recorded request; conflicting decisions remain refused.",
+      "status": "partial",
+      "assessment": "Real Customer resubmission after approval/rejection preserves terminal outcome and no new form. Console-on-behalf terminal resubmission was not independently replayed."
+    },
+    {
+      "id": "S4-20",
+      "dimension": "State Transitions",
+      "scenario": "Caller requests a Refund on pending/canceled Order or tries to decide an absent/already-decided request.",
+      "priority": "High",
+      "expected": "Enforce Order and request state independently from role. Invalid transitions have no effect; a terminal decision cannot be reopened or flipped through another endpoint.",
+      "status": "pass_local",
+      "assessment": "Invalid Order/refund transitions and absent/already-final decision requests rejected by existing domain/HTTP tests."
+    },
+    {
+      "id": "S4-21",
+      "dimension": "Environment",
+      "scenario": "At 375 px, long person/Store names and Refund messages appear with assignment controls and sign-out navigation.",
+      "priority": "Medium",
+      "expected": "No horizontal page scroll or hidden primary action. Preserve existing tokenized accent fill/ink, readable state labels, and Products/Orders navigation only.",
+      "status": "fail",
+      "assessment": "Console detail document width 547 on a 375 viewport with long Unicode assignee name. Enabled primary action fill/text match color-accent/color-accent-ink."
+    },
+    {
+      "id": "S4-22",
+      "dimension": "Environment",
+      "scenario": "A keyboard-only or screen-reader user signs in, selects an assignee, confirms Reject, and encounters a server denial.",
+      "priority": "High",
+      "expected": "Controls have clear names; focus reaches and returns from dialogs; errors and final outcomes are announced. Pending states prevent accidental duplicate intent without trapping focus.",
+      "status": "partial",
+      "assessment": "Real keyboard Approve/Reject actions passed, plus existing keyboard contracts. Actual screen-reader announcements and the entire sign-in/assignment/denial flow with assistive technology not verified."
+    },
+    {
+      "id": "S4-23",
+      "dimension": "Environment",
+      "scenario": "Local localhost and 127.0.0.1 configurations or deployed HTTPS origins differ; the browser blocks or does not send the session cookie.",
+      "priority": "High",
+      "expected": "Show a recoverable sign-in failure, never anonymous private access. Verify real cookie/trusted-origin settings for each supported environment without relaxing them globally.",
+      "status": "partial",
+      "assessment": "Fresh 127.0.0.1 and localhost browser auth/cookie checks passed. Deployed HTTPS cookie/origin behavior not exercised."
+    },
+    {
+      "id": "S4-24",
+      "dimension": "Environment",
+      "scenario": "Connectivity drops during sign-in, assignment, or approval and the browser reloads before the response is known.",
+      "priority": "High",
+      "expected": "Do not announce success from local intent or queue a new privileged mutation automatically. Restore current server state after reconnect and reconcile any authorized retry with the original command identity.",
+      "status": "partial",
+      "assessment": "Existing unknown-outcome recovery contracts passed. Reload during unresolved sign-in/assignment/approval with original intent/key continuity not independently exercised."
+    },
+    {
+      "id": "S4-25",
+      "dimension": "Error Cascades",
+      "scenario": "The auth/session or membership lookup fails because D1 is unavailable while public assets remain served.",
+      "priority": "Critical",
+      "expected": "Private operations fail closed with a recoverable service error. No bootstrap Owner, cached-role bypass, or implicit Store A fallback; no private payload in the error.",
+      "status": "pass_local",
+      "assessment": "Session-table and additional membership-table outages fail closed with 503/service_unavailable rather than anonymous access; membership outage preserves session row."
+    },
+    {
+      "id": "S4-26",
+      "dimension": "Error Cascades",
+      "scenario": "Fault injection fails a statement between assignment/decision persistence, audit insertion, and command-ledger recording.",
+      "priority": "Critical",
+      "expected": "Rollback the entire domain mutation. The observable result is all committed once or none committed, not a decision without attribution or a success ledger without its business effect.",
+      "status": "pass_local",
+      "assessment": "Assignment and decision batch-boundary fault injection passes with atomic rollback of assignment/decision, audit and command records."
+    },
+    {
+      "id": "S4-27",
+      "dimension": "Error Cascades",
+      "scenario": "An Owner delivery-file upload reaches R2 but its Store-scoped database association fails, or an unauthorized Staff upload attempts to reach R2.",
+      "priority": "Critical",
+      "expected": "Authorize before consuming/uploading the private mutation. On association failure preserve old references and snapshots; compensate only the new unreferenced object, never another Store’s or a purchased object.",
+      "status": "pass_local",
+      "assessment": "R2 cleanup after failed association and Staff rejection before unauthorized catalog/R2 writes passed."
+    },
+    {
+      "id": "S4-28",
+      "dimension": "Error Cascades",
+      "scenario": "A populated schema migration fails, or the old anonymous Worker continues writing during the identity/schema cutover.",
+      "priority": "Critical",
+      "expected": "A rehearsed writer barrier/checkpoint prevents mixed-writer corruption. Stop the cutover on failure; do not roll back to an anonymous/incompatible writer or reset data to make migration pass. Preserve public service outside the explicitly controlled cutover window.",
+      "status": "partial",
+      "assessment": "Real isolated raw-Wrangler populated migration failure/reapply and preservation rehearsal passed. A live old anonymous writer during a real cutover was not exercised; remote untouched."
+    },
+    {
+      "id": "S4-29",
+      "dimension": "Authorization",
+      "scenario": "Owner B and Staff B submit known Store A IDs, slugs, Order references, Variant IDs, and delivery-file targets to every private read/write/preview/import path.",
+      "priority": "Critical",
+      "expected": "All paths enforce Store scope before returning private resource or validation details. Return unavailable/not-found for out-of-scope resources; no R2 side effect or cross-Store mutation.",
+      "status": "partial",
+      "assessment": "Foreign-Store Product/Order/file/preview/import isolation passed. Full explicit cross-Store Variant-ID matrix was not independently replayed."
+    },
+    {
+      "id": "S4-30",
+      "dimension": "Authorization",
+      "scenario": "Assigned Staff calls Refund decision, assignment, Product edit, CSV import, delivery-file PUT/DELETE, or schema replacement directly without using the UI.",
+      "priority": "Critical",
+      "expected": "The central evaluator refuses every Owner-only action. Alternative methods and indirect removal paths cannot bypass read-only Products or Owner-only decisions; unsupported deletion APIs remain unsupported.",
+      "status": "pass_local",
+      "assessment": "Assigned Staff Owner-only actions denied by existing suites; extra direct file DELETE, schema replacement and Product mutation probes return 403."
+    },
+    {
+      "id": "S4-31",
+      "dimension": "Authorization",
+      "scenario": "A guessed capability, another Order’s valid capability, and a Customer capability sent to Console routes are tested, including alongside an unrelated valid Console cookie.",
+      "priority": "Critical",
+      "expected": "Private Customer access requires the exact matching capability. Console requires its own identity and membership; neither credential upgrades the other or broadens resource scope. No-match responses reveal no private Order data.",
+      "status": "pass_local",
+      "assessment": "Wrong/other Order capabilities and unrelated Console-cookie boundaries passed existing tests; extra capability-only Console request 401 and guessed Customer capability 404."
+    },
+    {
+      "id": "S4-32",
+      "dimension": "Authorization",
+      "scenario": "A malicious origin submits cookie-bearing Console mutations and probes auth trusted-origin/CORS handling, including missing or null Origin variants.",
+      "priority": "Critical",
+      "expected": "A defined CSRF policy rejects unauthorized browser-origin mutations before effects. Do not treat CORS as authorization or add wildcard credentialed origins; preserve the explicitly supported first-party request forms.",
+      "status": "pass_local",
+      "assessment": "Exact trusted Origin, malicious/missing/null Origin and Fetch Metadata/CORS denial cases passed locally."
+    },
+    {
+      "id": "S4-49",
+      "dimension": "Authorization",
+      "scenario": "Staff A1 knows an unassigned Store A Order reference and another Order assigned to A2; calls detail, payment, fulfill, cancel, and Refund submission directly.",
+      "priority": "Critical",
+      "expected": "Same-Store membership is insufficient: deny private detail and every mutation on both Orders without disclosing their Customer/payment fields or writing a command ledger. Owner can still read and assign them.",
+      "status": "pass_local",
+      "assessment": "Extra HTTP matrix: unassigned and other-Staff-assigned detail/payment/fulfill/cancel/refund all 404; no command/history mutation."
+    },
+    {
+      "id": "S4-33",
+      "dimension": "Data Integrity",
+      "scenario": "Run the forward migration against a populated S1–S3 fixture containing Variants, old Customer capabilities, pending Refunds, manual payments, and legacy paid Orders.",
+      "priority": "Critical",
+      "expected": "Compare pre/post records and relationships: preserve IDs, totals, references, hashes, snapshots, history, and retained R2 keys under store_nexus. Create no fabricated payments, fulfillment, or replacement Store A.",
+      "status": "pass_local",
+      "assessment": "Fresh Node22 raw-Wrangler populated S1-S3 migration/provisioning rehearsal and preservation checks passed."
+    },
+    {
+      "id": "S4-34",
+      "dimension": "Data Integrity",
+      "scenario": "Historical events have null actor IDs and legacy source/contract values; new user foreign keys and decision event checks are introduced.",
+      "priority": "Critical",
+      "expected": "Preserve truthful legacy provenance without assigning the new Owner to past anonymous activity. New authenticated events have real actors; old event constraints/references survive the migration.",
+      "status": "pass_local",
+      "assessment": "Legacy null actor/source/contract records and new schema constraints passed migration and acceptance suites."
+    },
+    {
+      "id": "S4-35",
+      "dimension": "Data Integrity",
+      "scenario": "Assignment targets a nonexistent user, Owner rather than Staff, removed Staff, or Staff in Store B; a direct persistence attempt links a Refund/history record across Stores.",
+      "priority": "Critical",
+      "expected": "Application rules and appropriate relational constraints reject invalid references. Never leave a valid-looking assignment to an ineligible membership or cross-Store aggregate link.",
+      "status": "partial",
+      "assessment": "Invalid assignment targets and cross-Store constraints covered. Explicit direct Refund/history cross-Store link variants were not independently replayed."
+    },
+    {
+      "id": "S4-36",
+      "dimension": "Data Integrity",
+      "scenario": "Store B provisioning is run twice and uses Product slugs/SKUs matching Store A; generated record IDs or account identifiers collide.",
+      "priority": "Critical",
+      "expected": "Provisioning is repeat-safe or fails explicitly without changing A. Store-scoped slugs/SKUs may coexist; global ID collisions cannot overwrite existing rows, credentials, or memberships.",
+      "status": "partial",
+      "assessment": "Repeated/conflicting provisioning and Store-local slug behavior covered. Full matching-SKU and generated-record-ID collision combination was not independently replayed."
+    },
+    {
+      "id": "S4-37",
+      "dimension": "Integration",
+      "scenario": "The selected Better Auth version/adapter works in Node but is exercised in the actual Workers runtime across sign-in, get-session, expiry, and sign-out.",
+      "priority": "High",
+      "expected": "The real D1-backed session lifecycle works with supported runtime APIs and migration ownership. An incompatible adapter blocks integration rather than falling back to an in-memory/demo identity.",
+      "status": "pass_local",
+      "assessment": "Pinned Better Auth real Worker/D1 session lifecycle and browser session behavior passed. Browser fixtures provision local sessions; no external Google OAuth login claimed."
+    },
+    {
+      "id": "S4-38",
+      "dimension": "Integration",
+      "scenario": "A cached pre-S4 Console sends old headers/payloads or invokes former bootstrap paths after cutover.",
+      "priority": "Critical",
+      "expected": "Old clients cannot retain anonymous private access. Authentication precedes private disclosure/replay; incompatible requests receive a recoverable contract error or login requirement without side effects.",
+      "status": "pass_local",
+      "assessment": "Legacy contract headers/payloads and obsolete bootstrap/account-creation paths fail closed in current tests."
+    },
+    {
+      "id": "S4-39",
+      "dimension": "Integration",
+      "scenario": "A browser signed into Store B opens the public Storefront, reads Products, and submits an Order with a forged Store field.",
+      "priority": "Critical",
+      "expected": "The public Storefront remains explicitly Store A. Ignore/reject unsupported routing fields rather than deriving Store from the Console cookie; create only the intended A Order and expose no private B data.",
+      "status": "pass_local",
+      "assessment": "Store-B Console identity does not select public Store; extra public Order forged storeId returns 422 without an Order write."
+    },
+    {
+      "id": "S4-40",
+      "dimension": "Integration",
+      "scenario": "Approve and Reject results travel through domain, API client types, Console detail, and existing private Customer page; an old pending request is opened after deployment.",
+      "priority": "High",
+      "expected": "Every layer reads the same persisted state and renders supported statuses. No pending-only type/parser drops decisions; existing pending requests remain usable and Customer output stays separate from Console output.",
+      "status": "pass_local",
+      "assessment": "Real paid/approve, fulfilled/approve and paid/reject flows render terminal status in Console and Customer page after reload; old pending preservation covered separately by migration tests, not remote deployment."
+    },
+    {
+      "id": "S4-41",
+      "dimension": "Compliance",
+      "scenario": "Compare Customer and public responses before/after assignment and decision when Console holds person names, history, notes, and payment evidence.",
+      "priority": "Critical",
+      "expected": "An explicit Customer-safe projection includes the relevant decision but excludes Staff/Owner identity, internal notes/history, delivery configuration, and Console-only payment evidence. Public catalog reveals none of the private Order.",
+      "status": "pass_local",
+      "assessment": "Public/Customer projection privacy contracts passed; internal payment/history/person evidence remains private."
+    },
+    {
+      "id": "S4-42",
+      "dimension": "Compliance",
+      "scenario": "An auth or capability lookup fails and diagnostic logs, error bodies, analytics hooks, or copied URLs could capture credentials.",
+      "priority": "Critical",
+      "expected": "Do not log session cookies, passwords, raw capabilities, private Order URLs, or unnecessary Customer PII. Keep the capability in its existing fragment/header channel and errors safe to share.",
+      "status": "partial",
+      "assessment": "Existing redaction/private-artifact checks and extra membership outage cookie/log probe passed. Exhaustive auth/capability failure logs, analytics and copied-URL audit not performed."
+    },
+    {
+      "id": "S4-43",
+      "dimension": "Compliance",
+      "scenario": "The deciding Owner later changes display name or loses membership; an auditor opens the old decision.",
+      "priority": "High",
+      "expected": "The durable decision retains its real actor identity and timestamp without rewriting history or confusing it with the requester. No account-deletion UI is required; provenance must survive supported identity changes.",
+      "status": "pass_local",
+      "assessment": "Stable deciding actor/history survives display-name change and membership loss in acceptance tests."
+    },
+    {
+      "id": "S4-44",
+      "dimension": "Compliance",
+      "scenario": "Owner replaces/removes catalog delivery content after an earlier purchase while a Refund remains approved but unexecuted.",
+      "priority": "Critical",
+      "expected": "Preserve the purchased immutable snapshot and referenced private object under existing retention rules. S4 approval must not trigger file destruction, access revocation, or a claim of completed reversal.",
+      "status": "pass_local",
+      "assessment": "Purchased delivery snapshot retention after catalog replacement/removal and non-executing refund approval invariants passed complementary suites; not claimed as one combined remote journey."
+    },
+    {
+      "id": "S4-45",
+      "dimension": "Business Logic",
+      "scenario": "Owner assigns a pending Order to Staff; Staff records its manual payment, then fulfills it, and attempts cancellation after payment.",
+      "priority": "High",
+      "expected": "Valid assigned processing succeeds with the real Staff actor and existing ledger/transition rules. Invalid cancellation fails even though Staff remains assigned; the Customer sees the corresponding safe Order state.",
+      "status": "pass_local",
+      "assessment": "Real assigned Staff records manual payment and fulfills; cancellation after payment rejected 409."
+    },
+    {
+      "id": "S4-46",
+      "dimension": "Business Logic",
+      "scenario": "Owner approves a Refund for a paid Order and separately for a fulfilled Order, then both apps reload.",
+      "priority": "Critical",
+      "expected": "Refund is approved and awaiting execution; each Order retains its prior paid/fulfilled status. No payment reversal, refunded status, S5 job execution, or implied money movement occurs.",
+      "status": "pass_local",
+      "assessment": "Real paid and fulfilled approvals preserve Order status and exact payment snapshot; Console and Customer page retain final outcome after reload."
+    },
+    {
+      "id": "S4-47",
+      "dimension": "Business Logic",
+      "scenario": "A legacy paid Order has no original payment ledger evidence, and Owner decides its Refund Request.",
+      "priority": "High",
+      "expected": "The S4 decision can be recorded without inventing a payment source/reference. Preserve the legacy evidence gap for S5; neither UI promises automatic repayment nor migration manufactures evidence.",
+      "status": "pass_local",
+      "assessment": "Legacy paid Order without payment ledger can receive refund decision without inventing payment/refund evidence."
+    },
+    {
+      "id": "S4-48",
+      "dimension": "Business Logic",
+      "scenario": "An Owner uses a permitted removal operation against protected referenced data, or Staff tries an equivalent removal through another mutation.",
+      "priority": "Critical",
+      "expected": "Owner authority does not bypass existing snapshot/FK retention guards. Staff read-only/Owner-only rules cover indirect mutation paths; do not add new destructive APIs solely to demonstrate denial.",
+      "status": "partial",
+      "assessment": "Protected referenced-content removal/retention checks passed. Complete equivalent Staff indirect-mutation removal matrix not independently replayed."
+    }
+  ],
+  "scope": {
+    "applicationCodeChangedThisRecheck": false,
+    "commitOrPush": false,
+    "temporaryProbes": "Throwaway probe files and isolated state removed after recording results; commands above describe executed evidence, not retained new tests.",
+    "notClaimed": [
+      "49/49 scenario pass",
+      "deployed S4 isolation",
+      "real external Google OAuth callback",
+      "real screen-reader verification"
+    ]
+  }
+}

@@ -79,7 +79,7 @@ VITE_STOREFRONT_API_BASE_URL=http://127.0.0.1:5173 npm run dev:storefront -- --h
 ```sh
 npm run typecheck
 npm run test:unit
-npm run verification:s4-rehearsal:test
+npx vitest run --config vitest.node.config.ts
 npm run test:integration
 npm run test:browser
 npm run test:e2e
@@ -93,7 +93,17 @@ Console deployment uses the generated `apps/console/dist/nexus_s1_468cba/wrangle
 
 `npm test` runs the workerd and browser Vitest suites. The Console build type-checks, builds the Worker/client bundle, and rejects a production import graph that reaches prototype scenario data.
 
-Playwright starts both local Vite applications itself at distinct origins. Its Product, Variant, Order, and CSV suites use unique verification names against the current local API state; they do not provide a general Product delete endpoint.
+Playwright starts both local Vite applications itself at distinct origins and provisions test sessions in isolated `.wrangler/e2e-auth` state. The Console Worker receives its test auth secret and selected origins explicitly; a developer's repository-root `.dev.vars` cannot override those bindings. Ordinary development still uses root Wrangler and the developer's own secrets.
+
+Choose another pair of unused loopback ports without changing `wrangler.jsonc`:
+
+```sh
+PLAYWRIGHT_API_CONSOLE_BASE_URL=http://127.0.0.1:5473 \
+PLAYWRIGHT_STOREFRONT_BASE_URL=http://127.0.0.1:5474 \
+npm run test:e2e
+```
+
+Both ports must be free; Playwright does not reuse running servers. `NEXUS_TEST_PERSIST_ROOT`, if supplied, must be an absolute isolated directory below the repository's `.wrangler` directory, without the `v3` suffix. Product, Variant, Order, and CSV suites use unique verification names; they do not provide a general Product delete endpoint. The Node suite above checks Worker environment isolation and the populated S4 rehearsal tooling.
 
 ## Locked evidence tooling
 

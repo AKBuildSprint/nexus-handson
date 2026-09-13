@@ -180,6 +180,8 @@ Animate only opacity, transform, color, box-shadow. Never `transition: all`. Red
 
 At 375 px: rail becomes the topbar; tables become summary cards; Storefront grid becomes one column; no horizontal page scroll.
 
+Long names, references, descriptions, and Refund reasons wrap within their content surfaces, including catalog cards, checkout, private Orders, and Console detail. Preserve the full text; do not hide overflow or truncate data to satisfy the mobile width check.
+
 ## 4. Component presentation contract
 
 ### 4.1 Console shell and navigation
@@ -221,6 +223,7 @@ Destructive or consequential actions use warning copy and explicit confirmation 
 ### 4.4 Form fields
 
 - Text, textarea, select, combobox, checkbox, and file controls use persistent labels.
+- Native selects use the shared `.field` label/control layout so long options do not impose an intrinsic page width or bypass the control sizing tokens.
 - Help text precedes the error slot so messages do not reorder unrelated content.
 - Decimal price fields use the Product currency as a visible adjacent label. Currency is not repeated as an editable Variant field.
 - Status options use the domain labels **Draft**, **Active**, and **Archived**. Variant availability uses **Enabled** and **Disabled**.
