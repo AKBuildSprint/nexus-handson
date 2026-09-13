@@ -35,7 +35,7 @@ type DetailNotice =
   | { kind: 'unknown' }
   | { kind: 'conflict'; idempotency: boolean; reload: boolean }
   | { kind: 'read-after-write' }
-  | { kind: 'outdated' }
+  | { kind: 'outdated'; failedCommandMessage?: string }
   | { kind: 'error'; message: string };
 
 type FrozenAttempt =
@@ -357,6 +357,8 @@ export function OrderDetailScreen({
     loadAbortRef.current?.abort();
     mutationAbortRef.current?.abort();
     mutationAbortRef.current = null;
+    roleActionAbortRef.current?.abort();
+    roleActionAbortRef.current = null;
     const controller = new AbortController();
     loadAbortRef.current = controller;
     attemptRef.current = null;
@@ -369,6 +371,7 @@ export function OrderDetailScreen({
     setRefundReason('');
     setFieldError(null);
     setInFlight(false);
+    setRoleActionBusy(false);
     setNotice(null);
     setLockedAction(null);
     loadOrder(generation, capturedReference, controller.signal);
@@ -456,7 +459,11 @@ export function OrderDetailScreen({
     setPanel(action);
   };
 
-  const refetchAfterWrite = async (generation: number, capturedReference: string) => {
+  const refetchAfterWrite = async (
+    generation: number,
+    capturedReference: string,
+    mode: 'acknowledged' | 'after-failure' = 'acknowledged',
+  ) => {
     loadAbortRef.current?.abort();
     const controller = new AbortController();
     loadAbortRef.current = controller;
@@ -468,7 +475,7 @@ export function OrderDetailScreen({
       if (!stillCurrent(generation, capturedReference)) return;
       setOrder(response.order);
       setState('ready');
-      setNotice(null);
+      if (mode === 'acknowledged') setNotice(null);
     } catch (error) {
       if (epoch !== readEpochRef.current) return;
       if (!stillCurrent(generation, capturedReference) || isAbortError(error)) return;
@@ -477,9 +484,14 @@ export function OrderDetailScreen({
         return;
       }
       if (error instanceof ConsoleApiError && error.code === 'client_contract_outdated') {
-        setNotice({ kind: 'outdated' });
+        setNotice((current) => ({
+          kind: 'outdated',
+          failedCommandMessage: mode === 'after-failure' && current?.kind === 'error' ? current.message : undefined,
+        }));
         return;
       }
+      // Other refresh failures do not change the outcome of a definitively failed command.
+      if (mode === 'after-failure') return;
       setNotice({ kind: 'read-after-write' });
     }
   };
@@ -651,7 +663,7 @@ export function OrderDetailScreen({
       } else {
         roleAttemptRef.current = null;
         setNotice({ kind: 'error', message: error instanceof Error ? error.message : 'Assignment failed.' });
-        await refetchAfterWrite(generation, capturedReference);
+        await refetchAfterWrite(generation, capturedReference, 'after-failure');
       }
     } finally {
       if (stillCurrent(generation, capturedReference)) setRoleActionBusy(false);
@@ -689,7 +701,7 @@ export function OrderDetailScreen({
       } else {
         roleAttemptRef.current = null;
         setNotice({ kind: 'error', message: error instanceof Error ? error.message : 'Refund decision failed.' });
-        await refetchAfterWrite(generation, capturedReference);
+        await refetchAfterWrite(generation, capturedReference, 'after-failure');
       }
     } finally {
       if (stillCurrent(generation, capturedReference)) setRoleActionBusy(false);
@@ -772,6 +784,7 @@ export function OrderDetailScreen({
           {notice?.kind === 'outdated' ? (
             <div className="notice notice-error" role="alert">
               <strong>This Console is out of date.</strong>
+              {notice.failedCommandMessage ? <span>{notice.failedCommandMessage}</span> : null}
               <span>Reload the page and try again. This client will not retry the previous Order request.</span>
               <button className="button" type="button" onClick={() => { window.location.reload(); }}>Reload Console</button>
             </div>
