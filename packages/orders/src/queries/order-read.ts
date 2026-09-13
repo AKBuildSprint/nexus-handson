@@ -657,17 +657,15 @@ ${LINE_SELECT}
   };
   if (identity.role === 'staff') {
     const visibility = boundVisibilityPredicate(context);
-    const placeholders = page.map(() => '?').join(',');
     const hasSql = `SELECT EXISTS(SELECT 1 FROM orders WHERE ${visibility.sql}) AS has_orders`;
     const checks = await database.batch([
       database.prepare(summarySelectSql(base.sql)).bind(...base.binds),
       database.prepare(hasSql).bind(...visibility.binds),
-      page.length === 0
-        ? database.prepare('SELECT 0 AS visible_count')
-        : database.prepare(
-          `SELECT count(*) AS visible_count FROM orders
-            WHERE ${visibility.sql} AND orders.id IN (${placeholders})`,
-        ).bind(...visibility.binds, ...page.map((row) => row.id)),
+      database.prepare(
+        `SELECT count(*) AS visible_count FROM orders
+          WHERE ${visibility.sql}
+            AND orders.id IN (SELECT value FROM json_each(?))`,
+      ).bind(...visibility.binds, JSON.stringify(page.map((row) => row.id))),
     ]);
     await assertCurrentConsoleMembership(database, identity);
     const currentSummary = summaryFromRow(checks[0].results[0] as SummaryRow | undefined);

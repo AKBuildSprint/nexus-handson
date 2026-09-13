@@ -154,6 +154,14 @@ describe('sparse assigned Order query', () => {
       ownerSamples.push(performance.now() - started);
       expect(ownerResult.summary.totalOrders).toBe(10000);
     }
+
+    const maximumPage = await listConsoleOrders(env.DB, {
+      storeId: staff.storeId, actor: { source: 'user', id: staff.userId }, identity: staff,
+    }, { q: '', status: null, refund: null, limit: 100, cursor: null });
+    expect(maximumPage.orders).toHaveLength(100);
+    expect(maximumPage.summary.totalOrders).toBe(200);
+    expect(maximumPage.nextCursor).not.toBeNull();
+
     console.info('Phase 5 sparse query measurement', JSON.stringify({
       runtime: 'workerd', datasetOrders: 10000, assignedOrders: 200,
       samples: 20, staffP95Ms: p95(staffSamples), ownerP95Ms: p95(ownerSamples),
