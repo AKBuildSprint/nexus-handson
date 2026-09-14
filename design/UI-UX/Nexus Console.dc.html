@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#fbf8f6;color:#1b1c1b;font-family:Inter,system-ui,sans-serif;font-size:14px;line-height:20px}
+  h1,h2,h3,p,dl,dd,ol,ul{margin:0}
+  a{color:#4c4546}
+  a:hover{color:#1b1c1b}
+  input,button,select,textarea{font:inherit;color:inherit}
+  input:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid #333;outline-offset:2px}
+</style>
+</helmet>
+
+<sc-if value="{{ isSignIn }}" hint-placeholder-val="{{ true }}">
+  <div style="min-height:100dvh;display:grid;place-items:center;padding:40px;background:#fbf8f6">
+    <section style="width:100%;max-width:380px;display:grid;gap:18px;padding:28px;border:1px solid #eae8e6;border-radius:4px;background:#fff">
+      <span style="display:inline-flex;width:36px;height:36px;align-items:center;justify-content:center;border-radius:4px;background:#1b1c1b;color:#fff;font-family:'Source Serif 4',Georgia,serif;font-size:18px">N</span>
+      <div style="display:grid;gap:6px">
+        <span style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6c6a6a">Nexus · Operations Console</span>
+        <h1 style="font-family:'Source Serif 4',Georgia,serif;font-size:28px;font-weight:400;line-height:34px;letter-spacing:-0.02em">Sign in</h1>
+        <p style="font-size:14px;line-height:21px;color:#6c6a6a">Continue with the Google account provisioned for your Store.</p>
+      </div>
+
+      <sc-if value="{{ signInExpired }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;gap:4px;padding:12px;border-radius:4px;background:#f0edeb;color:#4c4546">
+          <strong style="font-size:13px">Your session ended</strong>
+          <span style="font-size:13px;line-height:19px">Sign in again to return to the Console.</span>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ signInError }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;gap:4px;padding:12px;border-radius:4px;background:#ffdad6;color:#93000a" role="alert">
+          <strong style="font-size:13px">Google sign-in was canceled</strong>
+          <span style="font-size:13px;line-height:19px">Google sign-in was canceled or could not be completed. Try again.</span>
+        </div>
+      </sc-if>
+
+      <button type="button" onClick="{{ signIn }}" style="display:flex;align-items:center;justify-content:center;gap:10px;height:44px;border:1px solid #8a8182;border-radius:4px;background:#fff;font-size:14px;font-weight:500;cursor:pointer" style-hover="background:#f6f3f1">
+        <span style="display:inline-flex;width:18px;height:18px;flex:none;align-items:center;justify-content:center;border:1px dashed #8a8182;border-radius:2px;font-size:9px;color:#6c6a6a" title="Official Google mark goes here">G</span>
+        {{ signInLabel }}
+      </button>
+
+      <div style="display:grid;gap:6px;padding-top:14px;border-top:1px solid #eae8e6">
+        <span style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">How access works</span>
+        <p style="font-size:12px;line-height:18px;color:#6c6a6a">Google authenticates the account. An active Nexus Store membership authorizes it — Owners manage the Store, Staff see Products read-only and work only assigned Orders.</p>
+        <p style="font-size:12px;line-height:18px;color:#6c6a6a">No signup here. Ask an Owner to provision your Google account against this Store.</p>
+      </div>
+
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <button type="button" onClick="{{ cycleSignInState }}" style="padding:0;border:0;background:none;font-size:11px;color:#6c6a6a;text-decoration:underline;text-underline-offset:2px;cursor:pointer">{{ signInStateLabel }}</button>
+      </div>
+    </section>
+  </div>
+</sc-if>
+
+<sc-if value="{{ isStorefront }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100dvh;background:#fbf8f6">
+    <header style="display:flex;align-items:center;gap:16px;height:64px;padding:0 32px;border-bottom:1px solid #eae8e6;background:#fff;flex-wrap:wrap">
+      <span style="font-family:'Source Serif 4',Georgia,serif;font-size:20px;letter-spacing:-0.02em">Nexus</span>
+      <span style="font-size:10px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#6c6a6a">Storefront</span>
+      <div style="flex:1"></div>
+      <button type="button" onClick="{{ sfShowCatalog }}" style="display:flex;align-items:center;height:32px;padding:0 14px;border:1px solid {{ sfCatalogLine }};border-radius:40px;cursor:pointer;font-size:12px;background:{{ sfCatalogBg }};color:{{ sfCatalogFg }}">Catalog</button>
+      <button type="button" onClick="{{ sfShowOrder }}" style="display:flex;align-items:center;height:32px;padding:0 14px;border:1px solid {{ sfOrderLine }};border-radius:40px;cursor:pointer;font-size:12px;background:{{ sfOrderBg }};color:{{ sfOrderFg }}">My Order</button>
+      <button type="button" onClick="{{ openProducts }}" style="height:32px;padding:0 12px;border:1px solid #eae8e6;border-radius:4px;background:#fff;font-size:12px;cursor:pointer" style-hover="background:#f6f3f1">Back to Console</button>
+    </header>
+
+    <sc-if value="{{ sfIsCatalog }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:40px 32px;display:grid;gap:28px;max-width:1280px;margin:0 auto">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:32px;align-items:end;padding-bottom:24px;border-bottom:1px solid #eae8e6">
+          <div style="display:grid;gap:10px;min-width:0">
+            <h1 style="font-family:'Source Serif 4',Georgia,serif;font-size:42px;font-weight:400;line-height:48px;letter-spacing:-0.02em;text-wrap:balance">Digital products, delivered the moment you pay.</h1>
+            <p style="font-size:15px;line-height:23px;color:#6c6a6a;max-width:52ch;text-wrap:pretty">Every purchase creates one private Order link. Keep it — it is the only way back to your files.</p>
+          </div>
+          <div style="display:grid;gap:10px;padding:16px;border:1px solid #eae8e6;border-radius:4px;background:#fff">
+            <sc-for list="{{ storefrontStats }}" as="s" hint-placeholder-count="2">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+                <span style="font-size:12px;color:#6c6a6a">{{ s.label }}</span>
+                <strong style="font-family:'Source Serif 4',Georgia,serif;font-size:22px;font-weight:400;font-variant-numeric:tabular-nums">{{ s.value }}</strong>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:28px;align-items:start">
+          <div style="display:grid;gap:16px;min-width:0">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="display:flex;align-items:center;flex:1;height:38px;padding:0 14px;border:1px solid #eae8e6;border-radius:40px;background:#fff;font-size:13px;color:#6c6a6a">Search Products</span>
+              <span style="font-size:12px;color:#6c6a6a;font-variant-numeric:tabular-nums">3 published</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px">
+              <sc-for list="{{ catalog }}" as="c" hint-placeholder-count="3">
+                <article style="display:flex;flex-direction:column;gap:10px;padding:18px;border-radius:4px;background:#fff;min-width:0;border:1px solid {{ c.line }}">
+                  <span style="display:block;height:96px;border-radius:4px;background:#f6f3f1"></span>
+                  <h2 style="font-family:'Source Serif 4',Georgia,serif;font-size:19px;font-weight:400;line-height:25px;overflow-wrap:anywhere">{{ c.name }}</h2>
+                  <p style="font-size:13px;line-height:19px;color:#6c6a6a;overflow-wrap:anywhere">{{ c.blurb }}</p>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;padding-top:10px;border-top:1px solid #eae8e6">
+                    <strong style="font-size:15px;font-variant-numeric:tabular-nums">{{ c.price }}</strong>
+                    <button type="button" onClick="{{ c.select }}" style="height:30px;padding:0 12px;border:1px solid #eae8e6;border-radius:4px;background:#fff;font-size:12px;cursor:pointer" style-hover="background:#f6f3f1">{{ c.action }}</button>
+                  </div>
+                </article>
+              </sc-for>
+            </div>
+          </div>
+
+          <section style="display:grid;gap:14px;padding:20px;border:1px solid #eae8e6;border-radius:4px;background:#fff;min-width:0">
+            <div style="display:grid;gap:4px">
+              <span style="font-size:10px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#6c6a6a">Purchase ledger</span>
+              <h2 style="font-family:'Source Serif 4',Georgia,serif;font-size:22px;font-weight:400;line-height:28px;overflow-wrap:anywhere">{{ ledger.name }}</h2>
+              <p style="font-size:13px;line-height:19px;color:#6c6a6a;overflow-wrap:anywhere">{{ ledger.blurb }}</p>
+            </div>
+            <sc-for list="{{ ledger.groups }}" as="g" hint-placeholder-count="2">
+              <div style="display:grid;gap:6px">
+                <span style="font-size:12px;font-weight:600">{{ g.name }}</span>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                  <sc-for list="{{ g.options }}" as="o" hint-placeholder-count="2">
+                    <button type="button" onClick="{{ o.select }}" style="height:32px;padding:0 12px;border:1px solid {{ o.line }};border-radius:4px;cursor:pointer;font-size:13px;background:{{ o.bg }};color:{{ o.fg }}">{{ o.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+            <div style="display:grid;gap:6px">
+              <span style="font-size:12px;font-weight:600">Quantity</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <button type="button" onClick="{{ ledger.decrement }}" aria-label="Decrease quantity" style="width:34px;height:34px;border:1px solid #8a8182;border-radius:4px;background:#fff;font-size:15px;cursor:pointer">−</button>
+                <span style="min-width:40px;text-align:center;font-size:14px;font-variant-numeric:tabular-nums">{{ ledger.quantity }}</span>
+                <button type="button" onClick="{{ ledger.increment }}" aria-label="Increase quantity" style="width:34px;height:34px;border:1px solid #8a8182;border-radius:4px;background:#fff;font-size:15px;cursor:pointer">+</button>
+                <span style="font-size:11px;color:#6c6a6a">1 to 10 item lines per Order</span>
+              </div>
+            </div>
+            <div style="display:grid;gap:10px;padding-top:10px;border-top:1px solid #eae8e6">
+              <label style="display:grid;gap:6px"><span style="font-size:12px;font-weight:600">Name</span><input type="text" placeholder="Your name" style="height:38px;padding:0 12px;border:1px solid #8a8182;border-radius:4px;background:#fff"></label>
+              <label style="display:grid;gap:6px"><span style="font-size:12px;font-weight:600">Email</span><input type="email" placeholder="you@example.com" style="height:38px;padding:0 12px;border:1px solid #8a8182;border-radius:4px;background:#fff"></label>
+            </div>
+            <div style="display:grid;gap:8px;padding:12px;border-radius:4px;background:#f6f3f1">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+                <span style="font-size:12px;color:#4c4546;min-width:0;overflow-wrap:anywhere">{{ ledger.lineLabel }}</span>
+                <span style="font-size:13px;font-variant-numeric:tabular-nums">{{ ledger.lineTotal }}</span>
+              </div>
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-top:8px;border-top:1px solid #eae8e6">
+                <strong style="font-size:13px">Order total</strong>
+                <strong style="font-size:16px;font-variant-numeric:tabular-nums">{{ ledger.total }}</strong>
+              </div>
+              <span style="font-size:11px;color:#6c6a6a">{{ ledger.priceSource }}</span>
+            </div>
+            <button type="button" onClick="{{ placeOrder }}" style="height:44px;border:0;border-radius:4px;background:#1b1c1b;color:#fff;font-size:14px;font-weight:500;cursor:pointer" style-hover="background:#000">Place Order</button>
+            <p style="font-size:11px;line-height:17px;color:#6c6a6a">Checkout creates a private Order link. Save it — anyone with the link can open the Order.</p>
+          </section>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ sfIsOrder }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:40px 32px;max-width:760px;margin:0 auto;display:grid;gap:20px">
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid #eae8e6;border-radius:4px;background:#f0edeb;flex-wrap:wrap">
+          <strong style="font-size:12px;flex:none;color:#4c4546">Private Order link</strong>
+          <span style="font-size:12px;line-height:18px;color:#4c4546;min-width:0;overflow-wrap:anywhere">{{ sfOrder.link }}</span>
+        </div>
+
+        <article style="display:grid;gap:24px;padding:28px;border:1px solid #eae8e6;border-radius:4px;background:#fff">
+          <header style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div style="display:grid;gap:4px;min-width:0">
+              <span style="font-size:10px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#6c6a6a">Order {{ sfOrder.reference }}</span>
+              <h1 style="font-family:'Source Serif 4',Georgia,serif;font-size:32px;font-weight:400;line-height:38px;letter-spacing:-0.02em;overflow-wrap:anywhere">{{ sfOrder.title }}</h1>
+            </div>
+            <span style="display:inline-flex;align-items:center;height:26px;padding:0 11px;border-radius:3px;font-size:12px;font-weight:600;background:{{ sfOrder.statusBg }};color:{{ sfOrder.statusFg }}">{{ sfOrder.status }}</span>
+          </header>
+
+          <section style="display:grid;gap:10px">
+            <h2 style="font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Items</h2>
+            <ul style="display:grid;gap:10px;list-style:none;padding:0">
+              <sc-for list="{{ sfOrder.items }}" as="i" hint-placeholder-count="1">
+                <li style="display:grid;gap:3px;padding:14px;border:1px solid #eae8e6;border-radius:4px">
+                  <strong style="font-size:14px;overflow-wrap:anywhere">{{ i.name }}</strong>
+                  <p style="font-size:13px;color:#6c6a6a;overflow-wrap:anywhere">{{ i.selection }}</p>
+                  <p style="font-size:13px;font-variant-numeric:tabular-nums">{{ i.math }}</p>
+                </li>
+              </sc-for>
+            </ul>
+          </section>
+
+          <section style="display:grid;gap:8px;padding:16px;border-radius:4px;background:#f6f3f1">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+              <span style="font-size:12px;color:#4c4546">Payment reference</span>
+              <span style="font-size:13px;font-weight:600;font-variant-numeric:tabular-nums">{{ sfOrder.paymentReference }}</span>
+            </div>
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-top:8px;border-top:1px solid #eae8e6">
+              <strong style="font-size:13px">Total</strong>
+              <strong style="font-size:18px;font-variant-numeric:tabular-nums">{{ sfOrder.total }}</strong>
+            </div>
+          </section>
+
+          <section style="display:grid;gap:6px">
+            <h2 style="font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">{{ sfOrder.statusHeading }}</h2>
+            <p style="font-size:14px;line-height:21px;text-wrap:pretty">{{ sfOrder.statusCopy }}</p>
+          </section>
+
+          <sc-if value="{{ sfOrder.showRefundForm }}" hint-placeholder-val="{{ false }}">
+            <section style="display:grid;gap:10px;padding-top:20px;border-top:1px solid #eae8e6">
+              <h2 style="font-family:'Source Serif 4',Georgia,serif;font-size:20px;font-weight:400">Refund request</h2>
+              <p style="font-size:14px;line-height:21px;color:#6c6a6a">You can send one refund request. Sending a request does not issue a refund.</p>
+              <label style="display:grid;gap:6px">
+                <span style="font-size:12px;font-weight:600">Reason for refund request</span>
+                <textarea placeholder="What went wrong, in your own words" style="min-height:110px;padding:10px 12px;border:1px solid #8a8182;border-radius:4px;background:#fff;line-height:21px;resize:vertical"></textarea>
+                <span style="font-size:11px;color:#6c6a6a;font-variant-numeric:tabular-nums">0 / 1000</span>
+              </label>
+              <button type="button" style="height:44px;width:fit-content;padding:0 20px;border:0;border-radius:4px;background:#1b1c1b;color:#fff;font-size:14px;font-weight:500;cursor:pointer" style-hover="background:#000">Send refund request</button>
+            </section>
+          </sc-if>
+
+          <sc-if value="{{ sfOrder.showRefundStatus }}" hint-placeholder-val="{{ false }}">
+            <section style="display:grid;gap:8px;padding-top:20px;border-top:1px solid #eae8e6">
+              <h2 style="font-family:'Source Serif 4',Georgia,serif;font-size:20px;font-weight:400">Refund request received</h2>
+              <span style="display:inline-flex;align-items:center;width:fit-content;height:22px;padding:0 9px;border-radius:3px;background:#f1f29f;color:#1b1c1b;font-size:11px;font-weight:600">Pending</span>
+              <p style="font-size:14px;line-height:21px;overflow-wrap:anywhere">{{ sfOrder.refundReason }}</p>
+              <p style="font-size:12px;color:#6c6a6a">{{ sfOrder.refundMeta }}</p>
+            </section>
+          </sc-if>
+
+          <footer style="display:flex;align-items:center;gap:12px;padding-top:16px;border-top:1px solid #eae8e6;flex-wrap:wrap">
+            <span style="font-size:12px;color:#6c6a6a">Created {{ sfOrder.created }}</span>
+            <div style="flex:1"></div>
+            <button type="button" onClick="{{ sfSwapExample }}" style="height:30px;padding:0 12px;border:1px solid #eae8e6;border-radius:4px;background:#fff;font-size:12px;cursor:pointer" style-hover="background:#f6f3f1">{{ sfOrder.swapLabel }}</button>
+          </footer>
+        </article>
+      </div>
+    </sc-if>
+  </div>
+</sc-if>
+
+<sc-if value="{{ isConsole }}" hint-placeholder-val="{{ true }}">
+  <div style="min-height:100dvh;display:grid;grid-template-columns:232px minmax(0,1fr);background:#fbf8f6">
+
+    <aside style="background:#fff;border-right:1px solid #eae8e6;display:flex;flex-direction:column;justify-content:space-between">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;padding:18px 16px;border-bottom:1px solid #eae8e6">
+          <span style="display:inline-flex;width:32px;height:32px;flex:none;align-items:center;justify-content:center;border-radius:4px;background:#1b1c1b;color:#fff;font-family:'Source Serif 4',Georgia,serif;font-size:16px">N</span>
+          <div style="display:grid;min-width:0">
+            <span style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Nexus Store</span>
+            <span style="font-size:11px;color:#6c6a6a">Owner</span>
+          </div>
+        </div>
+        <nav style="padding:14px 10px;display:grid;gap:2px">
+          <span style="padding:10px 10px 6px;font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#6c6a6a">Catalog</span>
+          <button type="button" onClick="{{ openProducts }}" style="display:flex;align-items:center;justify-content:space-between;height:36px;padding:0 10px;border:0;border-radius:4px;cursor:pointer;font-size:13px;text-align:left;background:{{ navProductsBg }};color:{{ navProductsFg }};font-weight:{{ navProductsWeight }}">Products<span style="font-size:11px;opacity:.75;font-variant-numeric:tabular-nums">3</span></button>
+          <button type="button" onClick="{{ openImport }}" style="display:flex;align-items:center;height:36px;padding:0 10px;border:0;border-radius:4px;cursor:pointer;font-size:13px;text-align:left;background:{{ navImportBg }};color:{{ navImportFg }};font-weight:{{ navImportWeight }}">Import CSV</button>
+          <span style="padding:18px 10px 6px;font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#6c6a6a">Orders</span>
+          <button type="button" onClick="{{ openOrders }}" style="display:flex;align-items:center;justify-content:space-between;height:36px;padding:0 10px;border:0;border-radius:4px;cursor:pointer;font-size:13px;text-align:left;background:{{ navOrdersBg }};color:{{ navOrdersFg }};font-weight:{{ navOrdersWeight }}">All Orders<span style="font-size:11px;opacity:.75;font-variant-numeric:tabular-nums">4</span></button>
+          <button type="button" onClick="{{ openRefunds }}" style="display:flex;align-items:center;justify-content:space-between;height:36px;padding:0 10px;border:0;border-radius:4px;cursor:pointer;font-size:13px;text-align:left;background:{{ navRefundsBg }};color:{{ navRefundsFg }};font-weight:{{ navRefundsWeight }}">Refund requests<span style="display:inline-flex;align-items:center;height:18px;padding:0 6px;border-radius:3px;background:#f1f29f;color:#1b1c1b;font-size:10px;font-weight:600">1</span></button>
+        </nav>
+      </div>
+      <div style="display:grid;gap:10px;padding:14px 16px;border-top:1px solid #eae8e6">
+        <button type="button" onClick="{{ openStorefront }}" style="height:32px;border:1px solid #eae8e6;border-radius:4px;background:#fff;font-size:12px;cursor:pointer" style-hover="background:#f6f3f1">View Storefront</button>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="display:inline-flex;width:28px;height:28px;flex:none;align-items:center;justify-content:center;border-radius:40px;background:#1b1c1b;color:#fff;font-size:11px;font-weight:600">NL</span>
+          <div style="display:grid;min-width:0;flex:1">
+            <span style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Nguyên Lê</span>
+            <button type="button" onClick="{{ signOut }}" style="padding:0;border:0;background:none;color:#6c6a6a;font-size:11px;text-align:left;text-decoration:underline;text-underline-offset:2px;cursor:pointer">Sign out</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <div style="min-width:0;display:grid;grid-template-rows:auto minmax(0,1fr)">
+      <div style="display:flex;align-items:center;gap:12px;height:56px;padding:0 24px;background:#fff;border-bottom:1px solid #eae8e6">
+        <div style="display:flex;align-items:center;flex:1;max-width:620px;height:36px;padding:0 12px;border:1px solid #eae8e6;border-radius:4px;background:#fbf8f6">
+          <input type="search" value="{{ query }}" onChange="{{ setQuery }}" placeholder="{{ searchPlaceholder }}" style="flex:1;min-width:0;height:34px;border:0;background:transparent;font-size:13px;outline:none">
+          <span style="font-size:11px;color:#6c6a6a;border:1px solid #eae8e6;border-radius:3px;padding:1px 5px;background:#fff">⌘K</span>
+        </div>
+        <div style="flex:1"></div>
+        <span style="font-size:12px;color:#6c6a6a">Contract v2</span>
+        <span style="width:1px;height:20px;background:#eae8e6"></span>
+        <span style="font-size:12px;color:#6c6a6a">Nexus · Owner</span>
+      </div>
+
+      <div style="min-width:0;padding:24px;display:grid;gap:18px;align-content:start">
+
+        <sc-if value="{{ isProducts }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap">
+            <div style="display:flex;align-items:flex-end;gap:4px">
+              <span style="display:flex;align-items:center;height:34px;padding:0 14px;border:1px solid #eae8e6;border-bottom-color:#fff;border-radius:4px 4px 0 0;background:#fff;font-size:13px;font-weight:600;margin-bottom:-1px">Products</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <button type="button" style="height:34px;padding:0 12px;border:1px solid #eae8e6;border-radius:4px;background:#fff;font-size:13px;cursor:pointer" style-hover="background:#f6f3f1">Template</button>
+              <button type="button" onClick="{{ openImport }}" style="height:34px;padding:0 12px;border:1px solid #eae8e6;border-radius:4px;background:#fff;font-size:13px;cursor:pointer" style-hover="background:#f6f3f1">Import CSV</button>
+              <button type="button" onClick="{{ newProduct }}" style="height:34px;padding:0 14px;border:0;border-radius:4px;background:#1b1c1b;color:#fff;font-size:13px;font-weight:500;cursor:pointer" style-hover="background:#000">Add Product</button>
+            </div>
+          </div>
+
+          <div style="border:1px solid #eae8e6;border-radius:4px;background:#fff;overflow:hidden">
+            <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #eae8e6;flex-wrap:wrap">
+              <div style="display:flex;gap:4px;flex-wrap:wrap">
+                <sc-for list="{{ productTabs }}" as="t" hint-placeholder-count="4">
+                  <button type="button" onClick="{{ t.select }}" style="display:flex;align-items:center;height:30px;padding:0 12px;border:0;border-radius:4px;cursor:pointer;font-size:12px;background:{{ t.bg }};color:{{ t.fg }};font-weight:{{ t.weight }}">{{ t.label }}</button>
+                </sc-for>
+              </div>
+              <div style="flex:1"></div>
+              <span style="font-size:12px;color:#6c6a6a;font-variant-numeric:tabular-nums">{{ productRange }}</span>
+            </div>
+
+            <div style="overflow-x:auto">
+              <table style="width:100%;min-width:900px;border-collapse:collapse;table-layout:fixed">
+                <thead>
+                  <tr style="background:#fbf8f6">
+                    <th style="width:130px;padding:10px 12px 10px 16px;border-bottom:1px solid #eae8e6;text-align:start;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Slug</th>
+                    <th style="padding:10px 12px;border-bottom:1px solid #eae8e6;text-align:start;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Product</th>
+                    <th style="width:110px;padding:10px 12px;border-bottom:1px solid #eae8e6;text-align:start;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Status</th>
+                    <th style="width:100px;padding:10px 12px;border-bottom:1px solid #eae8e6;text-align:start;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Type</th>
+                    <th style="width:150px;padding:10px 12px;border-bottom:1px solid #eae8e6;text-align:end;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Effective price</th>
+                    <th style="width:100px;padding:10px 12px;border-bottom:1px solid #eae8e6;text-align:end;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Variants</th>
+                    <th style="width:150px;padding:10px 16px 10px 12px;border-bottom:1px solid #eae8e6;text-align:end;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Updated</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <sc-for list="{{ products }}" as="p" hint-placeholder-count="3">
+                    <tr>
+                      <td style="padding:14px 12px 14px 16px;border-bottom:1px solid #eae8e6;font-size:12px;color:#6c6a6a;overflow-wrap:anywhere">{{ p.slug }}</td>
+                      <td style="padding:14px 12px;border-bottom:1px solid #eae8e6"><button type="button" onClick="{{ p.open }}" style="padding:0;border:0;background:none;font-size:14px;font-weight:500;line-height:20px;text-align:left;text-decoration:underline;text-underline-offset:3px;cursor:pointer;overflow-wrap:anywhere" style-hover="color:#000">{{ p.name }}</button></td>
+                      <td style="padding:14px 12px;border-bottom:1px solid #eae8e6"><span style="display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:3px;font-size:11px;font-weight:600;background:{{ p.statusBg }};color:{{ p.statusFg }}">{{ p.status }}</span></td>
+                      <td style="padding:14px 12px;border-bottom:1px solid #eae8e6;font-size:13px;color:#6c6a6a">{{ p.type }}</td>
+                      <td style="padding:14px 12px;border-bottom:1px solid #eae8e6;font-size:13px;text-align:end;font-variant-numeric:tabular-nums">{{ p.price }}</td>
+                      <td style="padding:14px 12px;border-bottom:1px solid #eae8e6;font-size:13px;text-align:end;color:#6c6a6a;font-variant-numeric:tabular-nums">{{ p.variantCount }}</td>
+                      <td style="padding:14px 16px 14px 12px;border-bottom:1px solid #eae8e6;font-size:12px;text-align:end;color:#6c6a6a;font-variant-numeric:tabular-nums">{{ p.updated }}</td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+            </div>
+
+            <sc-if value="{{ productsEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="display:grid;gap:8px;justify-items:start;padding:28px 16px">
+                <strong style="font-size:15px">No Products match these filters.</strong>
+                <span style="font-size:13px;color:#6c6a6a">Keep the current catalog and clear the search and status scope.</span>
+                <button type="button" onClick="{{ clearProductFilters }}" style="height:32px;padding:0 12px;border:1px solid #eae8e6;border-radius:4px;background:#fff;font-size:12px;cursor:pointer">Clear filters</button>
+              </div>
+            </sc-if>
+
+            <div style="display:flex;align-items:center;gap:18px;padding:12px 16px;border-top:1px solid #eae8e6;background:#fbf8f6;flex-wrap:wrap">
+              <sc-for list="{{ productStats }}" as="s" hint-placeholder-count="4">
+                <span style="font-size:12px;color:#6c6a6a">{{ s.label }} <strong style="color:#1b1c1b;font-variant-numeric:tabular-nums">{{ s.value }}</strong></span>
+              </sc-for>
+              <div style="flex:1"></div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <button type="button" disabled style="height:28px;padding:0 10px;border:1px solid #eae8e6;border-radius:4px;background:#fff;color:#6c6a6a;font-size:12px">Previous</button>
+                <span style="display:flex;align-items:center;height:28px;padding:0 10px;border-radius:4px;background:#1b1c1b;color:#fff;font-size:12px">1</span>
+                <button type="button" disabled style="height:28px;padding:0 10px;border:1px solid #eae8e6;border-radius:4px;background:#fff;color:#6c6a6a;font-size:12px">Next</button>
+                <span style="display:flex;align-items:center;height:28px;padding:0 10px;border:1px solid #eae8e6;border-radius:4px;background:#fff;font-size:12px;color:#4c4546">25 / page</span>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isImport }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <button type="button" onClick="{{ openProducts }}" style="padding:0;border:0;background:none;font-size:13px;color:#4c4546;text-decoration:underline;text-underline-offset:3px;cursor:pointer">Back to Products</button>
+            <span style="width:1px;height:20px;background:#eae8e6"></span>
+            <h1 style="font-family:'Source Serif 4',Georgia,serif;font-size:22px;font-weight:400">Import Products from CSV</h1>
+            <div style="flex:1"></div>
+            <span style="font-size:12px;color:#6c6a6a">One fixed template · no field mapping</span>
+          </div>
+
+          <div style="display:flex;gap:12px;padding:12px 16px;border:1px solid #eae8e6;border-radius:4px;background:#f0edeb;color:#4c4546;flex-wrap:wrap">
+            <strong style="font-size:13px;flex:none">Additive exact-match</strong>
+            <span style="font-size:13px;line-height:19px;min-width:0">Import adds new exact matches. It does not update existing Products or Variants. Private delivery files and Variant delivery overrides are not imported.</span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;align-items:start">
+            <section style="border:1px solid #eae8e6;border-radius:4px;background:#fff;padding:20px;display:grid;gap:14px;min-width:0">
+              <h2 style="font-family:'Source Serif 4',Georgia,serif;font-size:18px;font-weight:400">Template and file</h2>
+              <p style="font-size:13px;line-height:19px;color:#6c6a6a">One ordered header, one simple example, two Variant rows. There is no type column.</p>
+              <button type="button" style="height:34px;padding:0 12px;border:1px solid #eae8e6;border-radius:4px;background:#fff;font-size:13px;cursor:pointer;width:fit-content;overflow-wrap:anywhere" style-hover="background:#f6f3f1">Download nexus-product-import-template.csv</button>
+              <div style="display:grid;gap:8px;justify-items:center;padding:28px 20px;border:2px dashed #8a8182;border-radius:4px;background:#fbf8f6;text-align:center">
+                <strong style="font-size:14px">Drop CSV to preview</strong>
+                <span style="font-size:12px;color:#6c6a6a">CSV, UTF-8, up to 1 MB and 500 data rows</span>
+                <button type="button" style="height:34px;padding:0 14px;border:0;border-radius:4px;background:#1b1c1b;color:#fff;font-size:13px;font-weight:500;cursor:pointer;margin-top:4px">Replace CSV</button>
+              </div>
+              <div style="display:grid;gap:4px;padding:12px;border-radius:4px;background:#f1f29f;color:#1b1c1b">
+                <strong style="font-size:13px;overflow-wrap:anywhere">focus-pack-variants.csv</strong>
+                <span style="font-size:12px;font-variant-numeric:tabular-nums">4.6 KB · 4 data rows</span>
+                <span style="font-size:12px;line-height:18px">Browser checks passed for strict UTF-8, the ordered header, and grouped Product shape. The server repeats every check.</span>
+              </div>
+              <button type="button" style="height:38px;padding:0 16px;border:0;border-radius:4px;background:#1b1c1b;color:#fff;font-size:13px;font-weight:500;cursor:pointer" style-hover="background:#000">Import Products</button>
+            </section>
+
+            <section style="border:1px solid #eae8e6;border-radius:4px;background:#fff;overflow:hidden;min-width:0">
+              <div style="display:flex;align-items:baseline;gap:10px;padding:14px 16px;border-bottom:1px solid #eae8e6;flex-wrap:wrap">
+                <h2 style="font-family:'Source Serif 4',Georgia,serif;font-size:18px;font-weight:400">Browser preview</h2>
+                <span style="font-size:11px;color:#6c6a6a">Provisional. Server results replace these labels.</span>
+                <div style="flex:1"></div>
+                <span style="font-size:12px;color:#6c6a6a;font-variant-numeric:tabular-nums">2 Product groups · 4 rows</span>
+              </div>
+              <sc-for list="{{ csvGroups }}" as="g" hint-placeholder-count="2">
+                <div style="padding:16px;border-bottom:1px solid #eae8e6;display:grid;gap:10px">
+                  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                    <strong style="font-size:13px">{{ g.slug }}</strong>
+                    <span style="display:inline-flex;align-items:center;height:22px;padding:0 9px;border:1px solid #8a8182;border-radius:3px;font-size:11px;color:#4c4546">{{ g.kind }}</span>
+                    <span style="font-size:12px;color:#6c6a6a">{{ g.detail }}</span>
+                    <div style="flex:1"></div>
+                    <span style="display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:3px;background:{{ g.bg }};color:{{ g.fg }};font-size:11px;font-weight:600">{{ g.outcome }}</span>
+                  </div>
+                  <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="2">
+                    <div style="display:flex;align-items:center;gap:12px;padding:8px 12px;border:1px solid #eae8e6;border-radius:4px;flex-wrap:wrap">
+                      <span style="font-size:11px;color:#6c6a6a;font-variant-numeric:tabular-nums">Row {{ r.row }}</span>
+                      <span style="font-size:12px;min-width:0;overflow-wrap:anywhere">{{ r.label }}</span>
+                      <div style="flex:1"></div>
+                      <span style="font-size:12px;color:#4c4546;font-variant-numeric:tabular-nums">{{ r.price }}</span>
+                      <span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:3px;background:{{ r.bg }};color:{{ r.fg }};font-size:11px;font-weight:600">{{ r.outcome }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-for>
+              <div style="display:flex;gap:20px;padding:14px 16px;background:#fbf8f6;flex-wrap:wrap">
+                <span style="font-size:12px;color:#6c6a6a">Ready <strong style="color:#1b1c1b">3</strong></span>
+                <span style="font-size:12px;color:#6c6a6a">Duplicate candidate <strong style="color:#1b1c1b">1</strong></span>
+                <span style="font-size:12px;color:#6c6a6a">Rejected <strong style="color:#1b1c1b">0</strong></span>
+              </div>
+            </section>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isOrders }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap">
+            <div style="display:flex;align-items:flex-end;gap:4px">
+              <span style="display:flex;align-items:center;height:34px;padding:0 14px;border:1px solid #eae8e6;border-bottom-color:#fff;border-radius:4px 4px 0 0;background:#fff;font-size:13px;font-weight:600;margin-bottom:-1px">{{ ordersTabLabel }}</span>
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#4c4546">
+              <input type="checkbox" checked="{{ refundOnly }}" onChange="{{ toggleRefundOnly }}" style="width:14px;height:14px;accent-color:#333">
+              Pending refund requests only
+            </label>
+          </div>
+
+          <div style="border:1px solid #eae8e6;border-radius:4px;background:#fff;overflow:hidden">
+            <div style="display:flex;align-items:center;gap:6px;padding:12px 16px;border-bottom:1px solid #eae8e6;flex-wrap:wrap">
+              <sc-for list="{{ orderTabs }}" as="t" hint-placeholder-count="5">
+                <button type="button" onClick="{{ t.select }}" style="display:flex;align-items:center;gap:7px;height:30px;padding:0 12px;border:1px solid {{ t.line }};border-radius:4px;cursor:pointer;font-size:12px;background:{{ t.bg }};color:{{ t.fg }};font-weight:{{ t.weight }}">{{ t.label }}<span style="font-size:11px;opacity:.75;font-variant-numeric:tabular-nums">{{ t.count }}</span></button>
+              </sc-for>
+              <div style="flex:1"></div>
+              <span style="font-size:12px;color:#6c6a6a;font-variant-numeric:tabular-nums">{{ orderRange }}</span>
+            </div>
+
+            <div style="overflow-x:auto">
+              <table style="width:100%;min-width:1040px;border-collapse:collapse;table-layout:fixed">
+                <thead>
+                  <tr style="background:#fbf8f6">
+                    <th style="width:96px;padding:10px 12px 10px 16px;border-bottom:1px solid #eae8e6;text-align:start;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Order</th>
+                    <th style="width:150px;padding:10px 12px;border-bottom:1px solid #eae8e6;text-align:start;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Customer</th>
+                    <th style="width:170px;padding:10px 12px;border-bottom:1px solid #eae8e6;text-align:start;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Email</th>
+                    <th style="padding:10px 12px;border-bottom:1px solid #eae8e6;text-align:start;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Items</th>
+                    <th style="width:100px;padding:10px 12px;border-bottom:1px solid #eae8e6;text-align:end;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Total</th>
+                    <th style="width:110px;padding:10px 12px;border-bottom:1px solid #eae8e6;text-align:start;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Payment ref</th>
+                    <th style="width:130px;padding:10px 12px;border-bottom:1px solid #eae8e6;text-align:start;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Status</th>
+                    <th style="width:120px;padding:10px 16px 10px 12px;border-bottom:1px solid #eae8e6;text-align:end;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <sc-for list="{{ orders }}" as="o" hint-placeholder-count="4">
+                    <tr>
+                      <td style="padding:12px 12px 12px 16px;border-bottom:1px solid #eae8e6"><button type="button" onClick="{{ o.open }}" style="padding:0;border:0;background:none;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;text-decoration:underline;text-underline-offset:3px;cursor:pointer" style-hover="color:#000">{{ o.reference }}</button></td>
+                      <td style="padding:12px;border-bottom:1px solid #eae8e6">
+                        <span style="display:flex;align-items:center;gap:8px;min-width:0">
+                          <span style="display:inline-flex;width:24px;height:24px;flex:none;align-items:center;justify-content:center;border-radius:40px;background:#f6f3f1;color:#4c4546;font-size:10px;font-weight:600">{{ o.initials }}</span>
+                          <span style="font-size:13px;line-height:18px;overflow-wrap:anywhere">{{ o.customerName }}</span>
+                        </span>
+                      </td>
+                      <td style="padding:12px;border-bottom:1px solid #eae8e6;font-size:12px;line-height:17px;color:#4c4546;overflow-wrap:anywhere">{{ o.customerEmail }}</td>
+                      <td style="padding:12px;border-bottom:1px solid #eae8e6">
+                        <span style="display:grid;min-width:0">
+                          <span style="font-size:13px;line-height:18px;overflow-wrap:anywhere">{{ o.itemsTitle }}</span>
+                          <span style="font-size:11px;line-height:15px;color:#6c6a6a;overflow-wrap:anywhere">{{ o.itemsDetail }}</span>
+                        </span>
+                      </td>
+                      <td style="padding:12px;border-bottom:1px solid #eae8e6;font-size:13px;font-weight:600;text-align:end;font-variant-numeric:tabular-nums">{{ o.total }}</td>
+                      <td style="padding:12px;border-bottom:1px solid #eae8e6;font-size:12px;color:#6c6a6a;font-variant-numeric:tabular-nums">{{ o.paymentReference }}</td>
+                      <td style="padding:12px;border-bottom:1px solid #eae8e6">
+                        <span style="display:flex;flex-wrap:wrap;gap:6px">
+                          <span style="display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:3px;font-size:11px;font-weight:600;background:{{ o.statusBg }};color:{{ o.statusFg }}">{{ o.status }}</span>
+                          <sc-if value="{{ o.refund }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:3px;border:1px solid #8a8182;font-size:11px;font-weight:600;color:#4c4546">Refund pending</span></sc-if>
+                        </span>
+                      </td>
+                      <td style="padding:12px 16px 12px 12px;border-bottom:1px solid #eae8e6;font-size:12px;text-align:end;color:#6c6a6a;font-variant-numeric:tabular-nums">{{ o.created }}</td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+            </div>
+
+            <sc-if value="{{ ordersEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="display:grid;gap:8px;justify-items:start;padding:28px 16px">
+                <strong style="font-size:15px">No Orders match these filters.</strong>
+                <span style="font-size:13px;color:#6c6a6a">Clear filters or return to the first page to continue reviewing Orders.</span>
+                <button type="button" onClick="{{ clearOrderFilters }}" style="height:32px;padding:0 12px;border:1px solid #eae8e6;border-radius:4px;background:#fff;font-size:12px;cursor:pointer">Clear filters</button>
+              </div>
+            </sc-if>
+
+            <div style="display:flex;align-items:center;gap:18px;padding:12px 16px;border-top:1px solid #eae8e6;background:#fbf8f6;flex-wrap:wrap">
+              <sc-for list="{{ orderStats }}" as="s" hint-placeholder-count="5">
+                <span style="font-size:12px;color:#6c6a6a">{{ s.label }} <strong style="color:#1b1c1b;font-variant-numeric:tabular-nums">{{ s.value }}</strong></span>
+              </sc-for>
+              <div style="flex:1"></div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <button type="button" disabled style="height:28px;padding:0 10px;border:1px solid #eae8e6;border-radius:4px;background:#fff;color:#6c6a6a;font-size:12px">Previous</button>
+                <span style="display:flex;align-items:center;height:28px;padding:0 10px;border-radius:4px;background:#1b1c1b;color:#fff;font-size:12px">1</span>
+                <button type="button" disabled style="height:28px;padding:0 10px;border:1px solid #eae8e6;border-radius:4px;background:#fff;color:#6c6a6a;font-size:12px">Next</button>
+                <span style="display:flex;align-items:center;height:28px;padding:0 10px;border:1px solid #eae8e6;border-radius:4px;background:#fff;font-size:12px;color:#4c4546">25 / page</span>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <button type="button" onClick="{{ openOrders }}" style="padding:0;border:0;background:none;font-size:13px;color:#4c4546;text-decoration:underline;text-underline-offset:3px;cursor:pointer">Back to Orders</button>
+            <span style="width:1px;height:20px;background:#eae8e6"></span>
+            <h1 style="font-size:18px;font-weight:600;font-variant-numeric:tabular-nums">{{ detail.reference }}</h1>
+            <span style="display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:3px;font-size:11px;font-weight:600;background:{{ detail.statusBg }};color:{{ detail.statusFg }}">{{ detail.status }}</span>
+            <sc-if value="{{ detail.refund }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;height:22px;padding:0 9px;border:1px solid #8a8182;border-radius:3px;font-size:11px;font-weight:600;color:#4c4546">Refund request pending</span></sc-if>
+            <div style="flex:1"></div>
+            <button type="button" style="height:34px;padding:0 12px;border:1px solid #eae8e6;border-radius:4px;background:#fff;font-size:13px;cursor:pointer" style-hover="background:#f6f3f1">Fulfill</button>
+            <button type="button" style="height:34px;padding:0 12px;border:1px solid #93000a;border-radius:4px;background:#fff;color:#93000a;font-size:13px;cursor:pointer">Reject refund</button>
+            <button type="button" style="height:34px;padding:0 14px;border:0;border-radius:4px;background:#1b1c1b;color:#fff;font-size:13px;font-weight:500;cursor:pointer" style-hover="background:#000">Approve refund</button>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;align-items:start">
+            <div style="display:grid;gap:16px;min-width:0">
+              <section style="border:1px solid #eae8e6;border-radius:4px;background:#fff;padding:20px;display:grid;gap:14px">
+                <h2 style="font-family:'Source Serif 4',Georgia,serif;font-size:18px;font-weight:400">Order snapshot</h2>
+                <dl style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px 24px">
+                  <sc-for list="{{ detail.snapshot }}" as="s" hint-placeholder-count="6">
+                    <div style="display:grid;gap:3px;min-width:0">
+                      <dt style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">{{ s.label }}</dt>
+                      <dd style="font-size:13px;line-height:19px;overflow-wrap:anywhere">{{ s.value }}</dd>
+                    </div>
+                  </sc-for>
+                </dl>
+                <div style="display:grid;gap:8px">
+                  <span style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Item snapshot</span>
+                  <sc-for list="{{ detail.items }}" as="i" hint-placeholder-count="1">
+                    <div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid #eae8e6;border-radius:4px;flex-wrap:wrap">
+                      <span style="font-size:13px;font-weight:500;min-width:0;overflow-wrap:anywhere">{{ i.name }}</span>
+                      <span style="font-size:12px;color:#6c6a6a;overflow-wrap:anywhere">{{ i.selection }}</span>
+                      <div style="flex:1"></div>
+                      <span style="font-size:12px;color:#6c6a6a;font-variant-numeric:tabular-nums">{{ i.unit }}</span>
+                      <span style="font-size:13px;font-weight:600;font-variant-numeric:tabular-nums">{{ i.line }}</span>
+                    </div>
+                  </sc-for>
+                  <span style="font-size:11px;color:#6c6a6a">Snapshot taken at create. Live catalog edits do not change it.</span>
+                </div>
+              </section>
+
+              <section style="border:1px solid #eae8e6;border-radius:4px;background:#fff;padding:20px;display:grid;gap:12px">
+                <h2 style="font-family:'Source Serif 4',Georgia,serif;font-size:18px;font-weight:400">Payment</h2>
+                <dl style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px 24px">
+                  <sc-for list="{{ detail.payment }}" as="s" hint-placeholder-count="5">
+                    <div style="display:grid;gap:3px;min-width:0">
+                      <dt style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">{{ s.label }}</dt>
+                      <dd style="font-size:13px;line-height:19px;overflow-wrap:anywhere">{{ s.value }}</dd>
+                    </div>
+                  </sc-for>
+                </dl>
+                <span style="font-size:11px;color:#6c6a6a">External reference is Console-only evidence of money received outside Nexus. It is never shown to the Customer.</span>
+              </section>
+
+              <section style="border:1px solid #eae8e6;border-radius:4px;background:#fff;padding:20px;display:grid;gap:12px">
+                <h2 style="font-family:'Source Serif 4',Georgia,serif;font-size:18px;font-weight:400">History</h2>
+                <ol style="display:grid;list-style:none;padding:0">
+                  <sc-for list="{{ detail.history }}" as="h" hint-placeholder-count="4">
+                    <li style="display:flex;align-items:baseline;gap:14px;padding:10px 0;border-bottom:1px solid #eae8e6;flex-wrap:wrap">
+                      <span style="width:130px;flex:none;font-size:12px;color:#6c6a6a;font-variant-numeric:tabular-nums">{{ h.when }}</span>
+                      <strong style="font-size:13px;flex:none">{{ h.action }}</strong>
+                      <span style="font-size:12px;color:#4c4546;min-width:0;overflow-wrap:anywhere">{{ h.detail }}</span>
+                    </li>
+                  </sc-for>
+                </ol>
+              </section>
+            </div>
+
+            <div style="display:grid;gap:16px;min-width:0">
+              <sc-if value="{{ detail.refund }}" hint-placeholder-val="{{ false }}">
+                <section style="border:1px solid #eae8e6;border-radius:4px;background:#fff;padding:20px;display:grid;gap:10px">
+                  <h2 style="font-family:'Source Serif 4',Georgia,serif;font-size:18px;font-weight:400">Refund request</h2>
+                  <span style="display:inline-flex;align-items:center;width:fit-content;height:22px;padding:0 9px;border-radius:3px;background:#f1f29f;color:#1b1c1b;font-size:11px;font-weight:600">Pending</span>
+                  <p style="font-size:14px;line-height:21px;overflow-wrap:anywhere">{{ detail.refundReason }}</p>
+                  <span style="font-size:11px;color:#6c6a6a">{{ detail.refundMeta }}</span>
+                </section>
+              </sc-if>
+
+              <section style="border:1px solid #eae8e6;border-radius:4px;background:#fff;padding:20px;display:grid;gap:14px">
+                <h2 style="font-family:'Source Serif 4',Georgia,serif;font-size:18px;font-weight:400">Record manual payment</h2>
+                <p style="font-size:12px;line-height:18px;color:#6c6a6a">Amount and currency come from the Order snapshot and cannot be edited here.</p>
+                <label style="display:grid;gap:6px"><span style="font-size:12px;font-weight:600">Payment method</span><span style="display:flex;align-items:center;justify-content:space-between;height:38px;padding:0 12px;border:1px solid #8a8182;border-radius:4px">Bank transfer<span style="color:#6c6a6a;font-size:11px">▾</span></span></label>
+                <label style="display:grid;gap:6px"><span style="font-size:12px;font-weight:600">External payment reference</span><input type="text" placeholder="Bank statement line or receipt id" style="height:38px;padding:0 12px;border:1px solid #8a8182;border-radius:4px;background:#fff"><span style="font-size:11px;color:#6c6a6a">Required. Never fabricate evidence for a legacy row.</span></label>
+                <div style="display:flex;justify-content:space-between;gap:12px;padding:12px;border-radius:4px;background:#f6f3f1">
+                  <span style="font-size:12px;color:#4c4546">Amount from snapshot</span>
+                  <strong style="font-size:14px;font-variant-numeric:tabular-nums">{{ detail.amount }}</strong>
+                </div>
+                <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:18px;color:#4c4546"><input type="checkbox" style="width:14px;height:14px;margin-top:2px;accent-color:#333">I confirm this money was received outside Nexus.</label>
+                <button type="button" style="height:38px;border:0;border-radius:4px;background:#1b1c1b;color:#fff;font-size:13px;font-weight:500;cursor:pointer" style-hover="background:#000">Record payment and mark Paid</button>
+                <button type="button" style="height:34px;border:1px solid #eae8e6;border-radius:4px;background:#fff;font-size:13px;cursor:pointer" style-hover="background:#f6f3f1">Cancel Order</button>
+              </section>
+            </div>
+          </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ editorOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;inset:0;z-index:40;background:rgb(27 28 27 / 0.42);display:grid;place-items:center;padding:24px">
+    <div style="width:100%;max-width:1280px;max-height:100%;overflow:auto;border-radius:4px;background:#f6f3f1">
+
+      <div style="display:flex;align-items:center;gap:12px;padding:0 20px;height:56px;background:#fff;border-bottom:1px solid #eae8e6;position:sticky;top:0;z-index:1;flex-wrap:wrap">
+        <h2 style="font-family:'Source Serif 4',Georgia,serif;font-size:18px;font-weight:400">Product configuration</h2>
+        <span style="display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:3px;background:#f6f3f1;color:#1b1c1b;font-size:11px;font-weight:600">{{ editor.badge }}</span>
+        <div style="flex:1"></div>
+        <span style="font-size:12px;color:#93000a;font-weight:600">Unsaved changes</span>
+        <button type="button" onClick="{{ closeEditor }}" aria-label="Close editor" style="display:inline-flex;width:32px;height:32px;align-items:center;justify-content:center;border:1px solid #eae8e6;border-radius:4px;background:#fff;color:#4c4546;font-size:14px;cursor:pointer" style-hover="background:#f6f3f1">✕</button>
+      </div>
+
+      <div style="display:flex;gap:20px;padding:0 20px;background:#fff;border-bottom:1px solid #eae8e6">
+        <span style="display:flex;align-items:center;height:42px;font-size:13px;font-weight:600;box-shadow:inset 0 -2px 0 #1b1c1b">Console</span>
+        <span style="display:flex;align-items:center;height:42px;font-size:13px;color:#6c6a6a">Storefront preview</span>
+      </div>
+
+      <div style="padding:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px;align-items:start">
+
+        <section style="border:1px solid #eae8e6;border-radius:4px;background:#fff;padding:20px;display:grid;gap:14px;min-width:0">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px">
+            <label style="display:grid;gap:6px"><span style="font-size:12px;font-weight:600">Product slug <span style="color:#93000a">*</span></span><input type="text" value="{{ editor.slug }}" onChange="{{ noop }}" style="height:38px;padding:0 12px;border:1px solid #8a8182;border-radius:4px;background:#fff"></label>
+            <label style="display:grid;gap:6px"><span style="font-size:12px;font-weight:600">Product status</span><span style="display:flex;align-items:center;justify-content:space-between;height:38px;padding:0 12px;border:1px solid #8a8182;border-radius:4px">{{ editor.status }}<span style="color:#6c6a6a;font-size:11px">▾</span></span></label>
+          </div>
+          <label style="display:grid;gap:6px"><span style="font-size:12px;font-weight:600">Product name <span style="color:#93000a">*</span></span><input type="text" value="{{ editor.name }}" onChange="{{ noop }}" placeholder="Product name" style="height:38px;padding:0 12px;border:1px solid #8a8182;border-radius:4px;background:#fff"></label>
+          <label style="display:grid;gap:6px"><span style="font-size:12px;font-weight:600">Public description</span><textarea onChange="{{ noop }}" defaultValue="{{ editor.description }}" placeholder="Shown to Customers on the Storefront" style="min-height:96px;padding:10px 12px;border:1px solid #8a8182;border-radius:4px;background:#fff;line-height:21px;resize:vertical"></textarea></label>
+        </section>
+
+        <section style="border:1px solid #eae8e6;border-radius:4px;background:#fff;padding:20px;display:grid;gap:14px;min-width:0">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px">
+            <label style="display:grid;gap:6px"><span style="font-size:12px;font-weight:600">Base price <span style="color:#93000a">*</span></span><span style="display:flex;align-items:center;justify-content:space-between;height:38px;padding:0 12px;border:1px solid #8a8182;border-radius:4px;font-variant-numeric:tabular-nums">{{ editor.basePrice }}<span style="color:#6c6a6a;font-size:12px">USD</span></span></label>
+            <label style="display:grid;gap:6px"><span style="font-size:12px;font-weight:600">Currency</span><span style="display:flex;align-items:center;justify-content:space-between;height:38px;padding:0 12px;border:1px solid #8a8182;border-radius:4px">USD<span style="color:#6c6a6a;font-size:11px">▾</span></span></label>
+          </div>
+          <span style="font-size:11px;color:#6c6a6a">One currency per Product. USD shows 2 fraction digits; VND shows 0.</span>
+          <div style="height:1px;background:#eae8e6"></div>
+          <div style="display:flex;align-items:baseline;gap:10px"><span style="font-size:12px;font-weight:600">Delivery</span><span style="font-size:11px;color:#6c6a6a">Private Console content</span></div>
+          <label style="display:grid;gap:6px"><span style="font-size:12px;font-weight:600">Private access title <span style="color:#93000a">*</span></span><input type="text" value="{{ editor.accessTitle }}" onChange="{{ noop }}" style="height:38px;padding:0 12px;border:1px solid #8a8182;border-radius:4px;background:#fff"></label>
+          <label style="display:grid;gap:6px"><span style="font-size:12px;font-weight:600">Private access instructions <span style="color:#93000a">*</span></span><textarea onChange="{{ noop }}" defaultValue="{{ editor.accessInstructions }}" placeholder="How the Customer opens the file" style="min-height:58px;padding:10px 12px;border:1px solid #8a8182;border-radius:4px;background:#fff;line-height:21px;resize:vertical"></textarea></label>
+          <div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px dashed #8a8182;border-radius:4px;background:#fbf8f6;flex-wrap:wrap">
+            <span style="font-size:12px;color:#6c6a6a;min-width:0;overflow-wrap:anywhere">{{ editor.fileLabel }}</span>
+            <div style="flex:1"></div>
+            <button type="button" style="height:30px;padding:0 10px;border:1px solid #eae8e6;border-radius:4px;background:#fff;font-size:12px;cursor:pointer">Choose PDF or ZIP</button>
+          </div>
+        </section>
+
+        <section style="grid-column:1 / -1;border:1px solid #eae8e6;border-radius:4px;background:#fff;min-width:0">
+          <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid #eae8e6;flex-wrap:wrap">
+            <span style="font-size:13px;font-weight:600">Option groups</span>
+            <span style="font-size:11px;color:#6c6a6a">0 to 5 groups · up to 10 values each</span>
+            <div style="flex:1"></div>
+            <button type="button" style="height:32px;padding:0 12px;border:0;border-radius:4px;background:#1b1c1b;color:#fff;font-size:12px;font-weight:500;cursor:pointer" style-hover="background:#000">Add option group</button>
+          </div>
+          <div style="padding:16px;display:grid;gap:10px">
+            <sc-for list="{{ editor.groups }}" as="g" hint-placeholder-count="2">
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #eae8e6;border-radius:4px;flex-wrap:wrap">
+                <span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border:1px solid #8a8182;border-radius:3px;font-size:11px;color:#4c4546">participating</span>
+                <strong style="font-size:13px">{{ g.name }}</strong>
+                <sc-for list="{{ g.values }}" as="v" hint-placeholder-count="2">
+                  <span style="display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:3px;background:#f1f29f;color:#1b1c1b;font-size:12px">{{ v }}</span>
+                </sc-for>
+                <span style="display:inline-flex;align-items:center;height:24px;padding:0 10px;border:1px dashed #8a8182;border-radius:3px;font-size:12px;color:#4c4546">Add value</span>
+                <div style="flex:1"></div>
+                <span style="font-size:11px;color:#6c6a6a">{{ g.count }} of 10</span>
+              </div>
+            </sc-for>
+            <sc-if value="{{ editor.noGroups }}" hint-placeholder-val="{{ false }}">
+              <span style="font-size:13px;color:#6c6a6a">Select at least one option group and value to generate combinations.</span>
+            </sc-if>
+          </div>
+        </section>
+
+        <section style="grid-column:1 / -1;border:1px solid #eae8e6;border-radius:4px;background:#fff;min-width:0">
+          <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid #eae8e6;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:#4c4546"><input type="checkbox" defaultChecked="{{ true }}" style="width:14px;height:14px;accent-color:#333">Auto-suggest SKUs</label>
+            <div style="flex:1"></div>
+            <span style="font-size:12px;color:#6c6a6a"><strong style="color:#1b1c1b;font-variant-numeric:tabular-nums">{{ editor.combinationCount }}</strong> of 30 combinations</span>
+            <span style="position:relative;display:block;width:140px;height:8px;border-radius:2px;background:#f6f3f1;border:1px solid #eae8e6;overflow:hidden">
+              <span style="position:absolute;inset:0 auto 0 0;background:#f1f29f;width:{{ editor.meterWidth }}"></span>
+              <span style="position:absolute;inset:0 auto 0 27.8%;width:2px;background:#1b1c1b"></span>
+              <span style="position:absolute;inset:0 auto 0 83.3%;width:2px;background:#1b1c1b"></span>
+            </span>
+            <button type="button" style="height:32px;padding:0 12px;border:0;border-radius:4px;background:#1b1c1b;color:#fff;font-size:12px;font-weight:500;cursor:pointer" style-hover="background:#000">Generate combinations</button>
+          </div>
+          <div style="overflow-x:auto">
+            <table style="width:100%;min-width:860px;border-collapse:collapse;table-layout:fixed">
+              <thead>
+                <tr style="background:#fbf8f6">
+                  <th style="width:90px;padding:10px 12px 10px 16px;border-bottom:1px solid #eae8e6;text-align:start;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Enabled</th>
+                  <th style="width:20%;padding:10px 12px;border-bottom:1px solid #eae8e6;text-align:start;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Combination</th>
+                  <th style="width:20%;padding:10px 12px;border-bottom:1px solid #eae8e6;text-align:start;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">SKU</th>
+                  <th style="width:14%;padding:10px 12px;border-bottom:1px solid #eae8e6;text-align:end;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Price override</th>
+                  <th style="width:13%;padding:10px 12px;border-bottom:1px solid #eae8e6;text-align:end;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Effective price</th>
+                  <th style="width:14%;padding:10px 12px;border-bottom:1px solid #eae8e6;text-align:start;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Delivery</th>
+                  <th style="padding:10px 16px 10px 12px;border-bottom:1px solid #eae8e6;text-align:end;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6c6a6a">Row</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ editor.variants }}" as="v" hint-placeholder-count="4">
+                  <tr>
+                    <td style="padding:12px 12px 12px 16px;border-bottom:1px solid #eae8e6"><span style="display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:3px;font-size:11px;font-weight:600;background:{{ v.stateBg }};color:#1b1c1b">{{ v.state }}</span></td>
+                    <td style="padding:12px;border-bottom:1px solid #eae8e6;font-size:13px;font-weight:500;overflow-wrap:anywhere">{{ v.combination }}</td>
+                    <td style="padding:12px;border-bottom:1px solid #eae8e6"><span style="display:flex;align-items:center;height:32px;padding:0 10px;border:1px solid #8a8182;border-radius:4px;font-size:12px;overflow-wrap:anywhere">{{ v.sku }}</span></td>
+                    <td style="padding:12px;border-bottom:1px solid #eae8e6"><span style="display:flex;align-items:center;justify-content:flex-end;height:32px;padding:0 10px;border:1px solid #8a8182;border-radius:4px;font-size:12px;font-variant-numeric:tabular-nums">{{ v.override }}</span></td>
+                    <td style="padding:12px;border-bottom:1px solid #eae8e6;font-size:13px;text-align:end;font-variant-numeric:tabular-nums">{{ v.price }}</td>
+                    <td style="padding:12px;border-bottom:1px solid #eae8e6;font-size:12px;color:#4c4546">{{ v.deliverySource }}</td>
+                    <td style="padding:12px 16px 12px 12px;border-bottom:1px solid #eae8e6;text-align:end"><span style="font-size:12px;color:#4c4546;text-decoration:underline;text-underline-offset:3px">Delivery…</span></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+          <sc-if value="{{ editor.noVariants }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:24px 16px;font-size:13px;color:#6c6a6a">This is a simple Product. Add an option group to build a Variant schema.</div>
+          </sc-if>
+        </section>
+
+      </div>
+
+      <div style="display:flex;align-items:center;gap:14px;padding:0 20px;height:60px;background:#fff;border-top:1px solid #eae8e6;position:sticky;bottom:0;flex-wrap:wrap">
+        <span style="font-size:12px;color:#6c6a6a">{{ editor.footer }}</span>
+        <div style="flex:1"></div>
+        <button type="button" onClick="{{ closeEditor }}" style="height:38px;padding:0 14px;border:1px solid #eae8e6;border-radius:4px;background:#fff;font-size:13px;cursor:pointer" style-hover="background:#f6f3f1">Discard</button>
+        <button type="button" onClick="{{ closeEditor }}" style="height:38px;padding:0 20px;border:0;border-radius:4px;background:#1b1c1b;color:#fff;font-size:13px;font-weight:500;cursor:pointer" style-hover="background:#000">Save Product</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+const PRODUCTS = [
+  {
+    slug: 'field-notes', name: 'Field Notes for Independent Product Teams', status: 'Active', type: 'Simple',
+    price: '$24.00', basePrice: '24.00', variantCount: '—', updated: 'Aug 26, 09:42',
+    description: 'A concise guide to writing decisions down before you build them.',
+    accessTitle: 'Download Field Notes', accessInstructions: 'Open the PDF from your Order.',
+    fileLabel: 'field-notes-independent-product-teams.pdf · 3.6 MB · PDF',
+    groups: [], variants: [],
+  },
+  {
+    slug: 'focus-pack', name: 'Focus Workspace Template Pack', status: 'Draft', type: 'Variant',
+    price: '$36.00 – $48.00', basePrice: '36.00', variantCount: '8', updated: 'Aug 25, 17:18',
+    description: 'Desktop focus templates for teams that plan in writing.',
+    accessTitle: 'Download Focus Pack', accessInstructions: 'Open the ZIP from your Order and unpack it into your templates folder.',
+    fileLabel: 'focus-workspace-template-pack-2026-08.zip · 9.2 MB · ZIP',
+    groups: [
+      { name: 'Theme', values: ['Dark', 'Light'], count: '2' },
+      { name: 'License', values: ['Personal', 'Team'], count: '2' },
+    ],
+    variants: [
+      { combination: 'Dark / Personal', sku: 'FOCUS-DARK-PERS', price: '$36.00', override: '—', deliverySource: 'Product default', state: 'Enabled' },
+      { combination: 'Dark / Team', sku: 'FOCUS-DARK-TEAM', price: '$48.00', override: '48.00', deliverySource: 'Variant override', state: 'Enabled' },
+      { combination: 'Light / Personal', sku: 'FOCUS-LIGHT-PERS', price: '$36.00', override: '—', deliverySource: 'Product default', state: 'Enabled' },
+      { combination: 'Light / Team', sku: 'FOCUS-LIGHT-TEAM', price: '$48.00', override: '48.00', deliverySource: 'Product default', state: 'Disabled' },
+    ],
+  },
+  {
+    slug: 'launch-library', name: 'Launch Systems Library', status: 'Archived', type: 'Variant',
+    price: '$58.00', basePrice: '58.00', variantCount: '4', updated: 'Aug 22, 11:06',
+    description: 'Launch checklists, comms templates and a post-launch review kit.',
+    accessTitle: 'Download Launch Systems Library', accessInstructions: 'Open the ZIP from your Order.',
+    fileLabel: 'launch-systems-library.zip · 21.7 MB · ZIP',
+    groups: [
+      { name: 'Format', values: ['Notion', 'PDF'], count: '2' },
+      { name: 'License', values: ['Solo', 'Team'], count: '2' },
+    ],
+    variants: [
+      { combination: 'Notion / Solo', sku: 'LAUNCH-NOTION-SOLO', price: '$58.00', override: '—', deliverySource: 'Product default', state: 'Enabled' },
+      { combination: 'Notion / Team', sku: 'LAUNCH-NOTION-TEAM', price: '$58.00', override: '—', deliverySource: 'Product default', state: 'Enabled' },
+      { combination: 'PDF / Solo', sku: 'LAUNCH-PDF-SOLO', price: '$58.00', override: '—', deliverySource: 'Product default', state: 'Enabled' },
+      { combination: 'PDF / Team', sku: 'LAUNCH-PDF-TEAM', price: '$58.00', override: '—', deliverySource: 'Variant override', state: 'Enabled' },
+    ],
+  },
+];
+
+const PRODUCT_STATUS = {
+  Active: { bg: '#f1f29f', fg: '#1b1c1b' },
+  Draft: { bg: '#f6f3f1', fg: '#1b1c1b' },
+  Archived: { bg: '#ffdad6', fg: '#93000a' },
+};
+
+const ORDER_STATUS = {
+  Pending: { bg: '#f6f3f1', fg: '#1b1c1b' },
+  Paid: { bg: '#f1f29f', fg: '#1b1c1b' },
+  Fulfilled: { bg: '#f1f29f', fg: '#1b1c1b' },
+  Canceled: { bg: '#ffdad6', fg: '#93000a' },
+};
+
+const ORDERS = [
+  {
+    reference: 'NX-4821', initials: 'TA', customerName: 'Trần Minh Anh', customerEmail: 'minhanh@example.com',
+    itemsTitle: 'Focus Workspace Template Pack', itemsDetail: 'Theme: Dark · License: Team · FOCUS-DARK-TEAM',
+    total: '$48.00', amount: '$48.00 USD', paymentReference: 'NP-4821-A', status: 'Pending', created: 'Sep 12, 10:24', refund: false,
+    items: [{ name: 'Focus Workspace Template Pack', selection: 'Theme: Dark · License: Team · FOCUS-DARK-TEAM', unit: '1 × $48.00', line: '$48.00' }],
+    payment: [
+      { label: 'Source', value: 'No payment recorded' },
+      { label: 'Method', value: '—' },
+      { label: 'External reference', value: '—' },
+      { label: 'Recorded actor', value: '—' },
+      { label: 'Recorded time', value: '—' },
+    ],
+    history: [
+      { when: 'Sep 12, 10:24', action: 'Order created', detail: 'Storefront · 1 item line · contract 2' },
+    ],
+  },
+  {
+    reference: 'NX-4820', initials: 'LP', customerName: 'Lê Hoàng Phúc', customerEmail: 'phuc.le@example.com',
+    itemsTitle: 'Field Notes for Independent Product Teams', itemsDetail: 'Simple Product',
+    total: '$24.00', amount: '$24.00 USD', paymentReference: 'NP-4820-C', status: 'Paid', created: 'Sep 11, 16:02', refund: true,
+    refundReason: 'The ZIP will not unpack on my machine and the team already bought the Notion version.',
+    refundMeta: 'Requested Sep 12, 2026, 08:10 · Customer · Approval records intent and never claims money moved.',
+    items: [{ name: 'Field Notes for Independent Product Teams', selection: 'Simple Product', unit: '1 × $24.00', line: '$24.00' }],
+    payment: [
+      { label: 'Source', value: 'Console manual' },
+      { label: 'Method', value: 'Bank transfer' },
+      { label: 'External reference', value: 'VCB-20260911-8842' },
+      { label: 'Recorded actor', value: 'Nguyên Lê · Owner' },
+      { label: 'Recorded time', value: 'Sep 11, 2026, 16:40' },
+    ],
+    history: [
+      { when: 'Sep 12, 08:10', action: 'Refund requested', detail: 'Customer · contract 2' },
+      { when: 'Sep 11, 16:40', action: 'Payment recorded', detail: 'Console · bank transfer · VCB-20260911-8842' },
+      { when: 'Sep 11, 16:40', action: 'Marked paid', detail: 'Console · Owner' },
+      { when: 'Sep 11, 16:02', action: 'Order created', detail: 'Storefront · 1 item line' },
+    ],
+  },
+  {
+    reference: 'NX-4819', initials: 'NH', customerName: 'Nguyễn Thu Hà', customerEmail: 'thuha@example.com',
+    itemsTitle: 'Launch Systems Library + 1 more', itemsDetail: '2 items',
+    total: '$82.00', amount: '$82.00 USD', paymentReference: 'NP-4819-B', status: 'Fulfilled', created: 'Sep 10, 09:15', refund: false,
+    items: [
+      { name: 'Launch Systems Library', selection: 'Format: Notion · License: Team · LAUNCH-NOTION-TEAM', unit: '1 × $58.00', line: '$58.00' },
+      { name: 'Field Notes for Independent Product Teams', selection: 'Simple Product', unit: '1 × $24.00', line: '$24.00' },
+    ],
+    payment: [
+      { label: 'Source', value: 'Console manual' },
+      { label: 'Method', value: 'Bank transfer' },
+      { label: 'External reference', value: 'VCB-20260910-7715' },
+      { label: 'Recorded actor', value: 'Nguyên Lê · Owner' },
+      { label: 'Recorded time', value: 'Sep 10, 2026, 09:52' },
+    ],
+    history: [
+      { when: 'Sep 10, 10:31', action: 'Fulfilled', detail: 'Console · Owner' },
+      { when: 'Sep 10, 09:52', action: 'Payment recorded', detail: 'Console · bank transfer · VCB-20260910-7715' },
+      { when: 'Sep 10, 09:15', action: 'Order created', detail: 'Storefront · 2 item lines' },
+    ],
+  },
+  {
+    reference: 'NX-4818', initials: 'ĐH', customerName: 'Đỗ Quang Huy', customerEmail: 'huy.do@example.com',
+    itemsTitle: 'Focus Workspace Template Pack', itemsDetail: 'Theme: Light · License: Personal · FOCUS-LIGHT-PERS',
+    total: '$36.00', amount: '$36.00 USD', paymentReference: 'NP-4818-D', status: 'Canceled', created: 'Sep 9, 13:48', refund: false,
+    items: [{ name: 'Focus Workspace Template Pack', selection: 'Theme: Light · License: Personal · FOCUS-LIGHT-PERS', unit: '1 × $36.00', line: '$36.00' }],
+    payment: [
+      { label: 'Source', value: 'No payment recorded' },
+      { label: 'Method', value: '—' },
+      { label: 'External reference', value: '—' },
+      { label: 'Recorded actor', value: '—' },
+      { label: 'Recorded time', value: '—' },
+    ],
+    history: [
+      { when: 'Sep 9, 14:02', action: 'Canceled', detail: 'Console · Owner · pending Order' },
+      { when: 'Sep 9, 13:48', action: 'Order created', detail: 'Storefront · 1 item line' },
+    ],
+  },
+];
+
+const PRODUCT_TABS = ['All', 'Draft', 'Active', 'Archived'];
+const ORDER_TABS = ['All', 'Pending', 'Paid', 'Fulfilled', 'Canceled'];
+
+class Component extends DCLogic {
+  state = {
+    screen: 'signin',
+    signInState: 'default',
+    query: '',
+    productTab: 'All',
+    orderTab: 'All',
+    refundOnly: false,
+    editorSlug: null,
+    detailRef: null,
+    sfView: 'catalog',
+    sfSlug: 'focus-pack',
+    sfOptions: { Theme: 'Dark', License: 'Team' },
+    sfQty: 1,
+    sfPlaced: false,
+    sfExample: false,
+  };
+
+  selectOption(groupName, value) {
+    this.setState((prev) => ({ sfOptions: Object.assign({}, prev.sfOptions, { [groupName]: value }) }));
+  }
+
+  selectCatalogProduct(slug) {
+    const product = PRODUCTS.find((p) => p.slug === slug);
+    const options = {};
+    (product ? product.groups : []).forEach((g) => { options[g.name] = g.values[0]; });
+    this.setState({ sfSlug: slug, sfOptions: options, sfQty: 1 });
+  }
+
+  go(screen) {
+    this.setState({ screen, query: '', detailRef: null });
+  }
+
+  renderVals() {
+    const s = this.state;
+    const q = s.query.trim().toLowerCase();
+    const signedIn = s.screen !== 'signin';
+
+    const products = PRODUCTS.filter((p) => {
+      const okTab = s.productTab === 'All' || p.status === s.productTab;
+      const okQuery = !q || p.name.toLowerCase().includes(q) || p.slug.includes(q);
+      return okTab && okQuery;
+    });
+
+    const orderScreen = s.screen === 'orders' || s.screen === 'refunds';
+    const refundOnly = s.refundOnly || s.screen === 'refunds';
+    const orders = ORDERS.filter((o) => {
+      const okTab = s.orderTab === 'All' || o.status === s.orderTab;
+      const okRefund = !refundOnly || o.refund;
+      const okQuery = !q || o.reference.toLowerCase().includes(q) || o.paymentReference.toLowerCase().includes(q)
+        || o.customerName.toLowerCase().includes(q) || o.customerEmail.toLowerCase().includes(q);
+      return okTab && okRefund && okQuery;
+    });
+
+    const editorProduct = s.editorSlug === 'new'
+      ? { slug: '', name: '', status: 'Draft', type: 'Simple', basePrice: '0.00', description: '', accessTitle: '', accessInstructions: '', fileLabel: 'No private file selected · optional, PDF or ZIP up to 25 MB', groups: [], variants: [] }
+      : PRODUCTS.find((p) => p.slug === s.editorSlug) ?? null;
+
+    const detailOrder = ORDERS.find((o) => o.reference === s.detailRef) ?? null;
+    const pageTotal = orders.reduce((sum, o) => sum + Number(o.total.replace(/[^0-9.]/g, '')), 0);
+
+    const navStyle = (name) => {
+      const active = s.screen === name;
+      return { bg: active ? '#1b1c1b' : 'transparent', fg: active ? '#ffffff' : '#4c4546', weight: active ? '500' : '400' };
+    };
+    const nav = { products: navStyle('products'), import: navStyle('import'), orders: navStyle('orders'), refunds: navStyle('refunds') };
+    if (s.screen === 'detail') {
+      nav.orders = { bg: '#1b1c1b', fg: '#ffffff', weight: '500' };
+    }
+
+    const combinations = editorProduct ? editorProduct.variants.length : 0;
+
+    const sfProduct = PRODUCTS.find((p) => p.slug === s.sfSlug) ?? PRODUCTS[0];
+    const sfCombination = sfProduct.groups.map((g) => s.sfOptions[g.name] ?? g.values[0]).join(' / ');
+    const sfVariant = sfProduct.variants.find((v) => v.combination === sfCombination) ?? null;
+    const sfUnit = Number((sfVariant ? sfVariant.price : `$${sfProduct.basePrice}`).replace(/[^0-9.]/g, ''));
+    const sfSelection = sfProduct.groups.length
+      ? sfProduct.groups.map((g) => `${g.name}: ${s.sfOptions[g.name] ?? g.values[0]}`).join(' · ')
+      : 'Simple Product';
+    const sfLineLabel = sfProduct.groups.length ? `${sfProduct.name} · ${sfCombination}` : sfProduct.name;
+    const sfSkuLine = sfVariant ? `${sfSelection} · ${sfVariant.sku}` : sfSelection;
+
+    const paidExample = ORDERS.find((o) => o.reference === 'NX-4819');
+    const sfOrderView = s.sfExample ? {
+      link: 'https://nexus-storefront.workers.dev/order/NX-4819#cap=•••••••••••',
+      reference: paidExample.reference,
+      title: paidExample.itemsTitle,
+      status: paidExample.status,
+      items: paidExample.items.map((i) => ({ name: i.name, selection: i.selection, math: `${i.unit} = ${i.line} USD` })),
+      paymentReference: paidExample.paymentReference,
+      total: paidExample.amount,
+      statusHeading: 'Order status',
+      statusCopy: 'This Order is fulfilled. This page does not deliver files or pay out a refund.',
+      showRefundForm: true,
+      showRefundStatus: false,
+      refundReason: '',
+      refundMeta: '',
+      created: 'Sep 10, 2026, 09:15',
+    } : {
+      link: 'https://nexus-storefront.workers.dev/order/NX-4822#cap=•••••••••••',
+      reference: 'NX-4822',
+      title: sfProduct.name,
+      status: 'Pending',
+      items: [{ name: sfProduct.name, selection: sfSkuLine, math: `${s.sfQty} × $${sfUnit.toFixed(2)} = $${(sfUnit * s.sfQty).toFixed(2)} USD` }],
+      paymentReference: 'NP-4822-E',
+      total: `$${(sfUnit * s.sfQty).toFixed(2)} USD`,
+      statusHeading: 'Payment next step',
+      statusCopy: 'Transfer the total to the Store account and quote payment reference NP-4822-E. Nexus records the payment manually — this page never asks for card details.',
+      showRefundForm: false,
+      showRefundStatus: false,
+      refundReason: '',
+      refundMeta: '',
+      created: 'Just now',
+    };
+
+    return {
+      isSignIn: s.screen === 'signin',
+      isStorefront: s.screen === 'storefront',
+      isConsole: signedIn && s.screen !== 'storefront',
+      isProducts: s.screen === 'products',
+      isImport: s.screen === 'import',
+      isOrders: orderScreen,
+      isDetail: s.screen === 'detail',
+
+      query: s.query,
+      setQuery: (e) => this.setState({ query: e.target.value }),
+      searchPlaceholder: orderScreen || s.screen === 'detail'
+        ? 'Search by Order reference, payment reference, Customer'
+        : 'Search Products, slugs, SKUs',
+      noop: () => {},
+      signInExpired: s.signInState === 'expired',
+      signInError: s.signInState === 'error',
+      signInLabel: s.signInState === 'connecting' ? 'Connecting to Google…' : 'Continue with Google',
+      signInStateLabel: s.signInState === 'default' ? 'Preview: session expired' : s.signInState === 'expired' ? 'Preview: canceled sign-in' : s.signInState === 'error' ? 'Preview: connecting' : 'Preview: default',
+      cycleSignInState: () => this.setState({ signInState: s.signInState === 'default' ? 'expired' : s.signInState === 'expired' ? 'error' : s.signInState === 'error' ? 'connecting' : 'default' }),
+
+      navProductsBg: nav.products.bg, navProductsFg: nav.products.fg, navProductsWeight: nav.products.weight,
+      navImportBg: nav.import.bg, navImportFg: nav.import.fg, navImportWeight: nav.import.weight,
+      navOrdersBg: nav.orders.bg, navOrdersFg: nav.orders.fg, navOrdersWeight: nav.orders.weight,
+      navRefundsBg: nav.refunds.bg, navRefundsFg: nav.refunds.fg, navRefundsWeight: nav.refunds.weight,
+
+      openProducts: () => this.go('products'),
+      openImport: () => this.go('import'),
+      openOrders: () => this.setState({ screen: 'orders', detailRef: null, refundOnly: false }),
+      openRefunds: () => this.setState({ screen: 'refunds', detailRef: null }),
+      openStorefront: () => this.go('storefront'),
+      signOut: () => this.setState({ screen: 'signin', signInState: 'expired', editorSlug: null, detailRef: null }),
+      signIn: () => this.setState({ screen: 'products', signInState: 'default' }),
+
+      products: products.map((p) => Object.assign({}, p, {
+        statusBg: PRODUCT_STATUS[p.status].bg,
+        statusFg: PRODUCT_STATUS[p.status].fg,
+        open: () => this.setState({ editorSlug: p.slug }),
+      })),
+      productsEmpty: products.length === 0,
+      productRange: products.length === 0 ? '0 of 3' : `1–${products.length} of ${products.length}`,
+      productTabs: PRODUCT_TABS.map((label) => ({
+        label,
+        bg: s.productTab === label ? '#1b1c1b' : 'transparent',
+        fg: s.productTab === label ? '#ffffff' : '#4c4546',
+        weight: s.productTab === label ? '500' : '400',
+        select: () => this.setState({ productTab: label }),
+      })),
+      productStats: [
+        { label: 'Products', value: String(PRODUCTS.length) },
+        { label: 'Active', value: String(PRODUCTS.filter((p) => p.status === 'Active').length) },
+        { label: 'Simple', value: String(PRODUCTS.filter((p) => p.type === 'Simple').length) },
+        { label: 'Variant', value: String(PRODUCTS.filter((p) => p.type === 'Variant').length) },
+      ],
+      clearProductFilters: () => this.setState({ productTab: 'All', query: '' }),
+      newProduct: () => this.setState({ editorSlug: 'new' }),
+
+      ordersTabLabel: s.screen === 'refunds' ? 'Refund requests' : 'Orders',
+      refundOnly,
+      toggleRefundOnly: (e) => this.setState({ refundOnly: e.target.checked }),
+      orders: orders.map((o) => Object.assign({}, o, {
+        statusBg: ORDER_STATUS[o.status].bg,
+        statusFg: ORDER_STATUS[o.status].fg,
+        open: () => this.setState({ screen: 'detail', detailRef: o.reference }),
+      })),
+      ordersEmpty: orders.length === 0,
+      orderRange: orders.length === 0 ? '0 of 4' : `1–${orders.length} of ${orders.length}`,
+      orderTabs: ORDER_TABS.map((label) => ({
+        label,
+        count: String(label === 'All' ? ORDERS.length : ORDERS.filter((o) => o.status === label).length),
+        bg: s.orderTab === label ? '#1b1c1b' : '#ffffff',
+        fg: s.orderTab === label ? '#ffffff' : '#4c4546',
+        line: s.orderTab === label ? '#1b1c1b' : '#eae8e6',
+        weight: s.orderTab === label ? '600' : '400',
+        select: () => this.setState({ orderTab: label }),
+      })),
+      orderStats: [
+        { label: 'Matching', value: String(orders.length) },
+        { label: 'Pending', value: String(orders.filter((o) => o.status === 'Pending').length) },
+        { label: 'Fulfilled', value: String(orders.filter((o) => o.status === 'Fulfilled').length) },
+        { label: 'Open refund requests', value: String(orders.filter((o) => o.refund).length) },
+        { label: 'Page total', value: `$${pageTotal.toFixed(2)} USD` },
+      ],
+      clearOrderFilters: () => this.setState({ orderTab: 'All', refundOnly: false, query: '', screen: 'orders' }),
+
+      detail: detailOrder ? {
+        reference: detailOrder.reference,
+        status: detailOrder.status,
+        statusBg: ORDER_STATUS[detailOrder.status].bg,
+        statusFg: ORDER_STATUS[detailOrder.status].fg,
+        refund: detailOrder.refund,
+        refundReason: detailOrder.refundReason ?? '',
+        refundMeta: detailOrder.refundMeta ?? '',
+        amount: detailOrder.amount,
+        items: detailOrder.items,
+        payment: detailOrder.payment,
+        history: detailOrder.history,
+        snapshot: [
+          { label: 'Order reference', value: detailOrder.reference },
+          { label: 'Payment reference', value: detailOrder.paymentReference },
+          { label: 'Customer', value: `${detailOrder.customerName} · ${detailOrder.customerEmail}` },
+          { label: 'Total', value: detailOrder.amount },
+          { label: 'Created', value: detailOrder.created },
+          { label: 'Contract', value: 'X-Nexus-Order-Contract: 2' },
+        ],
+      } : null,
+
+      editorOpen: editorProduct !== null,
+      closeEditor: () => this.setState({ editorSlug: null }),
+      editor: editorProduct ? {
+        badge: s.editorSlug === 'new' ? 'New Product' : editorProduct.status,
+        slug: editorProduct.slug,
+        name: editorProduct.name,
+        status: editorProduct.status,
+        basePrice: editorProduct.basePrice,
+        description: editorProduct.description,
+        accessTitle: editorProduct.accessTitle,
+        accessInstructions: editorProduct.accessInstructions,
+        fileLabel: editorProduct.fileLabel,
+        groups: editorProduct.groups,
+        noGroups: editorProduct.groups.length === 0,
+        variants: editorProduct.variants.map((v) => Object.assign({}, v, {
+          stateBg: v.state === 'Enabled' ? '#f1f29f' : '#f6f3f1',
+        })),
+        noVariants: editorProduct.variants.length === 0,
+        combinationCount: String(combinations),
+        meterWidth: `${Math.min(100, (combinations / 36) * 100).toFixed(1)}%`,
+        footer: `${editorProduct.status || 'Draft'} · ${combinations} combinations · ${editorProduct.accessTitle ? 'delivery complete' : 'delivery incomplete'}`,
+      } : null,
+
+      storefrontStats: [
+        { label: 'Published Products', value: '3' },
+        { label: 'Simple / Variant', value: '1 / 2' },
+      ],
+      catalog: PRODUCTS.map((p) => ({
+        name: p.name,
+        blurb: p.description,
+        price: p.price,
+        line: p.slug === s.sfSlug ? '#1b1c1b' : '#eae8e6',
+        action: p.slug === s.sfSlug ? 'Selected' : 'Select',
+        select: () => this.selectCatalogProduct(p.slug),
+      })),
+
+      sfIsCatalog: s.sfView === 'catalog',
+      sfIsOrder: s.sfView === 'order',
+      sfShowCatalog: () => this.setState({ sfView: 'catalog' }),
+      sfShowOrder: () => this.setState({ sfView: 'order' }),
+      sfCatalogBg: s.sfView === 'catalog' ? '#1b1c1b' : '#ffffff',
+      sfCatalogFg: s.sfView === 'catalog' ? '#ffffff' : '#4c4546',
+      sfCatalogLine: s.sfView === 'catalog' ? '#1b1c1b' : '#eae8e6',
+      sfOrderBg: s.sfView === 'order' ? '#1b1c1b' : '#ffffff',
+      sfOrderFg: s.sfView === 'order' ? '#ffffff' : '#4c4546',
+      sfOrderLine: s.sfView === 'order' ? '#1b1c1b' : '#eae8e6',
+      placeOrder: () => this.setState({ sfView: 'order', sfPlaced: true, sfExample: false }),
+      sfSwapExample: () => this.setState({ sfExample: !s.sfExample }),
+
+      ledger: {
+        name: sfProduct.name,
+        blurb: sfProduct.description,
+        quantity: String(s.sfQty),
+        increment: () => this.setState({ sfQty: Math.min(10, s.sfQty + 1) }),
+        decrement: () => this.setState({ sfQty: Math.max(1, s.sfQty - 1) }),
+        groups: sfProduct.groups.map((g) => ({
+          name: g.name,
+          options: g.values.map((value) => ({
+            label: value,
+            select: () => this.selectOption(g.name, value),
+            bg: s.sfOptions[g.name] === value ? '#1b1c1b' : '#ffffff',
+            fg: s.sfOptions[g.name] === value ? '#ffffff' : '#4c4546',
+            line: s.sfOptions[g.name] === value ? '#1b1c1b' : '#8a8182',
+          })),
+        })),
+        lineLabel: sfLineLabel,
+        lineTotal: `$${sfUnit.toFixed(2)}`,
+        total: `$${(sfUnit * s.sfQty).toFixed(2)} USD`,
+        priceSource: sfVariant && sfVariant.override !== '—'
+          ? 'This combination uses a Variant price override.'
+          : 'This combination uses the Product base price.',
+      },
+
+      sfOrder: {
+        link: sfOrderView.link,
+        reference: sfOrderView.reference,
+        title: sfOrderView.title,
+        status: sfOrderView.status,
+        statusBg: ORDER_STATUS[sfOrderView.status].bg,
+        statusFg: ORDER_STATUS[sfOrderView.status].fg,
+        items: sfOrderView.items,
+        paymentReference: sfOrderView.paymentReference,
+        total: sfOrderView.total,
+        statusHeading: sfOrderView.statusHeading,
+        statusCopy: sfOrderView.statusCopy,
+        showRefundForm: sfOrderView.showRefundForm,
+        showRefundStatus: sfOrderView.showRefundStatus,
+        refundReason: sfOrderView.refundReason,
+        refundMeta: sfOrderView.refundMeta,
+        created: sfOrderView.created,
+        swapLabel: s.sfExample ? 'Back to my Order' : 'View a fulfilled Order example',
+      },
+    };
+  }
+}
+
+</script>
+</body>
+</html>
