@@ -1,6 +1,6 @@
 ---
 title: "Phase 1: Reference Baseline and Canonical Token Cutover"
-status: todo
+status: done
 ---
 
 # Phase 1: Reference Baseline and Canonical Token Cutover
@@ -106,11 +106,11 @@ Acceptance: same-named shared semantic values agree between Console and Storefro
 
 ## Phase gate and handoff
 
-- [ ] P01 reference captures/checksums/geometry recorded.
-- [ ] P02 canonical guidelines reconciled without competing visual rules.
-- [ ] P03 Console and Storefront shared token vocabulary aligned.
-- [ ] P04 primitives preserve focus, input size, targets and durable state.
-- [ ] Hand off token names and exact surface-file ownership to Phase 2/3.
+- [x] P01 reference captures/checksums/geometry recorded.
+- [x] P02 canonical guidelines reconciled without competing visual rules.
+- [x] P03 Console and Storefront shared token vocabulary aligned.
+- [x] P04 primitives preserve focus, input size, targets and durable state.
+- [x] Hand off token names and exact surface-file ownership to Phase 2/3.
 
 Use a real existing screen to smoke shared controls, fonts and computed tokens after the cutover. This is not a declaration of screen parity; final cross-surface browser and regression commands run once in Phase 4. Do not write source-text/token-name snapshot tests as proof of visual similarity.
 

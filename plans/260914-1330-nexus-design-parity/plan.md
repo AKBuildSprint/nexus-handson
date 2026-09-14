@@ -1,7 +1,7 @@
 ---
 title: "Nexus HTML demo visual parity"
 description: "Reproduce the HTML demo's desktop composition in the real Console and Storefront, with explicit accessibility, mobile and production-behavior exceptions."
-status: pending
+status: done
 priority: P1
 effort: "not-estimated"
 issue: null
@@ -58,14 +58,14 @@ Phase 2 and Phase 3 may run concurrently only after Phase 1 hands off tokens. Co
 
 ## Completion checklist
 
-- [ ] P01–P04 Phase 1 tasks pass and there is only one active token/guideline system.
-- [ ] C01–C08 Console evidence covers sign-in, lists, editor, Variant drawer, CSV, Orders, detail and role/mobile lifecycle.
-- [ ] S01–S04 Storefront evidence covers chrome/catalog, cart/checkout, private Order/refund and responsive/privacy states.
-- [ ] R01–R09 paired desktop captures visibly match the demo and critical geometry is within 2 CSS px outside registered exceptions.
-- [ ] 1024 and 375 production captures preserve all essential sections/actions with no page-level horizontal overflow; boundary checks pass.
-- [ ] Every remaining visual difference has an exact region, E-ID, reason and evidence. No unsupported difference remains.
-- [ ] Actual production entrypoints and authenticated/local API flows are verified; development scenarios alone do not count.
-- [ ] Build and existing relevant browser/E2E contracts pass. Visual evidence and review notes are retained; disposable tools are removed only after proof.
+- [x] P01–P04 Phase 1 tasks pass and there is only one active token/guideline system.
+- [x] C01–C08 Console evidence covers sign-in, lists, editor, Variant drawer, CSV, Orders, detail and role/mobile lifecycle.
+- [x] S01–S04 Storefront evidence covers chrome/catalog, cart/checkout, private Order/refund and responsive/privacy states.
+- [x] R01–R09 paired desktop captures visibly match the demo and critical geometry is within 2 CSS px outside registered exceptions.
+- [x] 1024 and 375 production captures preserve all essential sections/actions with no page-level horizontal overflow; boundary checks pass.
+- [x] Every remaining visual difference has an exact region, E-ID, reason and evidence. No unsupported difference remains.
+- [x] Actual production entrypoints and authenticated/local API flows are verified; development scenarios alone do not count.
+- [x] Build and existing relevant browser/E2E contracts pass. Visual evidence and review notes are retained; disposable tools are removed only after proof.
 
 No percentage score substitutes for these checks. Missing editor overlay, wrong metric placement, wrong Storefront split, or dropped state is a blocking failure even if tokens and builds pass.
 

@@ -1,6 +1,6 @@
 ---
 title: "Phase 3: Reference-Matched Storefront and Purchase Ledger"
-status: todo
+status: done
 ---
 
 # Phase 3: Reference-Matched Storefront and Purchase Ledger
@@ -137,10 +137,10 @@ Inspect375,719/720,731/732,1023/1024 and desktop1440; also test long option valu
 
 ## State and evidence checklist
 
-- [ ] **S01:** loaded/default/selected catalog and two-row counts; loading; true empty; fetch-error+retry; filtered-empty+clear; >24 items and both pagers. Paired reference/production1440, production1024/375.
-- [ ] **S02:** simple/Variant pills; incomplete selection; price range; quantity1/99/invalid; multi-line cart, duplicate/11th-line/mixed-currency errors; Name/Email errors; submitting/lost-response retry/contract-outdated. Real HTTP checkout proof plus top/bottom ledger captures.
-- [ ] **S03:** real Pending/Paid/Fulfilled/Canceled Orders; multi-item immutable snapshots; eligible/not-eligible refund; reason validation/submitting/retry/conflict; pending/approved/rejected request; refresh failure. Paired R09 representative modes; missing reference states tagged E08.
-- [ ] **S04:** 375/1024 no page overflow; full long-content/10-line cart; responsive boundaries; keyboard options/stepper/error recovery; capability absent from rendered content/logs/network URLs; Storefront still public HTTP-only with existing isolation behavior.
+- [x] **S01:** loaded/default/selected catalog and two-row counts; loading; true empty; fetch-error+retry; filtered-empty+clear; >24 items and both pagers. Paired reference/production1440, production1024/375.
+- [x] **S02:** simple/Variant pills; incomplete selection; price range; quantity1/99/invalid; multi-line cart, duplicate/11th-line/mixed-currency errors; Name/Email errors; submitting/lost-response retry/contract-outdated. Real HTTP checkout proof plus top/bottom ledger captures.
+- [x] **S03:** real Pending/Paid/Fulfilled/Canceled Orders; multi-item immutable snapshots; eligible/not-eligible refund; reason validation/submitting/retry/conflict; pending/approved/rejected request; refresh failure. Paired R09 representative modes; missing reference states tagged E08.
+- [x] **S04:** 375/1024 no page overflow; full long-content/10-line cart; responsive boundaries; keyboard options/stepper/error recovery; capability absent from rendered content/logs/network URLs; Storefront still public HTTP-only with existing isolation behavior.
 
 Phase4 owns final capture/command execution and any test-helper migration. Preserve observable contracts and accessible labels/error references, not tests that pin incidental classes, typography, copy or native-select markup. The current tests' first-`select` query must be migrated when option pills replace dropdowns; it must never constrain the Product schema to one group.
 
@@ -152,9 +152,9 @@ Remove obsolete banner/footer/editorial/featured/hero-CTA/card-initial markup; d
 
 ## Phase gate
 
-- [ ] All S01–S04 composition/state requirements implemented.
-- [ ] Literal tokens requested through Phase1 owner before use; no second scale.
-- [ ] Public Store identity retained quietly; unsupported delivery promise corrected under E08; no new backend capability.
-- [ ] All actual controls function; no fake preview/example navigation, placeholder control, arbitrary default selection or truncated data.
-- [ ] Implementation handoff lists changed accessible controls and affected meaningful tests/helpers for Phase4.
-- [ ] Actual runtime is the HTTP-only production Storefront, not the demo runtime.
+- [x] All S01–S04 composition/state requirements implemented.
+- [x] Literal tokens requested through Phase1 owner before use; no second scale.
+- [x] Public Store identity retained quietly; unsupported delivery promise corrected under E08; no new backend capability.
+- [x] All actual controls function; no fake preview/example navigation, placeholder control, arbitrary default selection or truncated data.
+- [x] Implementation handoff lists changed accessible controls and affected meaningful tests/helpers for Phase4.
+- [x] Actual runtime is the HTTP-only production Storefront, not the demo runtime.

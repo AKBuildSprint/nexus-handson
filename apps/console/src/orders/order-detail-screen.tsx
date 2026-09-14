@@ -858,12 +858,17 @@ export function OrderDetailScreen({
 
   return (
     <div className="page-stack">
-      <button className="text-button" type="button" onClick={onBack}>Back to Orders</button>
-
       {state === 'loading' && !order ? (
-        <div aria-busy="true" aria-label="Loading Order">
-          <div className="skeleton-row order-skeleton-row" aria-hidden="true">{[0, 1, 2, 3, 4, 5].map((cell) => <span className="skeleton-line" key={cell} />)}</div>
-        </div>
+        <>
+          <header className="order-detail-head">
+            <button className="text-button" type="button" onClick={onBack}>Back to Orders</button>
+            <span className="head-divider" aria-hidden="true" />
+            <h1 className="order-detail-reference numeric" tabIndex={-1} ref={headingRef}>{reference}</h1>
+          </header>
+          <div aria-busy="true" aria-label="Loading Order">
+            <div className="skeleton-row order-skeleton-row" aria-hidden="true">{[0, 1, 2, 3, 4, 5].map((cell) => <span className="skeleton-line" key={cell} />)}</div>
+          </div>
+        </>
       ) : null}
 
       {state === 'not-found' ? (
@@ -889,16 +894,58 @@ export function OrderDetailScreen({
 
       {order ? (
         <>
-          <header className="page-header">
-            <div className="page-header-copy">
-              <h1 tabIndex={-1} ref={headingRef}>{order.reference}</h1>
-              <p>{detailIntro(order)}</p>
-            </div>
-            <div className="page-actions">
-              <span className={status?.className}>{status?.label}</span>
-              {order.refundRequestStatus ? <span className="refund-badge">{REFUND_REQUEST_LABEL[order.refundRequestStatus]}</span> : null}
+          <header className="order-detail-head">
+            <button className="text-button" type="button" onClick={onBack}>Back to Orders</button>
+            <span className="head-divider" aria-hidden="true" />
+            <h1 className="order-detail-reference numeric" tabIndex={-1} ref={headingRef}>{order.reference}</h1>
+            <span className={status?.className}>{status?.label}</span>
+            {order.refundRequestStatus ? <span className="refund-badge">{REFUND_REQUEST_LABEL[order.refundRequestStatus]}</span> : null}
+            <div className="inline-actions order-detail-head-actions" style={{ display: actionsHidden ? 'none' : undefined }}>
+              {showMarkPaid ? (
+                <button
+                  className="button"
+                  type="button"
+                  disabled={orderCommandsBlocked || (lockedAction !== null && lockedAction !== 'mark_paid')}
+                  onClick={(event: MouseEvent<HTMLButtonElement>) => openPanel('mark_paid', event.currentTarget)}
+                >
+                  Record manual payment
+                </button>
+              ) : null}
+              {showFulfill ? (
+                <button
+                  className="button"
+                  type="button"
+                  disabled={orderCommandsBlocked || (lockedAction !== null && lockedAction !== 'fulfill')}
+                  onClick={(event: MouseEvent<HTMLButtonElement>) => openPanel('fulfill', event.currentTarget)}
+                >
+                  Fulfill
+                </button>
+              ) : null}
+              {showCancel ? (
+                <button
+                  className="button button-danger"
+                  type="button"
+                  disabled={orderCommandsBlocked || (lockedAction !== null && lockedAction !== 'cancel')}
+                  onClick={(event: MouseEvent<HTMLButtonElement>) => openPanel('cancel', event.currentTarget)}
+                >
+                  Cancel
+                </button>
+              ) : null}
+              {showRefund ? (
+                <button
+                  className="button"
+                  type="button"
+                  disabled={orderCommandsBlocked || (lockedAction !== null && lockedAction !== 'request_refund')}
+                  onClick={(event: MouseEvent<HTMLButtonElement>) => openPanel('request_refund', event.currentTarget)}
+                >
+                  Request refund for Customer
+                </button>
+              ) : null}
             </div>
           </header>
+
+          <p className="order-detail-intro">{detailIntro(order)}</p>
+
           {notice?.kind === 'unknown' ? (
             <div className="notice notice-error" role="alert">
               <strong>The outcome is not confirmed. Retry the same action.</strong>
@@ -949,288 +996,249 @@ export function OrderDetailScreen({
             </div>
           ) : null}
 
-          {canAssign && staff.length > 0 ? (
-            <section className="notice notice-info" aria-label="Order assignment">
-              <h2>Assignment</h2>
-              <div className="field">
-                <label htmlFor="order-assignee">Assign Order</label>
-                <select id="order-assignee" aria-label="Assign Order" value={assigneeUserId} disabled={commandsBusy || recoveryBlocked || unknownOutcome} onChange={(event) => setAssigneeUserId(event.target.value)}>
-                  <option value="" disabled>Select active Staff</option>
-                  {staff.map((candidate) => <option key={candidate.userId} value={candidate.userId}>{candidate.name}</option>)}
-                </select>
-              </div>
-              <button className="button button-primary" type="button" disabled={assignBlocked || !assigneeUserId || (!assignRetry && assigneeUserId === order.assignment?.assigneeUserId)} onClick={() => { void assignOrderToStaff(); }}>
-                {assignRetry ? 'Retry assignment' : 'Assign'}
-              </button>
-            </section>
-          ) : null}
+          <div className="order-detail-grid">
+            <div className="order-detail-column">
+              <section className="paper-card" aria-labelledby="order-snapshot-title">
+                <h2 id="order-snapshot-title">Order snapshot</h2>
+                <dl className="detail-fields">
+                  <div><dt>Order reference</dt><dd className="numeric">{order.reference}</dd></div>
+                  <div><dt>Payment reference</dt><dd className="numeric">{order.paymentReference}</dd></div>
+                  <div><dt>Customer</dt><dd>{order.customer.name}<br /><span className="meta-text">{order.customer.email}</span></dd></div>
+                  <div><dt>Total</dt><dd className="numeric order-total">{formatMoney(order.totalMinor, order.currency)} {order.currency}</dd></div>
+                  <div><dt>Created</dt><dd className="numeric">{new Date(order.createdAt).toLocaleString()}</dd></div>
+                </dl>
+                <OrderItemSnapshots items={order.items} />
+              </section>
 
-          {(approveRetry || rejectRetry || (order.refundRequest?.status === 'pending' && (order.allowedActions.includes('approve_refund') || order.allowedActions.includes('reject_refund')))) ? (
-            <section className="notice notice-info" aria-label="Refund decision">
-              <h2>Refund decision</h2>
-              <p>Approval records a final decision and awaits external execution. This Console does not return money.</p>
-              <div className="inline-actions">
-                {order.allowedActions.includes('approve_refund') || approveRetry ? <button className="button button-primary" type="button" disabled={roleCommandsBlocked || (unknownOutcome && !approveRetry)} onClick={() => { void decideRefund('approve'); }}>{approveRetry ? 'Retry approve refund' : 'Approve refund'}</button> : null}
-                {order.allowedActions.includes('reject_refund') || rejectRetry ? <button className="button" type="button" disabled={roleCommandsBlocked || (unknownOutcome && !rejectRetry)} onClick={() => { void decideRefund('reject'); }}>{rejectRetry ? 'Retry reject refund' : 'Reject refund'}</button> : null}
-              </div>
-            </section>
-          ) : null}
+              <section className="paper-card" aria-labelledby="order-payment-title">
+                <h2 id="order-payment-title">Payment</h2>
+                {order.paymentRecordState === 'legacy_unrecorded' ? (
+                  <p>Original payment-record information is missing for this migrated paid Order. Do not ask the Customer to pay again.</p>
+                ) : null}
+                {order.payment ? (
+                  <dl className="detail-fields">
+                    <div><dt>Source</dt><dd>{order.payment.source}</dd></div>
+                    <div><dt>Method</dt><dd>{order.payment.method}</dd></div>
+                    <div><dt>External reference</dt><dd className="numeric">{order.payment.externalReference}</dd></div>
+                    <div><dt>Recorded actor</dt><dd>{paymentActor ?? 'Bootstrap Owner (demo)'}</dd></div>
+                    <div><dt>Recorded time</dt><dd className="numeric">{new Date(order.payment.recordedAt).toLocaleString()}</dd></div>
+                  </dl>
+                ) : order.paymentRecordState === 'none' ? (
+                  <p>No payment has been recorded.</p>
+                ) : null}
+              </section>
 
-          {panel === 'mark_paid' ? (
-            <section className="notice notice-info" aria-labelledby="mark-paid-title">
-              <h2 id="mark-paid-title" tabIndex={-1} ref={panelHeadingRef}>Record manual payment</h2>
-              <p>
-                Record payment for Order {order.reference} totaling {formatMoney(order.totalMinor, order.currency)} {order.currency}.
-                {order.totalMinor === 0
-                  ? ' Supply an honest zero-charge method and reference. This does not claim a bank transfer occurred.'
-                  : ' Confirm that an external receipt exists for this exact total. This Console does not move money.'}
-              </p>
-              <form
-                className="order-action-form"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void confirmAction('mark_paid');
-                }}
-              >
-                <div className="field">
-                  <label htmlFor="payment-method">Payment method</label>
-                  <input
-                    id="payment-method"
-                    value={displayedMethod}
-                    disabled={inFlight || fieldsLocked}
-                    aria-invalid={fieldError?.path === '/method'}
-                    aria-describedby={fieldError?.path === '/method' ? 'payment-method-error' : undefined}
-                    onChange={(event) => {
-                      if (fieldsLocked) return;
-                      setPaymentMethod(event.target.value);
+              <section className="paper-card" aria-labelledby="order-history-title">
+                <h2 id="order-history-title">History</h2>
+                <ol className="order-history">
+                  {order.history.map((event) => (
+                    <HistoryEntry key={`${event.action}-${event.createdAt}-${event.source}-${event.contractVersion}`} event={event} />
+                  ))}
+                </ol>
+              </section>
+            </div>
+
+            <div className="order-detail-column">
+              {order.refundRequest ? (
+                <section className="paper-card" aria-labelledby="order-refund-title">
+                  <h2 id="order-refund-title">Refund request</h2>
+                  <p>
+                    <span className={order.refundRequest.status === 'rejected' ? 'status-tag status-archived' : 'refund-badge'}>
+                      {REFUND_REQUEST_LABEL[order.refundRequest.status]}
+                    </span>
+                  </p>
+                  <p className="order-reason">{order.refundRequest.reason}</p>
+                  <p className="meta-text numeric">
+                    Requested {new Date(order.refundRequest.createdAt).toLocaleString()}
+                    {refundActor ? ` · ${refundActor}` : ''}
+                  </p>
+                  {order.refundRequest.decidedAt ? (
+                    <p className="meta-text numeric">
+                      Decided {new Date(order.refundRequest.decidedAt).toLocaleString()}
+                      {refundDecidedActor ? ` · ${refundDecidedActor}` : ''}
+                    </p>
+                  ) : null}
+                  <p>{REFUND_REQUEST_COPY[order.refundRequest.status]}</p>
+                </section>
+              ) : null}
+
+              {panel === 'mark_paid' ? (
+                <section className="paper-card" aria-labelledby="mark-paid-title">
+                  <h2 id="mark-paid-title" tabIndex={-1} ref={panelHeadingRef}>Record manual payment</h2>
+                  <p>
+                    Record payment for Order {order.reference} totaling {formatMoney(order.totalMinor, order.currency)} {order.currency}.
+                    {order.totalMinor === 0
+                      ? ' Supply an honest zero-charge method and reference. This does not claim a bank transfer occurred.'
+                      : ' Confirm that an external receipt exists for this exact total. This Console does not move money.'}
+                  </p>
+                  <form
+                    className="order-action-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void confirmAction('mark_paid');
                     }}
-                  />
-                  {fieldError?.path === '/method' ? <span id="payment-method-error" className="field-error">{fieldError.message}</span> : null}
-                </div>
-                <div className="field">
-                  <label htmlFor="payment-reference">External payment reference</label>
-                  <input
-                    id="payment-reference"
-                    value={displayedPaymentReference}
-                    disabled={inFlight || fieldsLocked}
-                    aria-invalid={fieldError?.path === '/reference'}
-                    aria-describedby={fieldError?.path === '/reference' ? 'payment-reference-error' : undefined}
-                    onChange={(event) => {
-                      if (fieldsLocked) return;
-                      setPaymentReference(event.target.value);
+                  >
+                    <div className="field">
+                      <label htmlFor="payment-method">Payment method</label>
+                      <input
+                        id="payment-method"
+                        value={displayedMethod}
+                        disabled={inFlight || fieldsLocked}
+                        aria-invalid={fieldError?.path === '/method'}
+                        aria-describedby={fieldError?.path === '/method' ? 'payment-method-error' : undefined}
+                        onChange={(event) => {
+                          if (fieldsLocked) return;
+                          setPaymentMethod(event.target.value);
+                        }}
+                      />
+                      {fieldError?.path === '/method' ? <span id="payment-method-error" className="field-error">{fieldError.message}</span> : null}
+                    </div>
+                    <div className="field">
+                      <label htmlFor="payment-reference">External payment reference</label>
+                      <input
+                        id="payment-reference"
+                        value={displayedPaymentReference}
+                        disabled={inFlight || fieldsLocked}
+                        aria-invalid={fieldError?.path === '/reference'}
+                        aria-describedby={fieldError?.path === '/reference' ? 'payment-reference-error' : undefined}
+                        onChange={(event) => {
+                          if (fieldsLocked) return;
+                          setPaymentReference(event.target.value);
+                        }}
+                      />
+                      {fieldError?.path === '/reference' ? <span id="payment-reference-error" className="field-error">{fieldError.message}</span> : null}
+                    </div>
+                    <label className="checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={paymentAcknowledged}
+                        disabled={inFlight}
+                        onChange={(event) => setPaymentAcknowledged(event.target.checked)}
+                      />
+                      {order.totalMinor === 0
+                        ? 'I confirm this zero-total Order should be marked paid without a bank transfer.'
+                        : 'I confirm an external receipt exists for this exact total and currency.'}
+                    </label>
+                    {fieldError?.path === '/ack' ? <p className="field-error">{fieldError.message}</p> : null}
+                    <div className="inline-actions">
+                      <button className="button button-primary" type="submit" disabled={orderCommandsBlocked || !paymentAcknowledged || (unknownOutcome && orderRetryAction !== 'mark_paid')}>
+                        {orderRetryAction === 'mark_paid' ? 'Retry Mark Paid' : 'Mark Paid'}
+                      </button>
+                      <button className="button" type="button" disabled={inFlight} onClick={closePanel}>Back to Order</button>
+                    </div>
+                  </form>
+                </section>
+              ) : null}
+
+              {panel === 'fulfill' ? (
+                <section className="paper-card" aria-labelledby="fulfill-order-title">
+                  <h2 id="fulfill-order-title" tabIndex={-1} ref={panelHeadingRef}>Confirm Fulfill</h2>
+                  <p>
+                    Mark Order {order.reference} as fulfilled. This is an operational status change only.
+                    It does not grant Product Access or claim that files were delivered.
+                  </p>
+                  <div className="inline-actions">
+                    <button
+                      className="button button-primary"
+                      type="button"
+                      disabled={orderCommandsBlocked || (unknownOutcome && orderRetryAction !== 'fulfill')}
+                      onClick={() => { void confirmAction('fulfill'); }}
+                    >
+                      {orderRetryAction === 'fulfill' ? 'Retry Fulfill' : 'Confirm Fulfill'}
+                    </button>
+                    <button className="button" type="button" disabled={inFlight} onClick={closePanel}>Back to Order</button>
+                  </div>
+                </section>
+              ) : null}
+
+              {panel === 'cancel' ? (
+                <section className="paper-card" aria-labelledby="cancel-order-title">
+                  <h2 id="cancel-order-title" tabIndex={-1} ref={panelHeadingRef}>Confirm Cancel</h2>
+                  <p>
+                    Cancel Order {order.reference} for {formatMoney(order.totalMinor, order.currency)} {order.currency}.
+                    Only pending Orders can be canceled.
+                  </p>
+                  <div className="inline-actions">
+                    <button
+                      className="button button-danger"
+                      type="button"
+                      disabled={orderCommandsBlocked || (unknownOutcome && orderRetryAction !== 'cancel')}
+                      onClick={() => { void confirmAction('cancel'); }}
+                    >
+                      {orderRetryAction === 'cancel' ? 'Retry Cancel' : 'Confirm Cancel'}
+                    </button>
+                    <button className="button" type="button" disabled={inFlight} onClick={closePanel}>Back to Order</button>
+                  </div>
+                </section>
+              ) : null}
+
+              {panel === 'request_refund' ? (
+                <section className="paper-card" aria-labelledby="console-refund-title">
+                  <h2 id="console-refund-title" tabIndex={-1} ref={panelHeadingRef}>Request refund for Customer</h2>
+                  <p>
+                    Submit one pending refund request on behalf of the Customer. Manual refunds require confirmation of an external return in a later step.
+                    This does not approve, reject, or return money.
+                  </p>
+                  <form
+                    className="order-action-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void confirmAction('request_refund');
                     }}
-                  />
-                  {fieldError?.path === '/reference' ? <span id="payment-reference-error" className="field-error">{fieldError.message}</span> : null}
-                </div>
-                <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={paymentAcknowledged}
-                    disabled={inFlight}
-                    onChange={(event) => setPaymentAcknowledged(event.target.checked)}
-                  />
-                  {order.totalMinor === 0
-                    ? 'I confirm this zero-total Order should be marked paid without a bank transfer.'
-                    : 'I confirm an external receipt exists for this exact total and currency.'}
-                </label>
-                {fieldError?.path === '/ack' ? <p className="field-error">{fieldError.message}</p> : null}
-                <div className="inline-actions">
-                  <button className="button button-primary" type="submit" disabled={orderCommandsBlocked || !paymentAcknowledged || (unknownOutcome && orderRetryAction !== 'mark_paid')}>
-                    {orderRetryAction === 'mark_paid' ? 'Retry Mark Paid' : 'Mark Paid'}
+                  >
+                    <div className="field">
+                      <label htmlFor="console-refund-reason">Reason</label>
+                      <textarea
+                        id="console-refund-reason"
+                        value={displayedReason}
+                        disabled={inFlight || fieldsLocked}
+                        aria-invalid={fieldError?.path === '/reason'}
+                        aria-describedby={fieldError?.path === '/reason' ? 'console-refund-reason-error' : undefined}
+                        onChange={(event) => {
+                          if (fieldsLocked) return;
+                          setRefundReason(event.target.value);
+                        }}
+                      />
+                      {fieldError?.path === '/reason' ? <span id="console-refund-reason-error" className="field-error">{fieldError.message}</span> : null}
+                    </div>
+                    <div className="inline-actions">
+                      <button className="button button-primary" type="submit" disabled={orderCommandsBlocked || (unknownOutcome && orderRetryAction !== 'request_refund')}>
+                        {orderRetryAction === 'request_refund' ? 'Retry refund request' : 'Submit refund request'}
+                      </button>
+                      <button className="button" type="button" disabled={inFlight} onClick={closePanel}>Back to Order</button>
+                    </div>
+                  </form>
+                </section>
+              ) : null}
+
+              {(approveRetry || rejectRetry || (order.refundRequest?.status === 'pending' && (order.allowedActions.includes('approve_refund') || order.allowedActions.includes('reject_refund')))) ? (
+                <section className="paper-card" aria-labelledby="refund-decision-title">
+                  <h2 id="refund-decision-title">Refund decision</h2>
+                  <p>Approval records a final decision and awaits external execution. This Console does not return money.</p>
+                  <div className="inline-actions">
+                    {order.allowedActions.includes('approve_refund') || approveRetry ? <button className="button button-primary" type="button" disabled={roleCommandsBlocked || (unknownOutcome && !approveRetry)} onClick={() => { void decideRefund('approve'); }}>{approveRetry ? 'Retry approve refund' : 'Approve refund'}</button> : null}
+                    {order.allowedActions.includes('reject_refund') || rejectRetry ? <button className="button" type="button" disabled={roleCommandsBlocked || (unknownOutcome && !rejectRetry)} onClick={() => { void decideRefund('reject'); }}>{rejectRetry ? 'Retry reject refund' : 'Reject refund'}</button> : null}
+                  </div>
+                </section>
+              ) : null}
+
+              {canAssign && staff.length > 0 ? (
+                <section className="paper-card" aria-label="Order assignment">
+                  <h2>Assignment</h2>
+                  <div className="field">
+                    <label htmlFor="order-assignee">Assign Order</label>
+                    <select id="order-assignee" aria-label="Assign Order" value={assigneeUserId} disabled={commandsBusy || recoveryBlocked || unknownOutcome} onChange={(event) => setAssigneeUserId(event.target.value)}>
+                      <option value="" disabled>Select active Staff</option>
+                      {staff.map((candidate) => <option key={candidate.userId} value={candidate.userId}>{candidate.name}</option>)}
+                    </select>
+                  </div>
+                  <button className="button button-primary" type="button" disabled={assignBlocked || !assigneeUserId || (!assignRetry && assigneeUserId === order.assignment?.assigneeUserId)} onClick={() => { void assignOrderToStaff(); }}>
+                    {assignRetry ? 'Retry assignment' : 'Assign'}
                   </button>
-                  <button className="button" type="button" disabled={inFlight} onClick={closePanel}>Back to Order</button>
-                </div>
-              </form>
-            </section>
-          ) : null}
-
-          {panel === 'fulfill' ? (
-            <section className="notice notice-info" aria-labelledby="fulfill-order-title">
-              <h2 id="fulfill-order-title" tabIndex={-1} ref={panelHeadingRef}>Confirm Fulfill</h2>
-              <p>
-                Mark Order {order.reference} as fulfilled. This is an operational status change only.
-                It does not grant Product Access or claim that files were delivered.
-              </p>
-              <div className="inline-actions">
-                <button
-                  className="button button-primary"
-                  type="button"
-                  disabled={orderCommandsBlocked || (unknownOutcome && orderRetryAction !== 'fulfill')}
-                  onClick={() => { void confirmAction('fulfill'); }}
-                >
-                  {orderRetryAction === 'fulfill' ? 'Retry Fulfill' : 'Confirm Fulfill'}
-                </button>
-                <button className="button" type="button" disabled={inFlight} onClick={closePanel}>Back to Order</button>
-              </div>
-            </section>
-          ) : null}
-
-          {panel === 'cancel' ? (
-            <section className="notice notice-info" aria-labelledby="cancel-order-title">
-              <h2 id="cancel-order-title" tabIndex={-1} ref={panelHeadingRef}>Confirm Cancel</h2>
-              <p>
-                Cancel Order {order.reference} for {formatMoney(order.totalMinor, order.currency)} {order.currency}.
-                Only pending Orders can be canceled.
-              </p>
-              <div className="inline-actions">
-                <button
-                  className="button button-danger"
-                  type="button"
-                  disabled={orderCommandsBlocked || (unknownOutcome && orderRetryAction !== 'cancel')}
-                  onClick={() => { void confirmAction('cancel'); }}
-                >
-                  {orderRetryAction === 'cancel' ? 'Retry Cancel' : 'Confirm Cancel'}
-                </button>
-                <button className="button" type="button" disabled={inFlight} onClick={closePanel}>Back to Order</button>
-              </div>
-            </section>
-          ) : null}
-
-          {panel === 'request_refund' ? (
-            <section className="notice notice-info" aria-labelledby="console-refund-title">
-              <h2 id="console-refund-title" tabIndex={-1} ref={panelHeadingRef}>Request refund for Customer</h2>
-              <p>
-                Submit one pending refund request on behalf of the Customer. Manual refunds require confirmation of an external return in a later step.
-                This does not approve, reject, or return money.
-              </p>
-              <form
-                className="order-action-form"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void confirmAction('request_refund');
-                }}
-              >
-                <div className="field">
-                  <label htmlFor="console-refund-reason">Reason</label>
-                  <textarea
-                    id="console-refund-reason"
-                    value={displayedReason}
-                    disabled={inFlight || fieldsLocked}
-                    aria-invalid={fieldError?.path === '/reason'}
-                    aria-describedby={fieldError?.path === '/reason' ? 'console-refund-reason-error' : undefined}
-                    onChange={(event) => {
-                      if (fieldsLocked) return;
-                      setRefundReason(event.target.value);
-                    }}
-                  />
-                  {fieldError?.path === '/reason' ? <span id="console-refund-reason-error" className="field-error">{fieldError.message}</span> : null}
-                </div>
-                <div className="inline-actions">
-                  <button className="button button-primary" type="submit" disabled={orderCommandsBlocked || (unknownOutcome && orderRetryAction !== 'request_refund')}>
-                    {orderRetryAction === 'request_refund' ? 'Retry refund request' : 'Submit refund request'}
-                  </button>
-                  <button className="button" type="button" disabled={inFlight} onClick={closePanel}>Back to Order</button>
-                </div>
-              </form>
-            </section>
-          ) : null}
-
-          {(showMarkPaid || showFulfill || showCancel || showRefund) ? (
-            <div className="inline-actions" style={{ display: actionsHidden ? 'none' : undefined }}>
-              {showMarkPaid ? (
-                <button
-                  className="button button-primary"
-                  type="button"
-                  disabled={orderCommandsBlocked || (lockedAction !== null && lockedAction !== 'mark_paid')}
-                  onClick={(event: MouseEvent<HTMLButtonElement>) => openPanel('mark_paid', event.currentTarget)}
-                >
-                  Record manual payment
-                </button>
-              ) : null}
-              {showFulfill ? (
-                <button
-                  className="button button-primary"
-                  type="button"
-                  disabled={orderCommandsBlocked || (lockedAction !== null && lockedAction !== 'fulfill')}
-                  onClick={(event: MouseEvent<HTMLButtonElement>) => openPanel('fulfill', event.currentTarget)}
-                >
-                  Fulfill
-                </button>
-              ) : null}
-              {showCancel ? (
-                <button
-                  className="button button-danger"
-                  type="button"
-                  disabled={orderCommandsBlocked || (lockedAction !== null && lockedAction !== 'cancel')}
-                  onClick={(event: MouseEvent<HTMLButtonElement>) => openPanel('cancel', event.currentTarget)}
-                >
-                  Cancel
-                </button>
-              ) : null}
-              {showRefund ? (
-                <button
-                  className="button"
-                  type="button"
-                  disabled={orderCommandsBlocked || (lockedAction !== null && lockedAction !== 'request_refund')}
-                  onClick={(event: MouseEvent<HTMLButtonElement>) => openPanel('request_refund', event.currentTarget)}
-                >
-                  Request refund for Customer
-                </button>
+                </section>
               ) : null}
             </div>
-          ) : null}
-
-          <section className="order-detail-section" aria-labelledby="order-snapshot-title">
-            <h2 id="order-snapshot-title">Order snapshot</h2>
-            <dl className="order-detail-fields">
-              <div><dt>Order reference</dt><dd>{order.reference}</dd></div>
-              <div><dt>Payment reference</dt><dd>{order.paymentReference}</dd></div>
-              <div><dt>Customer</dt><dd>{order.customer.name}<br /><span className="meta-text">{order.customer.email}</span></dd></div>
-              <div><dt>Total</dt><dd className="numeric order-total">{formatMoney(order.totalMinor, order.currency)} {order.currency}</dd></div>
-              <div><dt>Created</dt><dd>{new Date(order.createdAt).toLocaleString()}</dd></div>
-            </dl>
-            <OrderItemSnapshots items={order.items} />
-          </section>
-
-          <section className="order-detail-section" aria-labelledby="order-payment-title">
-            <h2 id="order-payment-title">Payment</h2>
-            {order.paymentRecordState === 'legacy_unrecorded' ? (
-              <p>Original payment-record information is missing for this migrated paid Order. Do not ask the Customer to pay again.</p>
-            ) : null}
-            {order.payment ? (
-              <dl className="order-detail-fields">
-                <div><dt>Source</dt><dd>{order.payment.source}</dd></div>
-                <div><dt>Method</dt><dd>{order.payment.method}</dd></div>
-                <div><dt>External reference</dt><dd>{order.payment.externalReference}</dd></div>
-                <div><dt>Recorded actor</dt><dd>{paymentActor ?? 'Bootstrap Owner (demo)'}</dd></div>
-                <div><dt>Recorded time</dt><dd>{new Date(order.payment.recordedAt).toLocaleString()}</dd></div>
-              </dl>
-            ) : order.paymentRecordState === 'none' ? (
-              <p>No payment has been recorded.</p>
-            ) : null}
-          </section>
-
-          <section className="order-detail-section" aria-labelledby="order-refund-title">
-            <h2 id="order-refund-title">Refund request</h2>
-            {order.refundRequest ? (
-              <>
-                <p><span className="refund-badge">{REFUND_REQUEST_LABEL[order.refundRequest.status]}</span></p>
-                <p className="order-reason">{order.refundRequest.reason}</p>
-                <p className="meta-text">
-                  Requested {new Date(order.refundRequest.createdAt).toLocaleString()}
-                  {refundActor ? ` · ${refundActor}` : ''}
-                </p>
-                {order.refundRequest.decidedAt ? (
-                  <p className="meta-text">
-                    Decided {new Date(order.refundRequest.decidedAt).toLocaleString()}
-                    {refundDecidedActor ? ` · ${refundDecidedActor}` : ''}
-                  </p>
-                ) : null}
-                <p>{REFUND_REQUEST_COPY[order.refundRequest.status]}</p>
-              </>
-            ) : (
-              <p>No refund request is open. Manual refunds require confirmation of an external return in a later step.</p>
-            )}
-          </section>
-
-          <section className="order-detail-section" aria-labelledby="order-history-title">
-            <h2 id="order-history-title">History</h2>
-            <ol className="order-history">
-              {order.history.map((event) => (
-                <HistoryEntry key={`${event.action}-${event.createdAt}-${event.source}-${event.contractVersion}`} event={event} />
-              ))}
-            </ol>
-          </section>
+          </div>
         </>
       ) : null}
     </div>

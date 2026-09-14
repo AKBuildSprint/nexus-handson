@@ -38,6 +38,11 @@ function uniqueToken(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+async function selectStorefrontOption(page: Page, groupName: string, valueLabel: string) {
+  const group = page.getByRole('group', { name: groupName });
+  await group.getByRole('radio', { name: valueLabel, exact: true }).check();
+}
+
 function testPersistRoot(): string {
   const value = process['env'].NEXUS_TEST_PERSIST_ROOT;
   if (!value) throw new Error('Missing required local E2E setting: NEXUS_TEST_PERSIST_ROOT.');
@@ -55,7 +60,7 @@ async function fillRequiredProduct(page: Page, name: string, basePrice: string) 
 }
 
 async function saveProduct(page: Page) {
-  await page.locator('button.desktop-save').click();
+  await page.locator('button.console-editor-save').click();
   await expect(page.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
 }
 
@@ -87,8 +92,8 @@ async function createVariantProduct(page: Page, name: string, token: string) {
 async function placeOrder(page: Page, productName: string, variantLabel?: string): Promise<{ body: OrderResponse; capability: string }> {
   const row = page.locator('.catalog-row').filter({ hasText: productName });
   await expect(row).toBeVisible();
-  await row.locator('button.catalog-choice').click();
-  if (variantLabel) await page.getByLabel('Format').selectOption({ label: variantLabel });
+  await row.locator('.catalog-select').click();
+  if (variantLabel) await selectStorefrontOption(page, 'Format', variantLabel);
   await page.locator('#checkout-quantity').fill('1');
   await page.getByRole('button', { name: 'Add to Order' }).click();
   await page.getByLabel('Name').fill('Console Journey Customer');
@@ -178,18 +183,31 @@ test('keeps Console search, filters, pager, and confirmation reachable by keyboa
   await expect(page.getByRole('link', { name: order.body.reference })).toBeVisible();
   const desktopOverflow = await page.evaluate(() => {
     const viewport = document.documentElement.clientWidth;
+    // A table wider than the canvas is allowed to scroll inside its own region; it must not
+    // widen the page or escape every scrollable ancestor.
+    const scrollableAncestor = (element: Element) => {
+      for (let node = element.parentElement; node; node = node.parentElement) {
+        const overflowX = getComputedStyle(node).overflowX;
+        if (overflowX === 'auto' || overflowX === 'scroll') return node;
+      }
+      return null;
+    };
     return {
       viewport,
+      pageScrollWidth: document.documentElement.scrollWidth,
+      bodyScrollWidth: document.body.scrollWidth,
       overflowing: [...document.querySelectorAll('body *')]
         .filter((element) => {
           const box = element.getBoundingClientRect();
-          return box.width > 0 && box.right > viewport + 1;
+          return box.width > 0 && box.right > viewport + 1 && scrollableAncestor(element) === null;
         })
         .slice(0, 5)
         .map((element) => element.className.toString()),
     };
   });
   expect(desktopOverflow.viewport).toBe(1280);
+  expect(desktopOverflow.pageScrollWidth).toBeLessThanOrEqual(desktopOverflow.viewport);
+  expect(desktopOverflow.bodyScrollWidth).toBeLessThanOrEqual(desktopOverflow.viewport);
   expect(desktopOverflow.overflowing).toEqual([]);
 
   await page.getByRole('link', { name: order.body.reference }).click();

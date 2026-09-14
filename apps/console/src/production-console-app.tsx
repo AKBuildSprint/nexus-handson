@@ -54,6 +54,14 @@ type ConsoleRoute =
   | { kind: 'order-detail'; reference: string };
 type PendingFile = File | 'remove' | null;
 
+/**
+ * A dirty editor queues exactly one intended destination. The accessible guard
+ * either cancels it (Stay) or commits it once (Discard).
+ */
+type PendingIntent =
+  | { kind: 'route'; target: ConsoleRoute; replace: boolean; trigger: HTMLElement | null }
+  | { kind: 'history'; target: ConsoleRoute };
+
 const EMPTY_PRODUCT: ProductEditorFixture = {
   name: '',
   status: 'Draft',
@@ -110,6 +118,14 @@ function routePath(route: ConsoleRoute): string {
 
 function titledStatus(status: ProductStatus): ProductEditorFixture['status'] {
   return `${status[0].toUpperCase()}${status.slice(1)}` as ProductEditorFixture['status'];
+}
+
+function isEditorRoute(route: ConsoleRoute): boolean {
+  return route.kind === 'new' || route.kind === 'edit';
+}
+
+function isCatalogSurface(route: ConsoleRoute): boolean {
+  return route.kind === 'list' || route.kind === 'new' || route.kind === 'edit';
 }
 
 function statusValue(status: ProductEditorFixture['status']): ProductStatus {
@@ -260,8 +276,19 @@ export function ProductionConsoleApp() {
   const dirtyRef = useRef(false);
   const routeRef = useRef(route);
   const [listItems, setListItems] = useState<ProductListItem[]>([]);
-  const [listState, setListState] = useState<ProductListState>('loading');
+  const [catalogLifecycle, setCatalogLifecycle] = useState<'loading' | 'ready' | 'error'>('loading');
+  const catalogItemCountRef = useRef(0);
+  const [pendingIntent, setPendingIntent] = useState<PendingIntent | null>(null);
+  const pendingIntentRef = useRef<PendingIntent | null>(null);
+  const [editorInstance, setEditorInstance] = useState(0);
+  const editorDialogRef = useRef<HTMLDialogElement>(null);
+  const editorFocusAppliedRef = useRef(false);
+  const editorReturnFocusRef = useRef<HTMLElement | null>(null);
+  const guardDialogRef = useRef<HTMLDialogElement>(null);
   const [criteria, setCriteria] = useState<{ query: string; status: 'all' | ProductStatus }>({ query: '', status: 'all' });
+  // The editor overlay keeps the real list mounted behind it, so a durable save must ask the
+  // list to refetch rather than relying on a route remount to refresh the catalog.
+  const [catalogRefresh, setCatalogRefresh] = useState(0);
   const [orders, setOrders] = useState<ConsoleOrderView[]>([]);
   const [orderSummary, setOrderSummary] = useState<ConsoleOrderSummary | null>(null);
   const [ordersContractOutdated, setOrdersContractOutdated] = useState(false);
@@ -294,7 +321,9 @@ export function ProductionConsoleApp() {
     setSessionGeneration((current) => current + 1);
     dirtyRef.current = false;
     setListItems([]);
-    setListState('loading');
+    catalogItemCountRef.current = 0;
+    setCatalogLifecycle('loading');
+    setPendingIntent(null);
     setOrders([]);
     setOrderSummary(null);
     setOrdersContractOutdated(false);
@@ -419,14 +448,15 @@ export function ProductionConsoleApp() {
   useEffect(() => {
     routeRef.current = route;
   }, [route]);
+  pendingIntentRef.current = pendingIntent;
 
-  const confirmDiscard = useCallback(() => !dirtyRef.current || window.confirm('Discard unsaved Product changes?'), []);
   const bumpOrderGeneration = () => {
     orderRouteGenerationRef.current += 1;
     setOrderRouteGeneration(orderRouteGenerationRef.current);
   };
-  const navigate = useCallback((target: ConsoleRoute, replace = false) => {
-    if (!confirmDiscard()) return false;
+  // Adopting a route clears the private edit state that belongs to the editor
+  // being left. It never touches the browser history entry itself.
+  const adoptRoute = useCallback((target: ConsoleRoute) => {
     dirtyRef.current = false;
     previewHashRef.current = null;
     pendingProductFileRef.current = null;
@@ -434,48 +464,150 @@ export function ProductionConsoleApp() {
     createdDetailRef.current = null;
     detailRequestRef.current += 1;
     bumpOrderGeneration();
-    const path = routePath(target);
-    window.history[replace ? 'replaceState' : 'pushState']({}, '', path);
     setRoute(target);
+  }, []);
+  const applyRoute = useCallback((target: ConsoleRoute, replace: boolean) => {
+    window.history[replace ? 'replaceState' : 'pushState']({}, '', routePath(target));
+    adoptRoute(target);
+  }, [adoptRoute]);
+
+  const navigate = useCallback((target: ConsoleRoute, replace = false) => {
+    if (pendingIntentRef.current) return false;
+    if (dirtyRef.current && isEditorRoute(routeRef.current)) {
+      setPendingIntent({ kind: 'route', target, replace, trigger: null });
+      return false;
+    }
+    applyRoute(target, replace);
     return true;
-  }, [confirmDiscard]);
+  }, [applyRoute]);
+
+  // Route requests raised inside the editor panel carry the trigger that must
+  // regain focus when the operator chooses to stay.
+  const requestRoute = useCallback((target: ConsoleRoute, replace: boolean, trigger: HTMLElement | null) => {
+    if (pendingIntentRef.current) return;
+    if (dirtyRef.current) {
+      setPendingIntent({ kind: 'route', target, replace, trigger });
+      return;
+    }
+    applyRoute(target, replace);
+  }, [applyRoute]);
+
+
+  const stayInEditor = useCallback(() => {
+    const trigger = pendingIntentRef.current?.kind === 'route' ? pendingIntentRef.current.trigger : null;
+    setPendingIntent(null);
+    window.setTimeout(() => {
+      if (trigger?.isConnected) trigger.focus();
+      else editorDialogRef.current?.querySelector<HTMLElement>('#product-editor-title')?.focus();
+    }, 0);
+  }, []);
+
+  const discardAndContinue = useCallback(() => {
+    const request = pendingIntentRef.current;
+    if (!request) return;
+    setPendingIntent(null);
+    if (request.kind === 'route') {
+      applyRoute(request.target, request.replace);
+      return;
+    }
+    // The guard already pushed the editor path back over the entry the
+    // operator reached. Stepping back re-enters the original destination and
+    // keeps the editor entry on the forward stack instead of truncating it.
+    dirtyRef.current = false;
+    adoptRoute(request.target);
+    window.history.go(-1);
+  }, [adoptRoute, applyRoute]);
+
+  useEffect(() => {
+    const dialog = guardDialogRef.current;
+    if (!dialog) return;
+    if (!dialog.open) dialog.showModal();
+  }, [pendingIntent]);
+
+  // Leaving the editor route unmounts the modal; restore focus to the control
+  // that opened it, or the main landmark for direct-entry/reload cases. This
+  // effect must run before the editor-open effect below so the opener is
+  // captured while it still holds focus, not after the modal takes it.
+  const wasEditorRouteRef = useRef(false);
+  useEffect(() => {
+    if (isEditorRoute(route)) {
+      if (!wasEditorRouteRef.current) {
+        const active = document.activeElement;
+        editorReturnFocusRef.current = active instanceof HTMLElement ? active : null;
+      }
+      wasEditorRouteRef.current = true;
+      return;
+    }
+    if (!wasEditorRouteRef.current) return;
+    wasEditorRouteRef.current = false;
+    const opener = editorReturnFocusRef.current;
+    editorReturnFocusRef.current = null;
+    window.setTimeout(() => {
+      if (opener?.isConnected) opener.focus();
+      else document.getElementById('console-content')?.focus();
+    }, 0);
+  }, [route]);
+
+  // The editor dialog is a native modal host; opening it and choosing its first
+  // focus target are explicit so a direct reload focuses the settled panel.
+  useEffect(() => {
+    const dialog = editorDialogRef.current;
+    if (!isEditorRoute(route)) {
+      editorFocusAppliedRef.current = false;
+      return;
+    }
+    if (!dialog) return;
+    if (!dialog.open) dialog.showModal();
+    if (editorFocusAppliedRef.current) return;
+    if (route.kind === 'new') {
+      const name = dialog.querySelector<HTMLElement>('#product-name');
+      if (!name) return;
+      editorFocusAppliedRef.current = true;
+      name.focus();
+      return;
+    }
+    if (detailLifecycle === 'loading') return;
+    editorFocusAppliedRef.current = true;
+    (dialog.querySelector<HTMLElement>('#product-editor-title') ?? dialog).focus();
+  }, [detailLifecycle, route]);
 
   useEffect(() => {
     const onPopState = () => {
       const next = parseRoute(window.location.pathname);
-      if (!confirmDiscard()) {
+      if (pendingIntentRef.current) {
+        // A decision is already queued; keep the editor entry authoritative.
         window.history.pushState({}, '', routePath(routeRef.current));
         return;
       }
-      dirtyRef.current = false;
-      previewHashRef.current = null;
-      pendingProductFileRef.current = null;
-      pendingVariantFilesRef.current.clear();
-      createdDetailRef.current = null;
-      detailRequestRef.current += 1;
-      bumpOrderGeneration();
-      setRoute(next);
+      if (dirtyRef.current && isEditorRoute(routeRef.current)) {
+        window.history.pushState({}, '', routePath(routeRef.current));
+        setPendingIntent({ kind: 'history', target: next });
+        return;
+      }
+      adoptRoute(next);
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, [confirmDiscard]);
+  }, [adoptRoute]);
 
+  const catalogSurface = isCatalogSurface(route);
   useEffect(() => {
-    if (authState !== 'signed-in' || route.kind !== 'list') return;
+    if (authState !== 'signed-in' || !catalogSurface) return;
     const generation = identityGenerationRef.current;
     const controller = new AbortController();
-    setListState(listItems.length > 0 ? 'filtered-loading' : 'loading');
+    setCatalogLifecycle('loading');
     void fetchProducts(criteria.query, criteria.status, controller.signal).then((response) => {
       if (controller.signal.aborted || identityGenerationRef.current !== generation) return;
+      catalogItemCountRef.current = response.products.length;
       setListItems(response.products);
-      setListState(response.products.length === 0 && criteria.query === '' && criteria.status === 'all' ? 'empty' : 'populated');
+      setCatalogLifecycle('ready');
     }).catch((error: unknown) => {
       if (controller.signal.aborted || identityGenerationRef.current !== generation) return;
       if (error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied')) endSession(true);
-      else setListState('error');
+      else setCatalogLifecycle('error');
     });
     return () => controller.abort();
-  }, [authState, criteria, endSession, route.kind, sessionGeneration]);
+  }, [authState, catalogSurface, catalogRefresh, criteria, endSession, sessionGeneration]);
 
   useEffect(() => {
     if (authState !== 'signed-in' || route.kind !== 'orders') return;
@@ -563,6 +695,24 @@ export function ProductionConsoleApp() {
     }
   }, [authState, loadDetail, route, sessionGeneration]);
 
+  const restoreEditorBaseline = useCallback(() => {
+    dirtyRef.current = false;
+    previewHashRef.current = null;
+    pendingProductFileRef.current = null;
+    pendingVariantFilesRef.current.clear();
+    createdDetailRef.current = null;
+    setEditorInstance((current) => current + 1);
+    if (routeRef.current.kind === 'edit') {
+      loadDetail(routeRef.current.slug);
+      return;
+    }
+    if (routeRef.current.kind === 'new') {
+      detailRequestRef.current += 1;
+      setDetail(null);
+      setRevision(null);
+      setDetailLifecycle('create');
+    }
+  }, [loadDetail]);
   const summaries = useMemo(() => listItems.map(listSummary), [listItems]);
   const editorScenario = useMemo<ProductEditorScenario>(() => ({
     id: route.kind === 'edit' ? route.slug : 'new',
@@ -695,6 +845,9 @@ export function ProductionConsoleApp() {
     }
 
     await assertSaveIdentity();
+    // The core Product write is durable from here on; refresh the mounted list
+    // even if a later file stage fails so the backdrop never shows stale rows.
+    setCatalogRefresh((value) => value + 1);
     setRevision(nextRevision);
     let fileMutated = false;
     const productFileChange = pendingProductFileRef.current;
@@ -809,9 +962,47 @@ export function ProductionConsoleApp() {
   if (authState === 'signed-out' || session === null) {
     return <SignInScreen expired={sessionExpired} onSignIn={handleSignIn} />;
   }
+  const listState: ProductListState = catalogLifecycle === 'loading'
+    ? (catalogItemCountRef.current > 0 ? 'filtered-loading' : 'loading')
+    : catalogLifecycle === 'error'
+      ? 'error'
+      : (listItems.length === 0 && criteria.query === '' && criteria.status === 'all' ? 'empty' : 'populated');
+
+  const listScreen = (
+    <ProductListScreen
+      state={listState}
+      products={summaries}
+      onAddProduct={() => { navigate({ kind: 'new' }); }}
+      onEditProduct={(productId) => {
+        const slug = listItems.find((item) => item.id === productId)?.slug;
+        if (slug) navigate({ kind: 'edit', slug });
+      }}
+      onImportCsv={() => { navigate({ kind: 'import' }); }}
+      onDownloadTemplate={async () => {
+        try {
+          await downloadCsvTemplate(privateAbortRef.current.signal);
+        } catch (error) {
+          if (error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied')) {
+            expireRenderedIdentity();
+          }
+          throw error;
+        }
+      }}
+      onRetry={() => setCriteria((current) => ({ ...current }))}
+      onCriteriaChange={updateCriteria}
+      readOnly={session.role === 'staff'}
+    />
+  );
+
+  const editorOpen = isEditorRoute(route);
+  const closeEditor = (trigger: HTMLElement | null) => requestRoute({ kind: 'list' }, false, trigger);
 
   let content;
-  if (route.kind === 'orders') {
+  if (editorOpen) {
+    // The overlay renders over the real Products list; that list stays the
+    // single instance behind the scrim and is made inert while covered.
+    content = listScreen;
+  } else if (route.kind === 'orders') {
     content = <OrdersScreen
       state={ordersState}
       orders={orders}
@@ -862,48 +1053,13 @@ export function ProductionConsoleApp() {
       canAssign={session.allowedActions.includes('order:assign') && session.allowedActions.includes('staff:list')}
       onSessionExpired={expireRenderedIdentity}
     />;
-  } else if (route.kind === 'list') {
-    content = <ProductListScreen
-      state={listState}
-      products={summaries}
-      onAddProduct={() => { navigate({ kind: 'new' }); }}
-      onEditProduct={(productId) => {
-        const slug = listItems.find((item) => item.id === productId)?.slug;
-        if (slug) navigate({ kind: 'edit', slug });
-      }}
-      onImportCsv={() => { navigate({ kind: 'import' }); }}
-      onDownloadTemplate={async () => {
-        try {
-          await downloadCsvTemplate(privateAbortRef.current.signal);
-        } catch (error) {
-          if (error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied')) {
-            expireRenderedIdentity();
-          }
-          throw error;
-        }
-      }}
-      onRetry={() => setCriteria((current) => ({ ...current }))}
-      onCriteriaChange={updateCriteria}
-      readOnly={session.role === 'staff'}
-    />;
   } else if (route.kind === 'import') {
     content = <CsvImportScreen
       onBack={() => navigate({ kind: 'list' })}
       onSessionExpired={expireRenderedIdentity}
     />;
   } else {
-    content = <ProductEditorScreen
-      scenario={editorScenario}
-      onBack={(trigger) => { void trigger; navigate({ kind: 'list' }); }}
-      onDiscardRequest={(trigger) => { void trigger; navigate(routeRef.current, true); }}
-      onDirtyChange={publishDirty}
-      onRetry={() => { if (routeRef.current.kind === 'edit') loadDetail(routeRef.current.slug); }}
-      onSave={saveProduct}
-      onSchemaPreview={previewSchema}
-      onPendingProductFileChange={(change) => { pendingProductFileRef.current = change; }}
-      onPendingVariantFileChange={(variantId, change) => { pendingVariantFilesRef.current.set(variantId, change); }}
-      onSessionExpired={expireRenderedIdentity}
-    />;
+    content = listScreen;
   }
 
   const ordersDestination = route.kind === 'orders' || route.kind === 'order-detail';
@@ -911,13 +1067,67 @@ export function ProductionConsoleApp() {
     {sessionRevalidating ? <main className="console-auth-page"><p role="status">Checking Console session…</p></main> : null}
     <div key={sessionGeneration} hidden={sessionRevalidating} inert={sessionRevalidating}>
       <ConsoleShell
-    activeDestination={ordersDestination ? 'Orders' : 'Products'}
-    railNote={ordersDestination ? 'Review safe Customer Order projections.' : 'Manage Product pricing, Variants, and private delivery files.'}
-    onOpenProducts={() => navigate({ kind: 'list' })}
-    onOpenOrders={() => navigate({ kind: 'orders' })}
-    identity={{ userName: session.user.name, storeName: session.store.name, role: session.role }}
-    onSignOut={handleSignOut}
-      >{content}</ConsoleShell>
+        activeDestination={ordersDestination ? 'Orders' : 'Products'}
+        railNote={ordersDestination ? 'Review safe Customer Order projections.' : 'Manage Product pricing, Variants, and private delivery files.'}
+        onOpenProducts={() => navigate({ kind: 'list' })}
+        onOpenOrders={() => navigate({ kind: 'orders' })}
+        identity={{ userName: session.user.name, storeName: session.store.name, role: session.role }}
+        onSignOut={handleSignOut}
+      >
+        <div className="console-surface" inert={editorOpen} aria-hidden={editorOpen ? true : undefined}>
+          {content}
+        </div>
+      </ConsoleShell>
+
+      {editorOpen ? (
+        <dialog
+          ref={editorDialogRef}
+          className="console-editor-dialog"
+          aria-labelledby="product-editor-title"
+          onCancel={(event) => {
+            event.preventDefault();
+            // A nested Variant drawer owns Escape while it is open: its own guard decides.
+            if (editorDialogRef.current?.querySelector('dialog[open]')) return;
+            closeEditor(null);
+          }}
+        >
+          <ProductEditorScreen
+            key={editorInstance}
+            scenario={editorScenario}
+            persistedSlug={route.kind === 'edit' ? (detail?.slug ?? route.slug) : null}
+            onBack={(trigger) => closeEditor(trigger)}
+            onDiscardRequest={() => restoreEditorBaseline()}
+            onDirtyChange={publishDirty}
+            onRetry={() => { if (routeRef.current.kind === 'edit') loadDetail(routeRef.current.slug); }}
+            onSave={saveProduct}
+            onSchemaPreview={previewSchema}
+            onPendingProductFileChange={(change) => { pendingProductFileRef.current = change; }}
+            onPendingVariantFileChange={(variantId, change) => { pendingVariantFilesRef.current.set(variantId, change); }}
+            onSessionExpired={expireRenderedIdentity}
+          />
+        </dialog>
+      ) : null}
+
+      {pendingIntent ? (
+        <dialog
+          ref={guardDialogRef}
+          className="guard-dialog"
+          aria-labelledby="console-guard-title"
+          onCancel={(event) => {
+            event.preventDefault();
+            stayInEditor();
+          }}
+        >
+          <div className="guard-content">
+            <h2 id="console-guard-title">Discard unsaved Product changes?</h2>
+            <p>Unsaved field, delivery, option, Variant, and file changes are removed before this editor closes.</p>
+            <div className="inline-actions">
+              <button className="button" type="button" onClick={stayInEditor}>Stay and continue editing</button>
+              <button className="button button-danger" type="button" onClick={discardAndContinue}>Discard changes</button>
+            </div>
+          </div>
+        </dialog>
+      ) : null}
     </div>
   </>;
 }

@@ -51,6 +51,26 @@ function setTextarea(textarea: HTMLTextAreaElement, value: string) {
   textarea.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
+function optionChoice(label: string): HTMLLabelElement | undefined {
+  return Array.from(container.querySelectorAll<HTMLLabelElement>('.option-pill'))
+    .find((pill) => pill.textContent?.trim() === label);
+}
+
+async function chooseOption(label: string) {
+  await act(async () => { optionChoice(label)?.querySelector('input')?.click(); });
+}
+
+function checkedOptionValue(groupName: string): string | undefined {
+  const group = Array.from(container.querySelectorAll<HTMLFieldSetElement>('.option-group'))
+    .find((fieldset) => fieldset.querySelector('legend')?.textContent === groupName);
+  return group?.querySelector<HTMLInputElement>('input[type="radio"]:checked')?.value;
+}
+
+function selectProductCard(name: string) {
+  return Array.from(container.querySelectorAll<HTMLButtonElement>('.catalog-select'))
+    .find((button) => button.closest('.catalog-row')?.textContent?.includes(name));
+}
+
 function customerOrder(overrides: Record<string, unknown> = {}) {
   return {
     reference: 'NX-260827-ABCD',
@@ -107,11 +127,11 @@ describe('Storefront Order contracts', () => {
     const place = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Place Order');
     expect(add?.disabled).toBe(true);
     expect(place?.disabled).toBe(true);
-    const select = container.querySelector('select');
-    await act(async () => { if (select) { select.value = 'value_zip'; select.dispatchEvent(new Event('change', { bubbles: true })); } });
+    await chooseOption('ZIP');
     expect(add?.disabled).toBe(true);
-    await act(async () => { if (select) { select.value = 'value_pdf'; select.dispatchEvent(new Event('change', { bubbles: true })); } });
+    await chooseOption('PDF');
     expect(add?.disabled).toBe(false);
+    expect(checkedOptionValue('Format')).toBe('value_pdf');
     const quantity = container.querySelector<HTMLInputElement>('#checkout-quantity');
     await act(async () => { if (quantity) setInput(quantity, '100'); });
     await act(async () => add?.click());
@@ -139,10 +159,9 @@ describe('Storefront Order contracts', () => {
     await act(async () => { if (name) setInput(name, 'Ada Rivera'); if (email) setInput(email, 'ada@example.com'); });
     const add = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Add to Order');
     await act(async () => { add?.click(); await Promise.resolve(); });
-    const variantChoice = Array.from(container.querySelectorAll<HTMLButtonElement>('button.catalog-choice')).find((button) => button.closest('.catalog-row')?.textContent?.includes('Signal Kit'));
+    const variantChoice = selectProductCard('Signal Kit');
     await act(async () => { variantChoice?.click(); await Promise.resolve(); });
-    const select = container.querySelector('select');
-    await act(async () => { if (select) { select.value = 'value_pdf'; select.dispatchEvent(new Event('change', { bubbles: true })); } });
+    await chooseOption('PDF');
     await act(async () => { add?.click(); await Promise.resolve(); });
     expect(container.textContent).toContain('Field Notes');
     expect(container.textContent).toContain('Signal Kit');
@@ -319,8 +338,12 @@ describe('Storefront Order contracts', () => {
       products: [simpleProduct, variantProduct],
     })));
     await renderApp();
-    expect(container.textContent).toContain('Choose Products, review the Order, then complete checkout.');
-    expect(container.textContent).not.toContain('Choose Products, confirm each format, review the Order, then complete checkout.');
+    expect(container.textContent).toContain('Digital products, with every purchase in one private Order.');
+    expect(container.textContent).not.toContain('delivered the moment you pay');
+    const simpleCard = selectProductCard('Field Notes');
+    await act(async () => { simpleCard?.click(); await Promise.resolve(); });
+    expect(container.querySelector('.purchase-ledger')?.textContent).toContain('Simple Product. No format selection is required.');
+    expect(container.querySelectorAll('.option-group')).toHaveLength(0);
     const search = container.querySelector<HTMLInputElement>('#catalog-search');
     expect(search).not.toBeNull();
     await act(async () => {
@@ -673,7 +696,7 @@ describe('Storefront Order contracts', () => {
     expect(container.querySelector('[aria-label="Catalog pages, bottom"]')?.textContent).toContain('Showing 1–24 of 30');
     expect(container.querySelector<HTMLButtonElement>('[aria-label="Previous catalog page, top"]')?.disabled).toBe(true);
     expect(container.querySelector<HTMLButtonElement>('[aria-label="Next catalog page, top"]')?.disabled).toBe(false);
-    expect(container.querySelector('.catalog-benchmark')?.textContent).toContain('30');
+    expect(container.querySelector('.catalog-snapshot')?.textContent).toContain('30');
     const nextBottom = container.querySelector<HTMLButtonElement>('[aria-label="Next catalog page, bottom"]');
     await act(async () => { nextBottom?.click(); await Promise.resolve(); });
     expect(container.querySelectorAll('.catalog-row')).toHaveLength(6);
@@ -715,16 +738,14 @@ describe('Storefront Order contracts', () => {
     const name = container.querySelector<HTMLInputElement>('#checkout-name');
     const email = container.querySelector<HTMLInputElement>('#checkout-email');
     const quantity = container.querySelector<HTMLInputElement>('#checkout-quantity');
-    const select = container.querySelector('select');
+    const variantCard = selectProductCard('Signal Kit');
+    await act(async () => { variantCard?.click(); await Promise.resolve(); });
     await act(async () => {
       if (name) setInput(name, 'Ada Rivera');
       if (email) setInput(email, 'ada@example.com');
       if (quantity) setInput(quantity, '4');
-      if (select) {
-        select.value = 'value_pdf';
-        select.dispatchEvent(new Event('change', { bubbles: true }));
-      }
     });
+    await chooseOption('PDF');
     const add = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Add to Order');
     await act(async () => { add?.click(); await Promise.resolve(); });
     const place = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Place Order');
@@ -734,7 +755,7 @@ describe('Storefront Order contracts', () => {
     await act(async () => { nextBottom?.click(); await Promise.resolve(); });
     expect(container.querySelector('.catalog-list')?.textContent).not.toContain('Signal Kit');
     expect(container.querySelector('.purchase-ledger')?.textContent).toContain('Signal Kit');
-    expect(container.querySelector('select')?.value).toBe('value_pdf');
+    expect(checkedOptionValue('Format')).toBe('value_pdf');
     expect(container.querySelector<HTMLInputElement>('#checkout-quantity')?.value).toBe('4');
     expect(container.querySelector<HTMLInputElement>('#checkout-name')?.value).toBe('Ada Rivera');
     expect(container.querySelector<HTMLInputElement>('#checkout-email')?.value).toBe('ada@example.com');

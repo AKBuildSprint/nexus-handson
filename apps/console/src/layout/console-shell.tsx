@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { ConsoleSearchHostProvider } from './console-search-host';
 
 interface ConsoleShellProps {
   children: ReactNode;
-  scenarioControls?: ReactNode;
   railNote?: ReactNode;
   activeDestination?: 'Products' | 'Orders';
   onOpenProducts: (trigger: HTMLElement) => boolean;
@@ -11,9 +11,23 @@ interface ConsoleShellProps {
   onSignOut?: () => void;
 }
 
+function roleLabel(role: 'owner' | 'staff'): string {
+  return role === 'owner' ? 'Owner' : 'Staff';
+}
+
+function initialsOf(userName: string): string {
+  const initials = userName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => Array.from(part)[0] ?? '')
+    .join('');
+  return initials.toLocaleUpperCase() || 'N';
+}
+
 export function ConsoleShell({
   children,
-  scenarioControls,
   railNote,
   activeDestination = 'Products',
   onOpenProducts,
@@ -23,7 +37,9 @@ export function ConsoleShell({
 }: ConsoleShellProps) {
   const sessionIdentity = identity ?? { userName: 'Nexus', storeName: 'Store', role: 'owner' as const };
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchHost, setSearchHost] = useState<HTMLElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const attachSearchHost = useCallback((node: HTMLDivElement | null) => setSearchHost(node), []);
 
   useEffect(() => {
     if (!menuOpen) {
@@ -46,6 +62,8 @@ export function ConsoleShell({
     menuButtonRef.current?.focus();
   };
 
+  const destinationLabel = activeDestination === 'Orders' ? 'Orders' : 'Products';
+
   return (
     <div className="console-shell">
       <a className="skip-link" href="#console-content">
@@ -54,15 +72,15 @@ export function ConsoleShell({
 
       <aside className="console-rail" aria-label="Console navigation">
         <div className="console-rail-top">
-          <div className="console-brand">
-            <strong>Nexus</strong>
-            <span>Operations Console</span>
-          </div>
-          <div className="console-role-pill">
-            <span>{sessionIdentity.storeName} · {sessionIdentity.role === 'owner' ? 'Owner' : 'Staff'}</span>
-            <span>Role: {sessionIdentity.role === 'owner' ? 'Owner' : 'Staff'}.</span>
+          <div className="console-identity">
+            <span className="console-mark" aria-hidden="true">N</span>
+            <div className="console-identity-copy">
+              <strong>{sessionIdentity.storeName}</strong>
+              <span>{roleLabel(sessionIdentity.role)}</span>
+            </div>
           </div>
           <nav className="console-nav">
+            <span className="console-nav-label">Navigation</span>
             <button
               className={activeDestination === 'Products' ? 'active' : undefined}
               aria-current={activeDestination === 'Products' ? 'page' : undefined}
@@ -85,39 +103,27 @@ export function ConsoleShell({
         </div>
         <div className="console-rail-bottom">
           <div className="console-account">
-            <span className="console-avatar" aria-hidden="true">
-              <span className="icon-glyph">person</span>
-            </span>
-            <div>
+            <span className="console-avatar" aria-hidden="true">{initialsOf(sessionIdentity.userName)}</span>
+            <div className="console-account-copy">
               <div className="console-account-name">{sessionIdentity.userName}</div>
-              <div className="console-account-meta">{sessionIdentity.storeName} · {sessionIdentity.role === 'owner' ? 'Owner' : 'Staff'}</div>
+              {onSignOut ? (
+                <button className="console-account-signout" type="button" onClick={onSignOut}>
+                  Sign out
+                </button>
+              ) : null}
             </div>
           </div>
-          {onSignOut ? <button className="button" type="button" onClick={onSignOut}>Sign out</button> : null}
           {railNote ? <p className="console-rail-note">{railNote}</p> : null}
         </div>
       </aside>
 
       <header className="console-deskbar">
-        <span className="console-deskbar-kicker">Nexus Operations Console · {activeDestination}</span>
-        <div className="console-deskbar-tools">
-          <button
-            className="console-icon-button"
-            type="button"
-            aria-label="Jump to query field"
-            onClick={() => document.getElementById('product-search')?.focus() ?? document.getElementById('order-search')?.focus()}
-          >
-            <span className="icon-glyph" aria-hidden="true">search</span>
-          </button>
-          <span className="console-avatar" aria-hidden="true">
-            <span className="icon-glyph">person</span>
-          </span>
-          {onSignOut ? <button className="button" type="button" onClick={onSignOut}>Sign out</button> : null}
-        </div>
+        <div className="console-deskbar-search" ref={attachSearchHost} />
+        <p className="console-deskbar-context">{sessionIdentity.storeName} · {roleLabel(sessionIdentity.role)}</p>
       </header>
 
       <header className="console-topbar">
-        <strong>Nexus · {activeDestination}</strong>
+        <strong>Nexus · {destinationLabel}</strong>
         <button
           ref={menuButtonRef}
           className="button"
@@ -166,8 +172,7 @@ export function ConsoleShell({
       ) : null}
 
       <main id="console-content" className="console-main" tabIndex={-1}>
-        {scenarioControls ?? null}
-        {children}
+        <ConsoleSearchHostProvider host={searchHost}>{children}</ConsoleSearchHostProvider>
       </main>
     </div>
   );

@@ -288,7 +288,7 @@ describe('Console Order contracts', () => {
     });
     window.history.replaceState({}, '', `/console/orders/${pendingDetail.reference}`);
     await renderApp();
-    await waitUntil(() => container.querySelector('h1')?.textContent === pendingDetail.reference);
+    await waitUntil(() => container.querySelector('h1')?.textContent === pendingDetail.reference && Boolean(container.querySelector('.order-detail-grid')));
     expect(container.textContent).toContain('Ada Rivera');
     expect(container.textContent).toContain('Field Notes');
     expect(container.textContent).toContain('NPABCDEF12345678');
@@ -297,7 +297,7 @@ describe('Console Order contracts', () => {
     expect(window.location.pathname).toBe('/console/orders');
     window.history.pushState({}, '', `/console/orders/${pendingDetail.reference}`);
     await act(async () => { window.dispatchEvent(new PopStateEvent('popstate')); });
-    await waitUntil(() => container.querySelector('h1')?.textContent === pendingDetail.reference);
+    await waitUntil(() => container.querySelector('h1')?.textContent === pendingDetail.reference && Boolean(container.querySelector('.order-detail-grid')));
   });
 
   it('submits trimmed raw search and applies status and refund filters immediately', async () => {
@@ -372,7 +372,7 @@ describe('Console Order contracts', () => {
     window.history.pushState({}, '', `/console/orders/${otherOrder.reference}`);
     await act(async () => { window.dispatchEvent(new PopStateEvent('popstate')); });
     releaseFirst?.();
-    await waitUntil(() => container.querySelector('h1')?.textContent === otherOrder.reference);
+    await waitUntil(() => container.querySelector('h1')?.textContent === otherOrder.reference && Boolean(container.querySelector('.order-detail-grid')));
     expect(container.textContent).toContain('Bea Nguyen');
     expect(container.textContent).not.toContain('Ada Rivera');
   });
@@ -407,7 +407,7 @@ describe('Console Order contracts', () => {
     await confirmMarkPaid();
     window.history.pushState({}, '', `/console/orders/${otherOrder.reference}`);
     await act(async () => { window.dispatchEvent(new PopStateEvent('popstate')); });
-    await waitUntil(() => container.querySelector('h1')?.textContent === otherOrder.reference);
+    await waitUntil(() => container.querySelector('h1')?.textContent === otherOrder.reference && Boolean(container.querySelector('.order-detail-grid')));
     releasePaid?.();
     await flush();
     await flush();
@@ -719,7 +719,7 @@ describe('Console Order contracts', () => {
     expect(bottom?.textContent).toContain('Showing 26–30 of 30');
     expect(container.querySelector('[aria-label="Order pages"]')).toBeNull();
     expect(Array.from(container.querySelectorAll('button')).filter((button) => /^\d+$/.test(button.textContent?.trim() ?? ''))).toHaveLength(0);
-    const matching = Array.from(container.querySelectorAll('.metric-card')).find((card) => card.textContent?.includes('Matching Orders'));
+    const matching = Array.from(container.querySelectorAll('.summary-stat')).find((stat) => stat.textContent?.includes('Matching Orders'));
     expect(matching?.textContent).toContain('30');
     const topPrevious = Array.from(top?.querySelectorAll('button') ?? []).find((button) => button.textContent?.trim() === 'Previous');
     const topNext = Array.from(top?.querySelectorAll('button') ?? []).find((button) => button.textContent?.trim() === 'Next');

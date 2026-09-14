@@ -228,13 +228,13 @@ export function CsvImportScreen({ onBack, onReset, onShowResult, onSessionExpire
 
   return (
     <div className="page-stack">
-      <header className="page-header">
-        <div className="page-header-copy">
-          <button className="text-button" type="button" onClick={onBack}>Back to Products</button>
-          <h1>Import Products from CSV</h1>
-          <p>Use one fixed template to add simple and Variant Products. Product type is detected from the data for each product_slug.</p>
-        </div>
+      <header className="csv-head">
+        <button className="text-button" type="button" onClick={onBack}>Back to Products</button>
+        <span className="head-divider" aria-hidden="true" />
+        <h1 className="csv-title">Import Products from CSV</h1>
+        <div className="editor-spacer" />
         {result || failure ? <button className="button button-primary" type="button" onClick={startAnother}>Start another import</button> : null}
+        <span className="meta-text">One fixed template · no field mapping</span>
       </header>
 
       <div className="notice notice-info">
@@ -244,10 +244,8 @@ export function CsvImportScreen({ onBack, onReset, onShowResult, onSessionExpire
 
       <div className="csv-workspace">
         <section className="csv-source" aria-labelledby="csv-source-title">
-          <div className="section-heading">
-            <h2 id="csv-source-title">Template and file</h2>
-            <p>The template has one ordered header, one valid simple example, and two valid Variant rows. There is no type column.</p>
-          </div>
+          <h2 id="csv-source-title">Template and file</h2>
+          <p className="meta-text">One ordered header, one simple example, two Variant rows. There is no type column.</p>
           <button className="button" type="button" onClick={() => void downloadTemplate()} disabled={templateState === 'loading'}>
             {templateState === 'loading' ? 'Downloading template' : templateState === 'error' ? `Retry ${CSV_FILENAME}` : `Download ${CSV_FILENAME}`}
           </button>
@@ -313,7 +311,7 @@ export function CsvImportScreen({ onBack, onReset, onShowResult, onSessionExpire
             <div className="notice notice-warning">
               <strong>{warningGroups.length} Product {warningGroups.length === 1 ? 'group requires' : 'groups require'} confirmation.</strong>
               <span>Confirmation begins at 11 combinations and 30 combinations is the maximum. Review every listed Product group before importing.</span>
-              <ul className="section-stack" aria-label="Product groups requiring Variant confirmation">
+              <ul className="csv-warning-list" aria-label="Product groups requiring Variant confirmation">
                 {warningGroups.map((group) => (
                   <li key={group.productSlug}>
                     <span>{group.productSlug}</span>
@@ -335,7 +333,7 @@ export function CsvImportScreen({ onBack, onReset, onShowResult, onSessionExpire
           ) : null}
 
           {!result && failure?.kind !== 'result' ? (
-            <div className="section-stack">
+            <div className="csv-import-actions">
               <button className="button button-primary" type="button" disabled={importDisabled} onClick={() => void importProducts()}>
                 {phase === 'uploading' ? 'Uploading CSV' : phase === 'checking' ? 'Checking and importing Products' : failure?.kind === 'request' ? 'Retry Import' : 'Import Products'}
               </button>

@@ -10,10 +10,12 @@ function uniqueName(viewport: string): string {
   return `Verify ${viewport} Simple ${Date.now()} ${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function visibleSave(page: Page, width: number) {
-  return width < 720
-    ? page.locator('.mobile-save-bar button[type="submit"]')
-    : page.locator('button.desktop-save');
+function visibleSave(page: Page) {
+  return page.locator('button.console-editor-save');
+}
+
+function discardGuard(page: Page) {
+  return page.getByRole('dialog').filter({ has: page.getByRole('heading', { name: 'Discard unsaved Product changes?' }) });
 }
 
 async function fillRequiredProduct(page: Page, name: string) {
@@ -55,7 +57,7 @@ for (const viewport of viewports) {
     await expect(page.getByText('New Product', { exact: true }).first()).toBeVisible();
     await fillRequiredProduct(page, name);
     await expect(page.getByRole('status').filter({ hasText: 'Unsaved changes' })).toBeVisible();
-    await visibleSave(page, viewport.width).click();
+    await visibleSave(page).click();
     await expect(page.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
     await expect(page).toHaveURL(/\/console\/products\/verify-/);
     const slugPath = new URL(page.url()).pathname;
@@ -65,7 +67,7 @@ for (const viewport of viewports) {
     await expect(page.getByLabel('Base price')).toHaveValue('19.95');
     await page.getByLabel('Product name').fill(editedName);
     await page.getByLabel('Base price').fill('20.50');
-    await visibleSave(page, viewport.width).click();
+    await visibleSave(page).click();
     await expect(page).toHaveURL(slugPath);
     await expect(page.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
 
@@ -96,32 +98,58 @@ for (const viewport of viewports) {
     await page.getByLabel('Private access title').blur();
     await expect(page.locator('#delivery-access-title-error')).toHaveText('Private access title is required.');
     await expect(page.getByLabel('Private access title')).toHaveAttribute('aria-invalid', 'true');
-    await expect(visibleSave(page, viewport.width)).toBeDisabled();
+    await expect(visibleSave(page)).toBeDisabled();
 
-    page.once('dialog', async (dialog) => {
-      expect(dialog.message()).toBe('Discard unsaved Product changes?');
-      await dialog.dismiss();
-    });
     await page.getByRole('button', { name: 'Back to Products' }).click();
+    await expect(discardGuard(page)).toBeVisible();
+    await discardGuard(page).getByRole('button', { name: 'Stay and continue editing' }).click();
+    await expect(discardGuard(page)).toBeHidden();
     await expect(page).toHaveURL('/console/products/new');
     await expect(page.getByLabel('Product name')).toHaveValue(name);
 
-    page.once('dialog', async (dialog) => dialog.accept());
     await page.getByRole('button', { name: 'Back to Products' }).click();
+    await discardGuard(page).getByRole('button', { name: 'Discard changes' }).click();
     await expect(page).toHaveURL('/console/products');
 
     await page.getByRole('button', { name: 'Add Product' }).first().click();
     await page.getByLabel('Product name').fill(`${name} Browser History`);
-    page.once('dialog', async (dialog) => dialog.dismiss());
     await page.goBack({ waitUntil: 'domcontentloaded' }).catch(() => null);
+    await expect(discardGuard(page)).toBeVisible();
+    await discardGuard(page).getByRole('button', { name: 'Stay and continue editing' }).click();
     await expect(page).toHaveURL('/console/products/new');
     await expect(page.getByLabel('Product name')).toHaveValue(`${name} Browser History`);
-    page.once('dialog', async (dialog) => dialog.accept());
     await page.goBack();
+    await discardGuard(page).getByRole('button', { name: 'Discard changes' }).click();
     await expect(page).toHaveURL('/console/products');
     await expectNoHorizontalOverflow(page, viewport.width);
   });
 }
+
+test('restores focus to the opener and keeps Forward after dirty Back discard', async ({ consoleOwnerPage: page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/console/products');
+  const addProduct = page.getByRole('button', { name: 'Add Product' }).first();
+  await addProduct.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByLabel('Product name')).toBeFocused();
+
+  // Clean close returns focus to the invoking control.
+  await page.getByRole('button', { name: 'Back to Products' }).click();
+  await expect(page).toHaveURL('/console/products');
+  await expect(addProduct).toBeFocused();
+
+  // Dirty Back → Discard returns to the list and keeps the editor on the
+  // forward stack; Forward reopens the editor route.
+  await addProduct.click();
+  await page.getByLabel('Product name').fill('Forward restore check');
+  await page.goBack();
+  await expect(discardGuard(page)).toBeVisible();
+  await discardGuard(page).getByRole('button', { name: 'Discard changes' }).click();
+  await expect(page).toHaveURL('/console/products');
+  await page.goForward();
+  await expect(page).toHaveURL('/console/products/new');
+  await expect(page.locator('dialog.console-editor-dialog[open]')).toBeVisible();
+});
 
 test('exposes skip navigation, focusable filters, and keyboard-visible Product controls', async ({ consoleOwnerPage: page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });

@@ -1,0 +1,82 @@
+{
+  "header": {
+    "w": 1440,
+    "h": 64,
+    "x": 0,
+    "y": 0
+  },
+  "headerStyle": {
+    "height": "64px",
+    "padding": "0px 32px",
+    "position": "static",
+    "backgroundColor": "rgb(255, 255, 255)"
+  },
+  "main": {
+    "padding": "40px 32px",
+    "gap": "28px",
+    "maxWidth": "1280px"
+  },
+  "hero": {
+    "gridTemplateColumns": "592px 592px 0px 0px",
+    "gap": "32px",
+    "paddingBottom": "24px"
+  },
+  "heroTracks": [
+    592,
+    592
+  ],
+  "snapshot": {
+    "w": 592,
+    "h": 100,
+    "x": 736,
+    "y": 155
+  },
+  "snapshotStyle": {
+    "padding": "16px",
+    "gap": "10px"
+  },
+  "snapshotRows": [
+    "371",
+    "298 / 73"
+  ],
+  "workspaceTracks": [
+    594,
+    594
+  ],
+  "workspaceStyle": {
+    "gap": "28px"
+  },
+  "cardGrid": {
+    "gridTemplateColumns": "289px 289px",
+    "gap": "16px"
+  },
+  "card": {
+    "w": 289,
+    "h": 307,
+    "x": 112,
+    "y": 484
+  },
+  "cardStyle": {
+    "padding": "18px",
+    "gap": "10px",
+    "borderRadius": "4px",
+    "boxShadow": "none"
+  },
+  "media": {
+    "w": 251,
+    "h": 96,
+    "x": 131,
+    "y": 503
+  },
+  "ledgerStyle": {
+    "padding": "20px",
+    "gap": "14px",
+    "boxShadow": "none"
+  },
+  "raisedShadows": 0,
+  "editableFontSizes": [],
+  "overflow": {
+    "documentScrollWidth": 1440,
+    "clientWidth": 1440
+  }
+}

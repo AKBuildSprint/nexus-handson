@@ -317,10 +317,22 @@ describe('Console authentication and role contracts', () => {
     expect((container.querySelector('#product-name') as HTMLInputElement).value).toBe('Unsaved Product');
     expect(container.textContent).toContain('draft.pdf');
     expect(buttonNamed(/remove selected file/i)).toBeDefined();
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     await act(async () => buttonNamed(/^back to products$/i)?.click());
-    expect(confirm).toHaveBeenCalled();
+    const guard = container.querySelector<HTMLDialogElement>('dialog.guard-dialog');
+    expect(guard).not.toBeNull();
+    expect(guard?.textContent).toContain('Discard unsaved Product changes?');
+    await act(async () => buttonNamed(/^stay and continue editing$/i)?.click());
+    expect(container.querySelector('dialog.guard-dialog')).toBeNull();
     expect(window.location.pathname).toBe('/console/products/new');
+    expect((container.querySelector('#product-name') as HTMLInputElement).value).toBe('Unsaved Product');
+    await act(async () => buttonNamed(/^back to products$/i)?.click());
+    const reopened = container.querySelector<HTMLDialogElement>('dialog.guard-dialog');
+    expect(reopened).not.toBeNull();
+    await act(async () => {
+      Array.from(reopened?.querySelectorAll<HTMLButtonElement>('button') ?? [])
+        .find((button) => /^discard changes$/i.test(button.textContent ?? ''))?.click();
+    });
+    expect(window.location.pathname).toBe('/console/products');
   });
 
   it('retains an in-flight Product read across same-session revalidation', async () => {

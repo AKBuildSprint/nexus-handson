@@ -31,6 +31,11 @@ function uniqueToken(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+async function selectStorefrontOption(page: Page, groupName: string, valueLabel: string) {
+  const group = page.getByRole('group', { name: groupName });
+  await group.getByRole('radio', { name: valueLabel, exact: true }).check();
+}
+
 function testPersistRoot(): string {
   const value = process['env'].NEXUS_TEST_PERSIST_ROOT;
   if (!value) throw new Error('Missing required local E2E setting: NEXUS_TEST_PERSIST_ROOT.');
@@ -38,7 +43,7 @@ function testPersistRoot(): string {
 }
 
 function visibleSave(page: Page) {
-  return page.locator('button.desktop-save');
+  return page.locator('button.console-editor-save');
 }
 
 async function fillRequiredProduct(page: Page, name: string, basePrice: string, currency = 'USD') {
@@ -203,8 +208,8 @@ async function tabUntilFocused(page: Page, locator: Locator, limit = 40) {
 async function addCatalogLine(page: Page, input: { productName: string; quantity: string; variantLabel?: string }) {
   const product = page.locator('.catalog-row').filter({ hasText: input.productName });
   await expect(product).toBeVisible();
-  await product.locator('button.catalog-choice').click();
-  if (input.variantLabel) await page.getByLabel('Format').selectOption({ label: input.variantLabel });
+  await product.locator('.catalog-select').click();
+  if (input.variantLabel) await selectStorefrontOption(page, 'Format', input.variantLabel);
   await page.locator('#checkout-quantity').fill(input.quantity);
   await page.getByRole('button', { name: 'Add to Order' }).click();
   await expect(page.locator('#checkout-cart')).toContainText(input.productName);
@@ -249,8 +254,8 @@ async function placeOrder(
 
   const product = page.locator('.catalog-row').filter({ hasText: input.productName });
   await expect(product).toBeVisible();
-  await product.locator('button.catalog-choice').click();
-  if (input.variantLabel) await page.getByLabel('Format').selectOption({ label: input.variantLabel });
+  await product.locator('.catalog-select').click();
+  if (input.variantLabel) await selectStorefrontOption(page, 'Format', input.variantLabel);
   await page.locator('#checkout-quantity').fill(input.quantity);
   await page.getByRole('button', { name: 'Add to Order' }).click();
   await page.getByLabel('Name').fill('Demo Customer');

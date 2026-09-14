@@ -208,8 +208,17 @@ export function VariantMatrix({
     const priceSource = row.priceOverride ? 'Override' : 'Base price';
     return (
       <tr key={row.id}>
-        <td><strong>{row.combination}</strong>{error ? <span className="field-error" id={`variant-error-${row.id}`}>{error}</span> : null}</td>
-        <td>
+        <td className="variant-col-enabled">
+          <label className="switch-row">
+            <input type="checkbox" checked={row.enabled} onChange={(event) => updateRow(row.id, { enabled: event.target.checked })} />
+            {row.enabled ? 'Enabled' : 'Disabled'}
+          </label>
+        </td>
+        <td className="variant-col-combination">
+          <strong>{row.combination}</strong>
+          {error ? <span className="field-error" id={`variant-error-${row.id}`}>{error}</span> : null}
+        </td>
+        <td className="variant-col-sku">
           <label className="sr-only" htmlFor={`sku-${row.id}`}>SKU for {row.combination}</label>
           <input
             id={`sku-${row.id}`}
@@ -219,8 +228,7 @@ export function VariantMatrix({
             onChange={(event) => updateRow(row.id, { sku: event.target.value })}
           />
         </td>
-        <td className="numeric">{currencySymbol(currency)}{effectivePrice}</td>
-        <td>
+        <td className="variant-col-override">
           <label className="sr-only" htmlFor={`price-${row.id}`}>Price override for {row.combination}</label>
           <input
             id={`price-${row.id}`}
@@ -231,16 +239,13 @@ export function VariantMatrix({
             aria-describedby={serverRowError(row, 'priceOverride') || (error && error.startsWith('Price')) ? `variant-error-${row.id}` : undefined}
             onChange={(event) => updateRow(row.id, { priceOverride: event.target.value })}
           />
+        </td>
+        <td className="variant-col-price numeric variant-effective">
+          <span>{currencySymbol(currency)}{effectivePrice}</span>
           <span className="meta-text">{priceSource}</span>
         </td>
-        <td>{row.deliverySource}</td>
-        <td>
-          <label className="switch-row">
-            <input type="checkbox" checked={row.enabled} onChange={(event) => updateRow(row.id, { enabled: event.target.checked })} />
-            {row.enabled ? 'Enabled' : 'Disabled'}
-          </label>
-        </td>
-        <td>
+        <td className="variant-col-delivery variant-delivery">{row.deliverySource}</td>
+        <td className="variant-col-row">
           <button className="button" type="button" onClick={(event) => openDelivery(row.id, event)}>
             Edit delivery for {row.combination}
           </button>
@@ -250,11 +255,8 @@ export function VariantMatrix({
   };
 
   return (
-    <div className="section-stack">
-      <div className="section-heading">
-        <h3>Generated Variant matrix</h3>
-        <p>Suggested SKUs are editable. Blank price overrides use the Product base price. Each row keeps delivery source and availability explicit.</p>
-      </div>
+    <div className="editor-matrix">
+      <p className="editor-card-note">Suggested SKUs are editable. Blank price overrides use the Product base price. Each row keeps delivery source and availability explicit.</p>
 
       {variants.length === 0 ? (
         <div className="notice notice-info">
@@ -263,20 +265,22 @@ export function VariantMatrix({
         </div>
       ) : (
         <>
-          <table className="console-table variant-table" aria-label="Generated Variant combinations">
-            <thead>
-              <tr>
-                <th scope="col">Combination</th>
-                <th scope="col">SKU</th>
-                <th scope="col">Effective price</th>
-                <th scope="col">Price source</th>
-                <th scope="col">Delivery source</th>
-                <th scope="col">Status</th>
-                <th scope="col">Row action</th>
-              </tr>
-            </thead>
-            <tbody>{variants.map(renderDesktopRow)}</tbody>
-          </table>
+          <div className="console-table-scroll">
+            <table className="console-table variant-table" aria-label="Generated Variant combinations">
+              <thead>
+                <tr>
+                  <th className="variant-col-enabled" scope="col">Enabled</th>
+                  <th className="variant-col-combination" scope="col">Combination</th>
+                  <th className="variant-col-sku" scope="col">SKU</th>
+                  <th className="variant-col-override" scope="col">Price override</th>
+                  <th className="variant-col-price" scope="col">Effective price</th>
+                  <th className="variant-col-delivery" scope="col">Delivery</th>
+                  <th className="variant-col-row" scope="col">Row</th>
+                </tr>
+              </thead>
+              <tbody>{variants.map(renderDesktopRow)}</tbody>
+            </table>
+          </div>
 
           <div className="variant-list-mobile" aria-label="Generated Variant combinations">
             {variants.map((row) => {
@@ -510,7 +514,7 @@ export function VariantMatrix({
             </div>
 
             <footer className="drawer-footer">
-              <span className="editor-state">{drawerDirty ? 'Unsaved Variant changes' : focusedVariant.deliverySource}</span>
+              <span className="console-editor-state">{drawerDirty ? 'Unsaved Variant changes' : focusedVariant.deliverySource}</span>
               <div className="inline-actions">
                 <button className="button" type="button" onClick={requestClose}>Cancel</button>
                 <button

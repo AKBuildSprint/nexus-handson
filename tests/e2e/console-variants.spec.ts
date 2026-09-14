@@ -96,7 +96,7 @@ test('persists Variant row edits, label-only rename, and retained/new/will-disab
   await firstRow.getByRole('checkbox').uncheck();
   const editDelivery = firstRow.getByRole('button', { name: /Edit delivery for/ });
   await editDelivery.click();
-  const dialog = page.getByRole('dialog');
+  const dialog = page.locator('dialog.drawer-dialog');
   await dialog.getByRole('radio', { name: 'Use Variant override' }).check();
   await dialog.getByLabel('Private access title').fill('Variant package');
   await dialog.getByLabel('Private access instructions').fill('Open only this Variant package.');
@@ -105,7 +105,7 @@ test('persists Variant row edits, label-only rename, and retained/new/will-disab
   await expect(firstRow).toContainText('Variant override');
   await expect(firstRow).toContainText('Override');
   await expect(firstRow).toContainText('Disabled');
-  await page.locator('button.desktop-save').click();
+  await page.locator('button.console-editor-save').click();
   await expect(page.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
   await page.reload();
   await expect(page.locator('.variant-table tbody tr')).toHaveCount(4);
@@ -115,7 +115,7 @@ test('persists Variant row edits, label-only rename, and retained/new/will-disab
   await savedColorGroup.getByRole('textbox', { name: 'Option group 1' }).fill('Palette');
   await savedColorGroup.getByRole('textbox', { name: 'Value 1' }).fill('Crimson');
   await expect(page.getByRole('button', { name: 'Preview regeneration' })).toHaveCount(0);
-  await page.locator('button.desktop-save').click();
+  await page.locator('button.console-editor-save').click();
   await expect(page.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
   await page.reload();
   await expect(page.getByRole('textbox', { name: 'Option group 1' })).toHaveValue('Palette');
@@ -147,15 +147,15 @@ test('uses the full-width 375px focused Variant editor with errors, Escape guard
   const mobileStamp = Date.now();
   const cards = page.locator('.variant-summary-card');
   await cards.nth(0).getByRole('button', { name: /Edit Standard/ }).click();
-  await page.getByRole('dialog').getByLabel('SKU').fill(`MOBILE-${mobileStamp}-1`);
-  await page.getByRole('dialog').getByRole('button', { name: 'Apply Variant changes' }).click();
+  await page.locator('dialog.drawer-dialog').getByLabel('SKU').fill(`MOBILE-${mobileStamp}-1`);
+  await page.locator('dialog.drawer-dialog').getByRole('button', { name: 'Apply Variant changes' }).click();
   await cards.nth(1).getByRole('button', { name: /Edit Extended/ }).click();
-  await page.getByRole('dialog').getByLabel('SKU').fill(`MOBILE-${mobileStamp}-2`);
-  await page.getByRole('dialog').getByRole('button', { name: 'Apply Variant changes' }).click();
+  await page.locator('dialog.drawer-dialog').getByLabel('SKU').fill(`MOBILE-${mobileStamp}-2`);
+  await page.locator('dialog.drawer-dialog').getByRole('button', { name: 'Apply Variant changes' }).click();
   const card = cards.first();
   const editButton = card.getByRole('button', { name: /Edit Standard/ });
   await editButton.click();
-  const dialog = page.getByRole('dialog');
+  const dialog = page.locator('dialog.drawer-dialog');
   await expect(dialog).toBeVisible();
   const box = await dialog.boundingBox();
   expect(box).not.toBeNull();
@@ -183,7 +183,7 @@ test('uses the full-width 375px focused Variant editor with errors, Escape guard
   await expect(card).toContainText('Variant override');
   await expect(card).toContainText('Disabled');
 
-  await page.locator('.mobile-save-bar button[type="submit"]').click();
+  await page.locator('button.console-editor-save').click();
   await expect(page.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
   await page.reload();
   await expect(page.locator('.variant-summary-card').filter({ hasText: savedSku })).toContainText('Variant override');

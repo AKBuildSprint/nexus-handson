@@ -1,0 +1,124 @@
+{
+  "rail": {
+    "w": 232,
+    "h": 900,
+    "x": 0,
+    "y": 0
+  },
+  "railStyle": {
+    "width": "232px",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "borderRightWidth": "1px"
+  },
+  "deskbar": {
+    "w": 1208,
+    "h": 56,
+    "x": 232,
+    "y": 0
+  },
+  "deskbarStyle": {
+    "height": "56px",
+    "padding": "0px 24px",
+    "backgroundColor": "rgb(255, 255, 255)"
+  },
+  "main": {
+    "padding": "80px 24px 24px",
+    "gap": "normal"
+  },
+  "tab": {
+    "w": 86.45,
+    "h": 34,
+    "x": 256,
+    "y": 91
+  },
+  "tabStyle": {
+    "fontSize": "13px",
+    "fontWeight": "600",
+    "height": "34px"
+  },
+  "panel": {
+    "w": 1160,
+    "h": 2877,
+    "x": 256,
+    "y": 142
+  },
+  "panelStyle": {
+    "borderRadius": "4px",
+    "boxShadow": "none",
+    "overflow": "hidden"
+  },
+  "tableMinWidth": "900px",
+  "tableLayout": "fixed",
+  "columns": [
+    {
+      "label": "Slug",
+      "width": 130,
+      "padding": "10px 12px 10px 16px",
+      "fontSize": "11px",
+      "textAlign": "start"
+    },
+    {
+      "label": "Product",
+      "width": 418,
+      "padding": "10px 12px",
+      "fontSize": "11px",
+      "textAlign": "start"
+    },
+    {
+      "label": "Status",
+      "width": 110,
+      "padding": "10px 12px",
+      "fontSize": "11px",
+      "textAlign": "start"
+    },
+    {
+      "label": "Type",
+      "width": 100,
+      "padding": "10px 12px",
+      "fontSize": "11px",
+      "textAlign": "start"
+    },
+    {
+      "label": "Effective price",
+      "width": 150,
+      "padding": "10px 12px",
+      "fontSize": "11px",
+      "textAlign": "end"
+    },
+    {
+      "label": "Variants",
+      "width": 100,
+      "padding": "10px 12px",
+      "fontSize": "11px",
+      "textAlign": "end"
+    },
+    {
+      "label": "Updated",
+      "width": 150,
+      "padding": "10px 16px 10px 12px",
+      "fontSize": "11px",
+      "textAlign": "end"
+    }
+  ],
+  "bodyPadding": "14px 12px 14px 16px",
+  "footerStyle": {
+    "padding": "12px 16px",
+    "gap": "18px",
+    "backgroundColor": "rgb(251, 248, 246)"
+  },
+  "statistics": [
+    "Products 371",
+    "Active 370",
+    "Simple 297",
+    "Variant 74"
+  ],
+  "metricCards": 0,
+  "raisedShadows": 0,
+  "targetsUnder44": [],
+  "editableFontSizes": [],
+  "overflow": {
+    "documentScrollWidth": 1440,
+    "clientWidth": 1440,
+    "bodyScrollWidth": 1440
+  }
+}

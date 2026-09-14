@@ -7,6 +7,8 @@ import { VariantBuilder } from './variant-builder';
 
 interface ProductEditorScreenProps {
   scenario: ProductEditorScenario;
+  /** Persisted slug for an existing Product; `null` while a new Product has no slug yet. */
+  persistedSlug?: string | null;
   onBack: (trigger: HTMLElement) => void;
   onDiscardRequest: (trigger: HTMLElement) => void;
   onDirtyChange: (dirty: boolean) => void;
@@ -26,12 +28,17 @@ type FieldName = 'name' | 'basePrice' | 'currency' | 'accessTitle' | 'accessInst
 type FieldErrors = Partial<Record<FieldName, string>>;
 interface ServerFieldError { path: string; message: string }
 
+const STATUS_CLASS: Record<ProductStatus, string> = {
+  Draft: 'status-draft',
+  Active: 'status-active',
+  Archived: 'status-archived',
+};
+
 function serverFieldHref(path: string): string {
-  if (path.startsWith('/optionLabels/groups/') || path.startsWith('/schema/groups/')) return '#variants-title';
-  if (path.startsWith('/variantEdits/') || path.startsWith('/schema/rows/')) return '#variants-title';
+  if (path.startsWith('/optionLabels/groups/') || path.startsWith('/schema/groups/')) return '#option-groups-title';
+  if (path.startsWith('/variantEdits/') || path.startsWith('/schema/rows/')) return '#variant-matrix-title';
   return '#console-content';
 }
-
 
 function cloneProduct(product: ProductEditorFixture): ProductEditorFixture {
   return {
@@ -77,6 +84,7 @@ function validateField(field: FieldName, product: ProductEditorFixture) {
 
 export function ProductEditorScreen({
   scenario,
+  persistedSlug = null,
   onBack,
   onDiscardRequest,
   onDirtyChange,
@@ -226,32 +234,53 @@ export function ProductEditorScreen({
     }
   };
 
+  const editorTitle = <h2 id="product-editor-title" className="console-editor-title" tabIndex={-1}>Product configuration</h2>;
+  const closeButton = (
+    <button className="button console-editor-close" type="button" aria-label="Close editor" onClick={(event) => onBack(event.currentTarget)}>
+      ✕
+    </button>
+  );
 
   if (scenario.lifecycle === 'loading') {
     return (
-      <div className="page-stack" aria-busy="true" aria-label="Loading Product editor">
-        <div className="editor-action-bar"><span className="skeleton-line" /><button className="button button-primary" disabled>Save Product</button></div>
-        {[0, 1, 2, 3, 4].map((section) => (
-          <section className="editor-section" key={section} aria-hidden="true">
-            <span className="skeleton-line" />
-            <span className="skeleton-line" />
-            <span className="skeleton-line" />
-          </section>
-        ))}
+      <div className="console-editor-panel" aria-busy="true" aria-label="Loading Product editor">
+        <header className="console-editor-header">
+          {editorTitle}
+          <span className="skeleton-line console-editor-skeleton-chip" aria-hidden="true" />
+          <div className="editor-spacer" />
+          {closeButton}
+        </header>
+        <div className="console-editor-body" aria-hidden="true">
+          {[0, 1, 2].map((card) => (
+            <section className="editor-card" key={card}>
+              <div className="editor-card-body">
+                <span className="skeleton-line" />
+                <span className="skeleton-line" />
+                <span className="skeleton-line" />
+              </div>
+            </section>
+          ))}
+        </div>
       </div>
     );
   }
 
   if (scenario.lifecycle === 'error') {
     return (
-      <div className="page-stack">
-        <button className="text-button" type="button" onClick={(event) => onBack(event.currentTarget)}>Back to Products</button>
-        <div className="notice notice-error" role="alert">
-          <h1>Product could not be loaded</h1>
-          <p>No editable values were invented for this failed request. Retry or return to the Product list.</p>
-          <div className="inline-actions">
-            <button className="button" type="button" onClick={onRetry}>Retry loading Product</button>
-            <button className="button" type="button" onClick={(event) => onBack(event.currentTarget)}>Back to Products</button>
+      <div className="console-editor-panel">
+        <header className="console-editor-header">
+          {editorTitle}
+          <div className="editor-spacer" />
+          {closeButton}
+        </header>
+        <div className="console-editor-body">
+          <div className="notice notice-error" role="alert">
+            <h3>Product could not be loaded</h3>
+            <p>No editable values were invented for this failed request. Retry or return to the Product list.</p>
+            <div className="inline-actions">
+              <button className="button" type="button" onClick={onRetry}>Retry loading Product</button>
+              <button className="button" type="button" onClick={(event) => onBack(event.currentTarget)}>Back to Products</button>
+            </div>
           </div>
         </div>
       </div>
@@ -266,78 +295,89 @@ export function ProductEditorScreen({
       ? 'Complete Product name, base price, private access title, and private access instructions.'
       : childBlockers[0] ?? '';
   const saveDisabled = !dirty || !requiredReady || childBlockers.length > 0 || saving;
-  const title = scenario.lifecycle === 'create' ? 'New Product' : product.name || 'Product';
+  const editorState = saving ? 'Saving Product' : dirty ? 'Unsaved changes' : saved ? 'Product saved' : 'Saved';
+  const deliverySummary = product.delivery.file
+    ? `Private file ${product.delivery.file.kind} · ${product.delivery.file.name}`
+    : 'No private file selected';
 
   return (
-    <form className="page-stack" onSubmit={submit} noValidate>
-      <div className="editor-action-bar">
-        <div className="editor-context">
-          <button
-            className="text-button"
-            type="button"
-            onClick={(event) => onBack(event.currentTarget)}
-          >
-            Back to Products
-          </button>
-          <strong>{title}</strong>
-          <span className="status-tag">{product.status}</span>
-          <span className="editor-state" role="status">{saving ? 'Saving Product' : dirty ? 'Unsaved changes' : saved ? 'Product saved' : 'Saved'}</span>
-        </div>
-        <div className="editor-actions">
-          {dirty ? (
-            <button className="text-button" type="button" onClick={(event) => onDiscardRequest(event.currentTarget)}>
-              Discard changes
-            </button>
-          ) : null}
-          <button className="button button-primary desktop-save" type="submit" disabled={saveDisabled} aria-describedby="save-product-reason">
-            {saving ? 'Saving Product' : saveError ? 'Retry save' : 'Save Product'}
-          </button>
-        </div>
+    <form className="console-editor-panel" onSubmit={submit} noValidate>
+      <header className="console-editor-header">
+        {editorTitle}
+        <span className={`status-tag ${STATUS_CLASS[product.status]}`}>{product.status}</span>
+        <div className="editor-spacer" />
+        <span className="console-editor-state" role="status">{editorState}</span>
+        {closeButton}
+      </header>
+
+      <div className="console-editor-context">
+        <span className="console-editor-context-label">Console</span>
+        <span className="console-editor-context-product">{product.name || 'New Product'}</span>
+        <div className="editor-spacer" />
+        <button
+          className="text-button"
+          type="button"
+          onClick={(event) => onBack(event.currentTarget)}
+        >
+          Back to Products
+        </button>
       </div>
 
-      {saved ? (
-        <div className="notice notice-success" role="status">
-          <strong>Product saved</strong>
-          <span>The editor remains open so you can review the saved Product.</span>
-        </div>
-      ) : null}
-
-      {saveError ? (
-        <div className="notice notice-error" role="alert">
-          <strong>Product could not be saved</strong>
-          <span>{saveError}</span>
-          <div className="inline-actions">
-            <button className="button" type="submit" disabled={saveDisabled}>Retry save</button>
-            <button className="button" type="button" onClick={(event) => onDiscardRequest(event.currentTarget)}>Discard changes</button>
+      <div className="console-editor-body">
+        {saved ? (
+          <div className="notice notice-success" role="status">
+            <strong>Product saved</strong>
+            <span>The editor remains open so you can review the saved Product.</span>
           </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      {Object.values(errors).some(Boolean) || childBlockers.length > 0 || serverFieldErrors.length > 0 ? (
-        <div className="notice notice-error" role="alert" tabIndex={-1} ref={errorSummaryRef}>
-          <h3>Fix these blockers before saving</h3>
-          <ul>
-            {errors.name ? <li><a href="#product-name">{errors.name}</a></li> : null}
-            {errors.basePrice ? <li><a href="#base-price">{errors.basePrice}</a></li> : null}
-            {errors.currency ? <li><a href="#currency">{errors.currency}</a></li> : null}
-            {errors.accessTitle ? <li><a href="#delivery-access-title">{errors.accessTitle}</a></li> : null}
-            {errors.accessInstructions ? <li><a href="#delivery-access-instructions">{errors.accessInstructions}</a></li> : null}
-            {deliveryBlockers.map((blocker) => <li key={blocker}><a href="#delivery-private-file">{blocker}</a></li>)}
-            {serverFieldErrors.map((field) => (
-              <li key={`${field.path}:${field.message}`}><a href={serverFieldHref(field.path)}>{field.message}</a></li>
-            ))}
-            {variantBlockers.map((blocker) => <li key={blocker}><a href="#variants-title">{blocker}</a></li>)}
-          </ul>
-        </div>
-      ) : null}
-
-      <div className="editor-form">
-        <section className="editor-section" aria-labelledby="basics-title">
-          <div className="section-heading">
-            <h2 id="basics-title">Basics</h2>
-            <p>Name the Product and choose its catalog status.</p>
+        {saveError ? (
+          <div className="notice notice-error" role="alert">
+            <strong>Product could not be saved</strong>
+            <span>{saveError}</span>
+            <div className="inline-actions">
+              <button className="button" type="submit" disabled={saveDisabled}>Retry save</button>
+              <button className="button" type="button" onClick={(event) => onDiscardRequest(event.currentTarget)}>Discard changes</button>
+            </div>
           </div>
-          <div className="field-grid">
+        ) : null}
+
+        {Object.values(errors).some(Boolean) || childBlockers.length > 0 || serverFieldErrors.length > 0 ? (
+          <div className="notice notice-error" role="alert" tabIndex={-1} ref={errorSummaryRef}>
+            <h3>Fix these blockers before saving</h3>
+            <ul>
+              {errors.name ? <li><a href="#product-name">{errors.name}</a></li> : null}
+              {errors.basePrice ? <li><a href="#base-price">{errors.basePrice}</a></li> : null}
+              {errors.currency ? <li><a href="#currency">{errors.currency}</a></li> : null}
+              {errors.accessTitle ? <li><a href="#delivery-access-title">{errors.accessTitle}</a></li> : null}
+              {errors.accessInstructions ? <li><a href="#delivery-access-instructions">{errors.accessInstructions}</a></li> : null}
+              {deliveryBlockers.map((blocker) => <li key={blocker}><a href="#delivery-private-file">{blocker}</a></li>)}
+              {serverFieldErrors.map((field) => (
+                <li key={`${field.path}:${field.message}`}><a href={serverFieldHref(field.path)}>{field.message}</a></li>
+              ))}
+              {variantBlockers.map((blocker) => <li key={blocker}><a href="#variant-matrix-title">{blocker}</a></li>)}
+            </ul>
+          </div>
+        ) : null}
+
+        <section className="editor-card" aria-labelledby="basics-title">
+          <div className="editor-card-body">
+            <h2 id="basics-title" className="sr-only">Basics</h2>
+            <div className="editor-pair">
+              <div className="editor-meta">
+                <span className="editor-meta-label">Product slug</span>
+                <span className="editor-meta-value numeric">{persistedSlug ?? 'Assigned after save'}</span>
+              </div>
+              <div className="field">
+                <label htmlFor="product-status">Product status</label>
+                <select id="product-status" value={product.status} onChange={(event) => updateProduct('status', event.target.value as ProductStatus)}>
+                  <option>Draft</option>
+                  <option>Active</option>
+                  <option>Archived</option>
+                </select>
+                <span className="field-help">Status changes are saved with the whole Product.</span>
+              </div>
+            </div>
             <div className="field">
               <label htmlFor="product-name">Product name</label>
               <input
@@ -353,119 +393,108 @@ export function ProductEditorScreen({
               {errors.name ? <span id="product-name-error" className="field-error">{errors.name}</span> : null}
             </div>
             <div className="field">
-              <label htmlFor="product-status">Product status</label>
-              <select id="product-status" value={product.status} onChange={(event) => updateProduct('status', event.target.value as ProductStatus)}>
-                <option>Draft</option>
-                <option>Active</option>
-                <option>Archived</option>
-              </select>
-              <span className="field-help">Status changes are saved with the whole Product.</span>
+              <label htmlFor="public-description">Customer-visible description</label>
+              <textarea id="public-description" value={product.publicDescription} onChange={(event) => updateProduct('publicDescription', event.target.value)} />
+              <span className="field-help">Optional public catalog copy. Private delivery details do not belong here.</span>
             </div>
           </div>
         </section>
 
-        <section className="editor-section" aria-labelledby="pricing-title">
-          <div className="section-heading">
-            <h2 id="pricing-title">Pricing</h2>
-            <p>Set one decimal base price and currency. Variant overrides use the same currency.</p>
-          </div>
-          <div className="field-grid">
-            <div className="field">
-              <label htmlFor="base-price">Base price</label>
-              <input
-                id="base-price"
-                inputMode="decimal"
-                value={product.basePrice}
-                aria-invalid={Boolean(errors.basePrice)}
-                aria-describedby={`base-price-help${errors.basePrice ? ' base-price-error' : ''}`}
-                onChange={(event) => updateProduct('basePrice', event.target.value)}
-                onBlur={() => validateOne('basePrice')}
-              />
-              <span id="base-price-help" className="field-help">Use a non-negative decimal valid for the selected currency.</span>
-              {errors.basePrice ? <span id="base-price-error" className="field-error">{errors.basePrice}</span> : null}
+        <section className="editor-card" aria-labelledby="pricing-title">
+          <div className="editor-card-body">
+            <h2 id="pricing-title" className="sr-only">Pricing and delivery</h2>
+            <div className="editor-pair">
+              <div className="field">
+                <label htmlFor="base-price">Base price</label>
+                <input
+                  id="base-price"
+                  inputMode="decimal"
+                  value={product.basePrice}
+                  aria-invalid={Boolean(errors.basePrice)}
+                  aria-describedby={`base-price-help${errors.basePrice ? ' base-price-error' : ''}`}
+                  onChange={(event) => updateProduct('basePrice', event.target.value)}
+                  onBlur={() => validateOne('basePrice')}
+                />
+                <span id="base-price-help" className="field-help">Use a non-negative decimal valid for the selected currency.</span>
+                {errors.basePrice ? <span id="base-price-error" className="field-error">{errors.basePrice}</span> : null}
+              </div>
+              <div className="field">
+                <label htmlFor="currency">Currency</label>
+                <input
+                  id="currency"
+                  value={product.currency}
+                  maxLength={3}
+                  aria-invalid={Boolean(errors.currency)}
+                  aria-describedby={`currency-help${errors.currency ? ' currency-error' : ''}`}
+                  onChange={(event) => updateProduct('currency', event.target.value.toUpperCase())}
+                  onBlur={() => validateOne('currency')}
+                />
+                <span id="currency-help" className="field-help">One currency per Product. Changing currency does not convert prices.</span>
+                {errors.currency ? <span id="currency-error" className="field-error">{errors.currency}</span> : null}
+              </div>
             </div>
-            <div className="field">
-              <label htmlFor="currency">Currency</label>
-              <input
-                id="currency"
-                value={product.currency}
-                maxLength={3}
-                aria-invalid={Boolean(errors.currency)}
-                aria-describedby={`currency-help${errors.currency ? ' currency-error' : ''}`}
-                onChange={(event) => updateProduct('currency', event.target.value.toUpperCase())}
-                onBlur={() => validateOne('currency')}
-              />
-              <span id="currency-help" className="field-help">Use an uppercase ISO 4217 code. Changing currency does not convert prices.</span>
-              {errors.currency ? <span id="currency-error" className="field-error">{errors.currency}</span> : null}
+
+            <div className="editor-divider" aria-hidden="true" />
+
+            <div className="editor-subhead">
+              <span>Delivery</span>
+              <span className="meta-text">Private Console content</span>
             </div>
+
+            <DeliveryEditor
+              delivery={product.delivery}
+              resetKey={fileResetKey}
+              errors={{ accessTitle: errors.accessTitle, accessInstructions: errors.accessInstructions }}
+              disabled={saving}
+              onChange={updateDelivery}
+              onBlur={validateOne}
+              onFileChange={markDirty}
+              onBlockersChange={setDeliveryBlockers}
+              onFileMetadataChange={(file) => {
+                setProduct((current) => ({ ...current, delivery: { ...current.delivery, file } }));
+              }}
+              onPendingFileChange={onPendingProductFileChange}
+            />
           </div>
         </section>
 
-        <section className="editor-section" aria-labelledby="description-title">
-          <div className="section-heading">
-            <h2 id="description-title">Public description</h2>
-            <p>This optional text is Customer-visible. Private delivery details do not belong here.</p>
-          </div>
-          <div className="field">
-            <label htmlFor="public-description">Customer-visible description</label>
-            <textarea id="public-description" value={product.publicDescription} onChange={(event) => updateProduct('publicDescription', event.target.value)} />
-            <span className="field-help">Optional public catalog copy.</span>
-          </div>
-        </section>
-
-        <section className="editor-section" aria-labelledby="delivery-title">
-          <div className="section-heading">
-            <h2 id="delivery-title">Delivery</h2>
-            <p>Private Console content that describes what a paying Customer receives.</p>
-          </div>
-          <DeliveryEditor
-            delivery={product.delivery}
-            resetKey={fileResetKey}
-            errors={{ accessTitle: errors.accessTitle, accessInstructions: errors.accessInstructions }}
-            disabled={saving}
-            onChange={updateDelivery}
-            onBlur={validateOne}
-            onFileChange={markDirty}
-            onBlockersChange={setDeliveryBlockers}
-            onFileMetadataChange={(file) => {
-              setProduct((current) => ({ ...current, delivery: { ...current.delivery, file } }));
-            }}
-            onPendingFileChange={onPendingProductFileChange}
-          />
-        </section>
-
-        <section className="editor-section" aria-labelledby="variants-title">
-          <div className="section-heading">
-            <h2 id="variants-title">Variants</h2>
-            <p>Build one active option schema, review Cartesian limits, and edit each generated purchasable combination.</p>
-          </div>
-          <VariantBuilder
-            initialGroups={product.groups}
-            initialVariants={product.variants}
-            basePrice={product.basePrice}
-            currency={product.currency}
-            productDelivery={product.delivery}
-            resetKey={variantResetKey}
-            onDirty={markDirty}
-            onBlockersChange={setVariantBlockers}
-            onTransientDirtyChange={setTransientVariantDirty}
-            serverFieldErrors={serverFieldErrors}
-            onSchemaChange={synchronizeSchema}
-            onPendingVariantFileChange={onPendingVariantFileChange}
-            onRegenerate={regenerateSchema}
-          />
-        </section>
+        <VariantBuilder
+          initialGroups={product.groups}
+          initialVariants={product.variants}
+          basePrice={product.basePrice}
+          currency={product.currency}
+          productDelivery={product.delivery}
+          resetKey={variantResetKey}
+          onDirty={markDirty}
+          onBlockersChange={setVariantBlockers}
+          onTransientDirtyChange={setTransientVariantDirty}
+          serverFieldErrors={serverFieldErrors}
+          onSchemaChange={synchronizeSchema}
+          onPendingVariantFileChange={onPendingVariantFileChange}
+          onRegenerate={regenerateSchema}
+        />
       </div>
 
-      <div className="mobile-save-bar">
-        {saveReason ? <span className="field-help">{saveReason}</span> : <span className="editor-state">Ready to save.</span>}
-        <button className="button button-primary" type="submit" disabled={saveDisabled}>
+      <footer className="console-editor-footer">
+        <div className="console-editor-footer-summary">
+          <span className="meta-text">{deliverySummary}</span>
+        </div>
+        <div className="editor-spacer" />
+        {dirty ? (
+          <button className="button" type="button" onClick={(event) => onDiscardRequest(event.currentTarget)}>
+            Discard changes
+          </button>
+        ) : null}
+        <button
+          className="button button-primary console-editor-save"
+          type="submit"
+          disabled={saveDisabled}
+          aria-describedby="save-product-reason"
+        >
           {saving ? 'Saving Product' : saveError ? 'Retry save' : 'Save Product'}
         </button>
-      </div>
-
-      <span id="save-product-reason" className="sr-only">{saveReason}</span>
-
+        <span id="save-product-reason" className="sr-only">{saveReason}</span>
+      </footer>
     </form>
   );
 }

@@ -1,0 +1,21 @@
+{
+  "page": {
+    "w": 760,
+    "x": 340
+  },
+  "pageStyle": {
+    "padding": "40px 32px",
+    "gap": "20px",
+    "maxWidth": "760px"
+  },
+  "article": {
+    "w": 696,
+    "x": 372
+  },
+  "articleStyle": {
+    "padding": "28px",
+    "gap": "24px",
+    "boxShadow": "none"
+  },
+  "noticeText": "Private Order linkAnyone who has this complete link can open this Order. Keep it somewhere safe."
+}

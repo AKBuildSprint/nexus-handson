@@ -1,0 +1,2 @@
+d1f726745ab4646e2ab53adef6ccc350025612031f0225a6e9c35d9ab74965ca  design/UI-UX/Nexus Console.dc.html
+8fe7df74405f3c55f49b7249c74ea1397e65d07dea2b1bd3b4a489bec2e28cbe  design/UI-UX/support.js

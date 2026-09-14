@@ -55,17 +55,17 @@ export function SchemaChangePreview({ rows, combinationCount, onApply, onCancel 
   const skuBlockers = Object.values(skuErrors);
 
   return (
-    <section className="notice notice-info" aria-labelledby="schema-preview-title">
-      <div className="section-heading">
-        <h3 id="schema-preview-title">Preview regeneration</h3>
-        <p>These effects are derived from the edited option groups and current matrix. Review every New and Will disable row before applying.</p>
+    <section className="paper-card" aria-labelledby="schema-preview-title">
+      <div className="editor-card-head">
+        <h3 id="schema-preview-title" className="editor-card-title">Preview regeneration</h3>
+        <p className="editor-card-note">Derived from the edited option groups and the current matrix. Review every New and Will disable row before applying.</p>
       </div>
 
-      <div className="result-counts" aria-label="Regeneration effect counts">
-        <div className="result-count"><strong>{counts.retained}</strong><span>Retained</span></div>
-        <div className="result-count"><strong>{counts.added}</strong><span>New</span></div>
-        <div className="result-count"><strong>{counts.disabled}</strong><span>Will disable</span></div>
-      </div>
+      <p className="summary-row" aria-label="Regeneration effect counts">
+        <span className="summary-stat"><strong>{counts.retained}</strong><span>Retained</span></span>
+        <span className="summary-stat"><strong>{counts.added}</strong><span>New</span></span>
+        <span className="summary-stat"><strong>{counts.disabled}</strong><span>Will disable</span></span>
+      </p>
 
       {skuBlockers.length > 0 ? (
         <div className="notice notice-error" role="alert">
@@ -98,7 +98,7 @@ export function SchemaChangePreview({ rows, combinationCount, onApply, onCancel 
                       )));
                     }}
                   />
-                  <span className="field-help">Suggested by the prototype and editable before applying.</span>
+                  <span className="field-help">Suggested from the option groups and editable before applying.</span>
                   {skuErrors[row.id] ? <span className="field-error" id={`regeneration-sku-error-${row.id}`}>{skuErrors[row.id]}</span> : null}
                 </div>
               ) : null}

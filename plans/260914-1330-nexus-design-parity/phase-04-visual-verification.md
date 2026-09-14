@@ -1,6 +1,6 @@
 ---
 title: "Phase 4: Measured Demo Parity and Production Verification"
-status: todo
+status: done
 ---
 
 # Phase 4: Measured Demo Parity and Production Verification
@@ -148,11 +148,11 @@ Only after runtime parity and behavior pass:
 
 ## Completion gate
 
-- [ ] V01 isolated real runtime and stable reference established.
-- [ ] V02 all R/C/S screenshot/state coverage complete.
-- [ ] V03 measured anchor parity and regional visual review pass.
-- [ ] V04 applicable production interaction/accessibility/privacy checks pass.
-- [ ] V05 actual build/browser/E2E results are recorded and green.
-- [ ] V06 clean implementation and retained evidence handed off.
+- [x] V01 isolated real runtime and stable reference established.
+- [x] V02 all R/C/S screenshot/state coverage complete.
+- [x] V03 measured anchor parity and regional visual review pass.
+- [x] V04 applicable production interaction/accessibility/privacy checks pass.
+- [x] V05 actual build/browser/E2E results are recorded and green.
+- [x] V06 clean implementation and retained evidence handed off.
 
 Required final statement names: implemented screens, remaining E-ID deviations, evidence location, commands actually run, and any runtime limitation. Never conclude only “looks consistent” or “same Nexus visual language.” The acceptance question is: **does the real app now reproduce the demo's composition, except for the explicitly necessary and measured adaptations?**

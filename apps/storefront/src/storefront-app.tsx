@@ -9,6 +9,7 @@ import {
 } from './api-client';
 import type {
   CustomerOrderItemView,
+  CustomerOrderStatus,
   CustomerOrderView,
   FrozenCreateAttempt,
   StorefrontCatalog,
@@ -20,6 +21,7 @@ type CatalogState = 'loading' | 'ready' | 'empty' | 'error';
 type OrderRoute = { kind: 'catalog' } | { kind: 'order'; reference: string; capability: string | null };
 type FieldErrors = Partial<Record<'variant' | 'quantity' | 'name' | 'email' | 'cart', string>>;
 type CatalogFilter = 'all' | 'simple' | 'variant';
+type StatusTone = 'muted' | 'butter' | 'success' | 'error';
 
 interface CartLine {
   key: string;
@@ -68,6 +70,19 @@ const STATUS_LABEL = {
   canceled: 'Canceled',
 } as const;
 
+const STATUS_TONE: Record<CustomerOrderStatus, StatusTone> = {
+  pending: 'muted',
+  paid: 'butter',
+  fulfilled: 'butter',
+  canceled: 'error',
+};
+
+const REFUND_TAG: Record<'pending' | 'approved' | 'rejected', { label: string; tone: StatusTone }> = {
+  pending: { label: 'Pending', tone: 'butter' },
+  approved: { label: 'Approved', tone: 'success' },
+  rejected: { label: 'Rejected', tone: 'error' },
+};
+
 const REASON_INVALID = 'Enter a reason using 1 to 1000 characters.';
 const MIXED_CURRENCY = 'This cart mixes currencies. Remove lines until every Product uses one currency. The server remains the final authority.';
 const PAID_STATUS_COPY = 'This Order is paid. This page does not deliver files or pay out a refund.';
@@ -88,6 +103,15 @@ const REFUND_STATUS_COPY = {
   },
 } as const;
 const CATALOG_PAGE_SIZE = 24;
+
+const HERO_HEADING = 'Digital products, with every purchase in one private Order.';
+const HERO_PARAGRAPH = 'Every purchase creates one private Order link. Keep it — it is the only way back to this Order.';
+const SELECTION_PRICE_NOTE = 'Selected item price — not yet added.';
+const CHECKOUT_LINK_WARNING = 'Checkout creates a private Order link. Save it — anyone with the link can open the Order.';
+const PRICE_SOURCE_NOTE = 'Amounts use the published effective price for this Store.';
+const QUANTITY_HELP = 'Quantity 1–99 · at most 10 Product lines per Order.';
+const PRIVATE_LINK_LABEL = 'Private Order link';
+const PRIVATE_LINK_NOTICE = 'Anyone who has this complete link can open this Order. Keep it somewhere safe.';
 
 
 function validateRefundReason(value: string): string | null {
@@ -121,13 +145,21 @@ function CatalogProduct({
     : `${formatMoney(product.minimumEffectivePriceMinor, product.currency)} to ${formatMoney(product.maximumEffectivePriceMinor, product.currency)}`;
   return (
     <article className={`catalog-row${selected ? ' catalog-row-selected' : ''}`}>
-      <button className="catalog-choice" type="button" aria-pressed={selected} onClick={onSelect}>
-        <span className="catalog-media" aria-hidden="true">{product.name.slice(0, 1)}</span>
-        <span className="catalog-type">{product.optionGroups.length === 0 ? 'Simple Product' : 'Variant Product'}</span>
-        <span className="catalog-name">{product.name}</span>
-        <span className="catalog-price numeric">{price}</span>
-      </button>
+      <span className="catalog-media" aria-hidden="true" />
+      <h2 className="catalog-name">{product.name}</h2>
       <p>{product.publicDescription}</p>
+      <div className="catalog-row-footer">
+        <strong className="catalog-price numeric">{price}</strong>
+        <button
+          className="catalog-select"
+          type="button"
+          aria-pressed={selected}
+          aria-label={`${selected ? 'Selected' : 'Select'} ${product.name}`}
+          onClick={onSelect}
+        >
+          {selected ? 'Selected' : 'Select'}
+        </button>
+      </div>
     </article>
   );
 }
@@ -371,6 +403,7 @@ function PrivateOrderPage({
   const refundCopy = visibleOrder?.refundRequest
     ? REFUND_STATUS_COPY[visibleOrder.refundRequest.status]
     : null;
+  const refundTag = visibleOrder?.refundRequest ? REFUND_TAG[visibleOrder.refundRequest.status] : null;
 
   return (
     <main id="storefront-content" className="order-page" tabIndex={-1}>
@@ -387,110 +420,117 @@ function PrivateOrderPage({
         </div>
       ) : null}
       {visibleOrder ? (
-        <article className="order-ledger" aria-labelledby="order-title">
-          <header>
-            <div>
-              <p className="ledger-label">Order {visibleOrder.reference}</p>
-              <h1 id="order-title">{visibleOrder.items[0]?.product.name ?? 'Order'}</h1>
-            </div>
-            <span className="order-status">{STATUS_LABEL[visibleOrder.status]}</span>
-          </header>
-          <section>
-            <h2>Items</h2>
-            <ul className="order-item-list">
-              {visibleOrder.items.map((item) => (
-                <li key={item.id}>
-                  <strong>{item.product.name}</strong>
-                  <p>{itemSelection(item)}</p>
-                  <p className="numeric">{item.quantity} × {formatMoney(item.unitPriceMinor, item.currency)} = {formatMoney(item.lineTotalMinor, item.currency)} {item.currency}</p>
-                </li>
-              ))}
-            </ul>
+        <>
+          <section className="order-link-notice" aria-labelledby="order-link-title">
+            <strong id="order-link-title">{PRIVATE_LINK_LABEL}</strong>
+            <p>{PRIVATE_LINK_NOTICE}</p>
           </section>
-          <section className="amount-ledger">
-            <dl>
-              <div><dt>Payment reference</dt><dd>{visibleOrder.paymentReference}</dd></div>
-              <div className="total-line"><dt>Total</dt><dd className="numeric">{formatMoney(visibleOrder.totalMinor, visibleOrder.currency)} {visibleOrder.currency}</dd></div>
-            </dl>
-          </section>
-          {visibleOrder.status === 'paid' ? (
-            <section>
-              <h2>Order status</h2>
-              <p>{PAID_STATUS_COPY}</p>
+          <article className="order-ledger" aria-labelledby="order-title">
+            <header>
+              <div>
+                <p className="ledger-label">Order {visibleOrder.reference}</p>
+                <h1 id="order-title">{visibleOrder.items[0]?.product.name ?? 'Order'}</h1>
+              </div>
+              <span className="order-status" data-tone={STATUS_TONE[visibleOrder.status]}>{STATUS_LABEL[visibleOrder.status]}</span>
+            </header>
+            <section className="order-section">
+              <h2 className="order-section-title">Items</h2>
+              <ul className="order-item-list">
+                {visibleOrder.items.map((item) => (
+                  <li key={item.id}>
+                    <strong>{item.product.name}</strong>
+                    <p>{itemSelection(item)}</p>
+                    <p className="numeric">{item.quantity} × {formatMoney(item.unitPriceMinor, item.currency)} = {formatMoney(item.lineTotalMinor, item.currency)} {item.currency}</p>
+                  </li>
+                ))}
+              </ul>
             </section>
-          ) : null}
-          {visibleOrder.status === 'fulfilled' ? (
-            <section>
-              <h2>Order status</h2>
-              <p>{FULFILLED_STATUS_COPY}</p>
+            <section className="amount-ledger">
+              <dl>
+                <div><dt>Payment reference</dt><dd className="numeric">{visibleOrder.paymentReference}</dd></div>
+                <div className="total-line"><dt>Total</dt><dd className="numeric">{formatMoney(visibleOrder.totalMinor, visibleOrder.currency)} {visibleOrder.currency}</dd></div>
+              </dl>
             </section>
-          ) : null}
-          {visibleOrder.status === 'canceled' ? (
-            <section>
-              <h2>Order status</h2>
-              <p>This Order has been canceled.</p>
-            </section>
-          ) : null}
-          {visibleOrder.paymentNextStep !== null && visibleOrder.status === 'pending' ? (
-            <section>
-              <h2>Payment next step</h2>
-              <p>{visibleOrder.paymentNextStep}</p>
-            </section>
-          ) : null}
-          {refundEligible(visibleOrder) ? (
-            <section>
-              <h2>Refund request</h2>
-              <p>{REFUND_REQUEST_INTRO}</p>
-              <form className="refund-form" onSubmit={submitRefund} noValidate>
-                {reasonError ? (
-                  <div ref={errorSummaryRef} className="error-summary" role="alert" tabIndex={-1}>
-                    <strong>Review refund request details</strong>
-                    <ul><li><a href="#refund-reason" onClick={(event) => { event.preventDefault(); document.getElementById('refund-reason')?.focus(); }}>{reasonError}</a></li></ul>
+            {visibleOrder.status === 'paid' ? (
+              <section className="order-section">
+                <h2 className="order-section-title">Order status</h2>
+                <p>{PAID_STATUS_COPY}</p>
+              </section>
+            ) : null}
+            {visibleOrder.status === 'fulfilled' ? (
+              <section className="order-section">
+                <h2 className="order-section-title">Order status</h2>
+                <p>{FULFILLED_STATUS_COPY}</p>
+              </section>
+            ) : null}
+            {visibleOrder.status === 'canceled' ? (
+              <section className="order-section">
+                <h2 className="order-section-title">Order status</h2>
+                <p>This Order has been canceled.</p>
+              </section>
+            ) : null}
+            {visibleOrder.paymentNextStep !== null && visibleOrder.status === 'pending' ? (
+              <section className="order-section">
+                <h2 className="order-section-title">Payment next step</h2>
+                <p>{visibleOrder.paymentNextStep}</p>
+              </section>
+            ) : null}
+            {refundEligible(visibleOrder) ? (
+              <section className="order-section order-refund">
+                <h2 className="order-refund-title">Refund request</h2>
+                <p className="order-refund-copy">{REFUND_REQUEST_INTRO}</p>
+                <form className="refund-form" onSubmit={submitRefund} noValidate>
+                  {reasonError ? (
+                    <div ref={errorSummaryRef} className="error-summary" role="alert" tabIndex={-1}>
+                      <strong>Review refund request details</strong>
+                      <ul><li><a href="#refund-reason" onClick={(event) => { event.preventDefault(); document.getElementById('refund-reason')?.focus(); }}>{reasonError}</a></li></ul>
+                    </div>
+                  ) : null}
+                  <div className="field">
+                    <label htmlFor="refund-reason">Reason for refund request</label>
+                    <textarea
+                      id="refund-reason"
+                      value={displayedReason}
+                      disabled={reasonLocked}
+                      aria-invalid={Boolean(reasonError)}
+                      aria-describedby={`refund-reason-count${reasonError ? ' refund-reason-error' : ''}`}
+                      onChange={(event) => {
+                        if (reasonLocked) return;
+                        setReason(event.target.value);
+                      }}
+                    />
+                    <span id="refund-reason-count" className="character-count">{codePoints} / 1000</span>
+                    {reasonError ? <span id="refund-reason-error" className="field-error">{reasonError}</span> : null}
                   </div>
+                  {submitMessage ? <p className="submit-message" role="alert">{submitMessage}</p> : null}
+                  <button className="primary-action" type="submit" disabled={submitState === 'submitting' || contractOutdated}>
+                    {submitState === 'submitting' ? 'Sending refund request' : submitState === 'retry' ? 'Retry refund request' : 'Send refund request'}
+                  </button>
+                  {contractOutdated ? <button className="secondary-action" type="button" onClick={() => { window.location.reload(); }}>Reload Storefront</button> : null}
+                </form>
+              </section>
+            ) : null}
+            {visibleOrder.refundRequest && refundCopy && refundTag ? (
+              <section className="order-section order-refund">
+                <h2 className="order-refund-title">{refundCopy.heading}</h2>
+                <span className="refund-tag" data-tone={refundTag.tone}>{refundTag.label}</span>
+                <p className="refund-reason">{visibleOrder.refundRequest.reason}</p>
+                <p className="order-refund-meta">Requested {new Date(visibleOrder.refundRequest.createdAt).toLocaleString()}</p>
+                {visibleOrder.refundRequest.decidedAt ? (
+                  <p className="order-refund-meta">Decision recorded {new Date(visibleOrder.refundRequest.decidedAt).toLocaleString()}</p>
                 ) : null}
-                <div className="field">
-                  <label htmlFor="refund-reason">Reason for refund request</label>
-                  <textarea
-                    id="refund-reason"
-                    value={displayedReason}
-                    disabled={reasonLocked}
-                    aria-invalid={Boolean(reasonError)}
-                    aria-describedby={`refund-reason-count${reasonError ? ' refund-reason-error' : ''}`}
-                    onChange={(event) => {
-                      if (reasonLocked) return;
-                      setReason(event.target.value);
-                    }}
-                  />
-                  <span id="refund-reason-count" className="character-count">{codePoints} / 1000</span>
-                  {reasonError ? <span id="refund-reason-error" className="field-error">{reasonError}</span> : null}
-                </div>
-                {submitMessage ? <p className="submit-message" role="alert">{submitMessage}</p> : null}
-                <button className="primary-action" type="submit" disabled={submitState === 'submitting' || contractOutdated}>
-                  {submitState === 'submitting' ? 'Sending refund request' : submitState === 'retry' ? 'Retry refund request' : 'Send refund request'}
-                </button>
-                {contractOutdated ? <button className="secondary-action" type="button" onClick={() => { window.location.reload(); }}>Reload Storefront</button> : null}
-              </form>
-            </section>
-          ) : null}
-          {visibleOrder.refundRequest && refundCopy ? (
-            <section>
-              <h2>{refundCopy.heading}</h2>
-              <p className="refund-reason">{visibleOrder.refundRequest.reason}</p>
-              <p>Requested {new Date(visibleOrder.refundRequest.createdAt).toLocaleString()}</p>
-              {visibleOrder.refundRequest.decidedAt ? (
-                <p>Decision recorded {new Date(visibleOrder.refundRequest.decidedAt).toLocaleString()}</p>
-              ) : null}
-              <p>{refundCopy.message}</p>
-            </section>
-          ) : null}
-          {refreshFailed ? (
-            <div className="storefront-notice" role="status">
-              <p>The request succeeded, but the latest Order could not be loaded.</p>
-              <button className="secondary-action" type="button" onClick={() => load('ack-refresh')}>Retry loading Order</button>
-            </div>
-          ) : null}
-          <footer>Created {new Date(visibleOrder.createdAt).toLocaleString()}</footer>
-        </article>
+                <p>{refundCopy.message}</p>
+              </section>
+            ) : null}
+            {refreshFailed ? (
+              <div className="storefront-notice" role="status">
+                <p>The request succeeded, but the latest Order could not be loaded.</p>
+                <button className="secondary-action" type="button" onClick={() => load('ack-refresh')}>Retry loading Order</button>
+              </div>
+            ) : null}
+            <footer>Created {new Date(visibleOrder.createdAt).toLocaleString()}</footer>
+          </article>
+        </>
       ) : null}
     </main>
   );
@@ -519,7 +559,7 @@ export function StorefrontApp() {
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const catalogRequestRef = useRef<AbortController | null>(null);
   const lineFocusRef = useRef<string | null>(null);
-  const catalogResultsRef = useRef<HTMLDivElement>(null);
+  const catalogResultsRef = useRef<HTMLElement | null>(null);
   const scrollCatalogFromBottomRef = useRef(false);
 
   const checkoutLocked = submitState === 'retry' || submitState === 'submitting' || contractOutdated;
@@ -629,11 +669,27 @@ export function StorefrontApp() {
   const cartCurrency = mixedCurrency ? null : cart[0]?.currency ?? selectedProduct?.currency ?? null;
   const simpleCount = catalog?.products.filter((product) => product.optionGroups.length === 0).length ?? 0;
   const variantCount = catalog?.products.filter((product) => product.optionGroups.length > 0).length ?? 0;
+  const publicationCount = catalog?.products.length ?? 0;
+  const quantityValue = Number(quantity);
+  const quantityValid = Number.isInteger(quantityValue) && quantityValue >= 1 && quantityValue <= 99;
+  const selectionPriceMinor = !selectedProduct
+    ? null
+    : selectedProduct.optionGroups.length === 0
+      ? selectedProduct.basePriceMinor
+      : matchingVariant?.effectivePriceMinor ?? null;
 
   const resetAttempt = () => {
     if (checkoutLocked) return;
     attemptRef.current = null;
     setSubmitState('idle');
+  };
+
+  const stepQuantity = (delta: number) => {
+    if (checkoutLocked || !quantityValid) return;
+    const next = quantityValue + delta;
+    if (next < 1 || next > 99) return;
+    setQuantity(String(next));
+    setFieldErrors((current) => ({ ...current, quantity: undefined }));
   };
 
   const addCurrentSelection = () => {
@@ -764,7 +820,7 @@ export function StorefrontApp() {
 
   if (route.kind === 'order') {
     return (
-      <StorefrontFrame>
+      <StorefrontFrame storeName={null} isCatalog={false}>
         <PrivateOrderPage
           key={`${route.reference}:${capabilityGeneration}`}
           route={route}
@@ -775,65 +831,69 @@ export function StorefrontApp() {
     );
   }
 
+  const errorEntries = Object.entries(fieldErrors).filter((entry): entry is [string, string] => Boolean(entry[1]));
+
   return (
-    <StorefrontFrame>
+    <StorefrontFrame storeName={catalog?.store.name ?? null} isCatalog>
       <main id="storefront-content" className="catalog-page" tabIndex={-1}>
         <header className="catalog-hero">
           <div className="catalog-heading">
-            <p className="catalog-kicker">Published catalog · Digital products</p>
-            <h1>{catalog?.store.name ?? 'Digital products'}</h1>
-            <p>{selectedProduct && selectedProduct.optionGroups.length > 0
-              ? 'Choose Products, confirm each format, review the Order, then complete checkout.'
-              : 'Choose Products, review the Order, then complete checkout.'}</p>
-            <a className="hero-cta" href="#featured-products">Explore Catalog</a>
+            <h1>{HERO_HEADING}</h1>
+            <p>{HERO_PARAGRAPH}</p>
           </div>
           {catalog ? (
-            <aside className="catalog-benchmark">
-              <div className="catalog-benchmark-head">
-                <span>Catalog snapshot</span>
-                <span className="order-status">{catalog.store.name}</span>
-              </div>
-              <dl>
-                <div><dt>Published Products</dt><dd className="numeric">{catalog.products.length}</dd></div>
-                <div><dt>Simple</dt><dd className="numeric">{simpleCount}</dd></div>
-                <div><dt>Variant</dt><dd className="numeric">{variantCount}</dd></div>
-              </dl>
-            </aside>
-          ) : null}
+            <dl className="catalog-snapshot">
+              <div><dt>Published Products</dt><dd className="numeric">{catalog.products.length}</dd></div>
+              <div><dt>Simple / Variant</dt><dd className="numeric">{simpleCount} / {variantCount}</dd></div>
+            </dl>
+          ) : catalogState === 'error' ? (
+            <p className="catalog-snapshot catalog-snapshot-note">Published Product counts are unavailable until the catalog loads.</p>
+          ) : (
+            <div className="catalog-snapshot" aria-hidden="true">
+              <span className="catalog-snapshot-bar" />
+              <span className="catalog-snapshot-bar" />
+            </div>
+          )}
         </header>
-        {catalogState === 'loading' ? <div className="catalog-loading" aria-label="Loading catalog" aria-busy="true"><span /><span /><span /></div> : null}
         {catalogState === 'error' ? <div className="storefront-notice storefront-error" role="alert"><h2>Catalog could not be loaded</h2><p>Check your connection and try again.</p><button className="secondary-action" type="button" onClick={loadCatalog}>Retry catalog</button></div> : null}
         {catalogState === 'empty' ? <div className="storefront-notice"><h2>No Products are available</h2><p>Return later. Published Products will appear here.</p></div> : null}
-        {catalogState === 'ready' && catalog ? (
-          <>
-            {catalog.products.length > 1 || catalogQuery.trim().length > 0 || catalogFilter !== 'all' ? (
-              <section className="catalog-toolbar" aria-label="Catalog filters">
-                <div className="status-pills">
-                  <button className={catalogFilter === 'all' ? 'is-active' : undefined} type="button" onClick={() => { setCatalogFilter('all'); setCatalogPage(1); }}>All Products</button>
-                  <button className={catalogFilter === 'simple' ? 'is-active' : undefined} type="button" onClick={() => { setCatalogFilter('simple'); setCatalogPage(1); }}>Simple</button>
-                  <button className={catalogFilter === 'variant' ? 'is-active' : undefined} type="button" onClick={() => { setCatalogFilter('variant'); setCatalogPage(1); }}>Variant</button>
-                </div>
-                <div className="field catalog-search">
-                  <label htmlFor="catalog-search">Search Products</label>
-                  <input
-                    id="catalog-search"
-                    type="search"
-                    name="q"
-                    autoComplete="off"
-                    value={catalogQuery}
-                    onChange={(event) => { setCatalogQuery(event.target.value); setCatalogPage(1); }}
-                  />
-                </div>
-              </section>
-            ) : null}
-            <div className="storefront-workspace">
-              <div className="catalog-featured" id="featured-products" ref={catalogResultsRef}>
-                <div>
-                  <h2>Published Products</h2>
-                  <p>Active catalog from this Store.</p>
-                </div>
+        {catalogState === 'loading' ? (
+          <div className="storefront-workspace" aria-label="Loading catalog" aria-busy="true">
+            <div className="catalog-column">
+              <span className="skeleton-pill" />
+              <div className="catalog-list">
+                <span className="skeleton-card" />
+                <span className="skeleton-card" />
               </div>
-              <div className="catalog-column">
+            </div>
+            <div className="purchase-ledger skeleton-ledger"><span /><span /><span /></div>
+          </div>
+        ) : null}
+        {catalogState === 'ready' && catalog ? (
+          <div className="storefront-workspace">
+            <div className="catalog-column">
+              <div className="catalog-search">
+                <label htmlFor="catalog-search">Search Products</label>
+                <input
+                  id="catalog-search"
+                  type="search"
+                  name="q"
+                  autoComplete="off"
+                  value={catalogQuery}
+                  onChange={(event) => { setCatalogQuery(event.target.value); setCatalogPage(1); }}
+                />
+                <p className="catalog-count numeric" aria-live="polite">
+                  {matchingCount === publicationCount
+                    ? `${publicationCount} published`
+                    : `${matchingCount} of ${publicationCount} published`}
+                </p>
+              </div>
+              <div className="catalog-toolbar">
+                <div className="status-pills" role="group" aria-label="Product type">
+                  <button className={catalogFilter === 'all' ? 'is-active' : undefined} type="button" aria-pressed={catalogFilter === 'all'} onClick={() => { setCatalogFilter('all'); setCatalogPage(1); }}>All Products</button>
+                  <button className={catalogFilter === 'simple' ? 'is-active' : undefined} type="button" aria-pressed={catalogFilter === 'simple'} onClick={() => { setCatalogFilter('simple'); setCatalogPage(1); }}>Simple</button>
+                  <button className={catalogFilter === 'variant' ? 'is-active' : undefined} type="button" aria-pressed={catalogFilter === 'variant'} onClick={() => { setCatalogFilter('variant'); setCatalogPage(1); }}>Variant</button>
+                </div>
                 {matchingCount > 0 ? (
                   <CatalogPager
                     position="top"
@@ -846,76 +906,107 @@ export function StorefrontApp() {
                     onNext={() => goCatalogPage(currentCatalogPage + 1, 'top')}
                   />
                 ) : null}
-                <section className="catalog-list" aria-label="Available Products">
-                  {matchingCount === 0 ? (
-                    <div>
-                      <p>No Products match this search.</p>
-                      <button className="secondary-action" type="button" onClick={() => { setCatalogQuery(''); setCatalogFilter('all'); setCatalogPage(1); }}>Clear filters</button>
-                    </div>
-                  ) : null}
-                  {pagedProducts.map((product) => (
-                    <CatalogProduct
-                      key={product.id}
-                      product={product}
-                      selected={product.id === selectedProductId}
-                      onSelect={() => {
-                        if (checkoutLocked) return;
-                        setSelectedProductId(product.id);
-                        setSelectedOptions({});
-                        setFieldErrors((current) => ({ ...current, variant: undefined, quantity: undefined }));
-                      }}
-                    />
-                  ))}
-                </section>
-                {matchingCount > 0 ? (
-                  <CatalogPager
-                    position="bottom"
-                    rangeStart={rangeStart}
-                    rangeEnd={rangeEnd}
-                    matchingCount={matchingCount}
-                    page={currentCatalogPage}
-                    totalPages={totalCatalogPages}
-                    onPrevious={() => goCatalogPage(currentCatalogPage - 1, 'bottom')}
-                    onNext={() => goCatalogPage(currentCatalogPage + 1, 'bottom')}
-                  />
-                ) : null}
               </div>
-              {selectedProduct ? <form className="purchase-ledger" onSubmit={submit} noValidate>
-                <header><p className="ledger-label">Purchase ledger</p><h2>{selectedProduct.name}</h2><p>{selectedProduct.publicDescription}</p></header>
-                {Object.values(fieldErrors).some(Boolean) ? <div ref={errorSummaryRef} className="error-summary" role="alert" tabIndex={-1}><strong>Review checkout details</strong><ul>{Object.entries(fieldErrors).filter((entry): entry is [string, string] => Boolean(entry[1])).map(([field, message]) => <li key={field}><a href={`#checkout-${field === 'cart' ? 'cart' : field}`}>{message}</a></li>)}</ul></div> : null}
+              <section className="catalog-list" aria-label="Available Products" ref={catalogResultsRef}>
+                {matchingCount === 0 ? (
+                  <div className="catalog-empty">
+                    <p>No Products match this search.</p>
+                    <button className="secondary-action" type="button" onClick={() => { setCatalogQuery(''); setCatalogFilter('all'); setCatalogPage(1); }}>Clear filters</button>
+                  </div>
+                ) : null}
+                {pagedProducts.map((product) => (
+                  <CatalogProduct
+                    key={product.id}
+                    product={product}
+                    selected={product.id === selectedProductId}
+                    onSelect={() => {
+                      if (checkoutLocked) return;
+                      setSelectedProductId(product.id);
+                      setSelectedOptions({});
+                      setFieldErrors((current) => ({ ...current, variant: undefined, quantity: undefined }));
+                    }}
+                  />
+                ))}
+              </section>
+              {matchingCount > 0 ? (
+                <CatalogPager
+                  position="bottom"
+                  rangeStart={rangeStart}
+                  rangeEnd={rangeEnd}
+                  matchingCount={matchingCount}
+                  page={currentCatalogPage}
+                  totalPages={totalCatalogPages}
+                  onPrevious={() => goCatalogPage(currentCatalogPage - 1, 'bottom')}
+                  onNext={() => goCatalogPage(currentCatalogPage + 1, 'bottom')}
+                />
+              ) : null}
+            </div>
+            {selectedProduct ? (
+              <form className="purchase-ledger" onSubmit={submit} noValidate>
+                <header>
+                  <p className="ledger-label">Purchase ledger</p>
+                  <h2>{selectedProduct.name}</h2>
+                  <p className="ledger-description">{selectedProduct.publicDescription}</p>
+                </header>
+                {errorEntries.length > 0 ? (
+                  <div ref={errorSummaryRef} className="error-summary" role="alert" tabIndex={-1}>
+                    <strong>Review checkout details</strong>
+                    <ul>
+                      {errorEntries.map(([field, message]) => (
+                        <li key={field}><a href={`#checkout-${field}`}>{message}</a></li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
                 {selectedProduct.optionGroups.length === 0 ? (
                   <p className="simple-selection">Simple Product. No format selection is required.</p>
                 ) : (
-                  <fieldset id="checkout-variant" className="option-selector" aria-describedby={fieldErrors.variant ? 'variant-error' : undefined}>
-                    <legend>Choose a format</legend>
+                  <div className="option-selector" id="checkout-variant" tabIndex={-1}>
                     {selectedProduct.optionGroups.map((group) => (
-                      <div className="field" key={group.id}>
-                        <label htmlFor={`option-${group.id}`}>{group.name}</label>
-                        <select
-                          id={`option-${group.id}`}
-                          value={selectedOptions[group.id] ?? ''}
-                          disabled={checkoutLocked}
-                          aria-invalid={Boolean(fieldErrors.variant)}
-                          aria-describedby={fieldErrors.variant ? 'variant-error' : undefined}
-                          onBlur={() => setFieldErrors((current) => ({ ...current, variant: matchingVariant ? undefined : 'Select one available value in every option group.' }))}
-                          onChange={(event) => {
-                            if (checkoutLocked) return;
-                            setSelectedOptions((current) => ({ ...current, [group.id]: event.target.value }));
-                          }}
-                        >
-                          <option value="">Select {group.name}</option>
-                          {group.values.map((value) => <option key={value.id} value={value.id}>{value.label}</option>)}
-                        </select>
-                      </div>
+                      <fieldset className="option-group" key={group.id}>
+                        <legend>{group.name}</legend>
+                        <div className="option-pills">
+                          {group.values.map((value) => (
+                            <label className="option-pill" key={value.id}>
+                              <input
+                                type="radio"
+                                name={`option-group-${group.id}`}
+                                value={value.id}
+                                checked={selectedOptions[group.id] === value.id}
+                                disabled={checkoutLocked}
+                                aria-invalid={Boolean(fieldErrors.variant)}
+                                aria-describedby={fieldErrors.variant ? 'variant-error' : undefined}
+                                onBlur={() => setFieldErrors((current) => ({ ...current, variant: matchingVariant ? undefined : 'Select one available value in every option group.' }))}
+                                onChange={() => {
+                                  if (checkoutLocked) return;
+                                  setSelectedOptions((current) => ({ ...current, [group.id]: value.id }));
+                                  setFieldErrors((current) => ({ ...current, variant: undefined }));
+                                }}
+                              />
+                              <span>{value.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </fieldset>
                     ))}
-                    {fieldErrors.variant ? <p id="variant-error" className="field-error">{fieldErrors.variant}</p> : null}
-                  </fieldset>
+                  </div>
                 )}
-                <div className="checkout-fields">
-                  <div className="field">
-                    <label htmlFor="checkout-quantity">Quantity</label>
+                {fieldErrors.variant ? <p id="variant-error" className="field-error">{fieldErrors.variant}</p> : null}
+                <div className="field quantity-field">
+                  <label htmlFor="checkout-quantity">Quantity</label>
+                  <div className="quantity-row">
+                    <button
+                      className="stepper-button"
+                      type="button"
+                      aria-label="Decrease quantity"
+                      disabled={checkoutLocked || !quantityValid || quantityValue <= 1}
+                      onClick={() => stepQuantity(-1)}
+                    >
+                      −
+                    </button>
                     <input
                       id="checkout-quantity"
+                      className="quantity-input"
                       type="number"
                       inputMode="numeric"
                       min="1"
@@ -924,17 +1015,25 @@ export function StorefrontApp() {
                       value={quantity}
                       disabled={checkoutLocked}
                       aria-invalid={Boolean(fieldErrors.quantity)}
-                      aria-describedby={fieldErrors.quantity ? 'quantity-error' : undefined}
+                      aria-describedby={`quantity-help${fieldErrors.quantity ? ' quantity-error' : ''}`}
                       onBlur={() => setFieldErrors((current) => ({ ...current, quantity: Number.isInteger(Number(quantity)) && Number(quantity) >= 1 && Number(quantity) <= 99 ? undefined : 'Enter a whole number from 1 to 99.' }))}
                       onChange={(event) => {
                         if (checkoutLocked) return;
                         setQuantity(event.target.value);
                       }}
                     />
-                    {fieldErrors.quantity ? <span id="quantity-error" className="field-error">{fieldErrors.quantity}</span> : null}
+                    <button
+                      className="stepper-button"
+                      type="button"
+                      aria-label="Increase quantity"
+                      disabled={checkoutLocked || !quantityValid || quantityValue >= 99}
+                      onClick={() => stepQuantity(1)}
+                    >
+                      +
+                    </button>
+                    <p className="quantity-help" id="quantity-help">{QUANTITY_HELP}</p>
                   </div>
-                  <div className="field"><label htmlFor="checkout-name">Name</label><input id="checkout-name" autoComplete="name" value={name} disabled={checkoutLocked} aria-invalid={Boolean(fieldErrors.name)} aria-describedby={fieldErrors.name ? 'name-error' : undefined} onBlur={() => setFieldErrors((current) => ({ ...current, name: name.trim() && name.trim().length <= 120 ? undefined : 'Enter your name using 1 to 120 characters.' }))} onChange={(event) => { if (checkoutLocked) return; setName(event.target.value); }} />{fieldErrors.name ? <span id="name-error" className="field-error">{fieldErrors.name}</span> : null}</div>
-                  <div className="field"><label htmlFor="checkout-email">Email</label><input id="checkout-email" type="email" autoComplete="email" value={email} disabled={checkoutLocked} aria-invalid={Boolean(fieldErrors.email)} aria-describedby={fieldErrors.email ? 'email-error' : undefined} onBlur={() => setFieldErrors((current) => ({ ...current, email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ? undefined : 'Enter a valid email address.' }))} onChange={(event) => { if (checkoutLocked) return; setEmail(event.target.value); }} />{fieldErrors.email ? <span id="email-error" className="field-error">{fieldErrors.email}</span> : null}</div>
+                  {fieldErrors.quantity ? <span id="quantity-error" className="field-error">{fieldErrors.quantity}</span> : null}
                 </div>
                 <div className="inline-actions">
                   <button
@@ -946,47 +1045,54 @@ export function StorefrontApp() {
                     Add to Order
                   </button>
                 </div>
-                <section id="checkout-cart" className="cart-review" aria-labelledby="cart-title">
+                {selectionPriceMinor !== null ? (
+                  <p className="selection-price">
+                    {SELECTION_PRICE_NOTE} <span className="numeric">{formatMoney(selectionPriceMinor, selectedProduct.currency)} {selectedProduct.currency}</span>
+                  </p>
+                ) : null}
+                <section id="checkout-cart" className="cart-review" aria-labelledby="cart-title" tabIndex={-1}>
                   <h3 id="cart-title">Order review</h3>
                   {cart.length === 0 ? <p>No Products have been added yet.</p> : (
                     <ul className="cart-lines">
                       {cart.map((line) => (
                         <li key={line.key}>
-                          <div>
+                          <div className="cart-line-identity">
                             <strong>{line.productName}</strong>
                             <p>{line.variantLabel}</p>
-                            <p className="numeric">{formatMoney(line.unitPriceMinor * line.quantity, line.currency)} {line.currency}</p>
                           </div>
-                          <div className="field">
-                            <label htmlFor={`cart-qty-${line.key}`}>Quantity</label>
-                            <input
-                              id={`cart-qty-${line.key}`}
-                              type="number"
-                              min="1"
-                              max="99"
-                              step="1"
-                              value={line.quantity}
+                          <div className="cart-line-controls">
+                            <div className="field">
+                              <label htmlFor={`cart-qty-${line.key}`}>Quantity for {line.productName}</label>
+                              <input
+                                id={`cart-qty-${line.key}`}
+                                type="number"
+                                min="1"
+                                max="99"
+                                step="1"
+                                value={line.quantity}
+                                disabled={checkoutLocked}
+                                onChange={(event) => {
+                                  if (checkoutLocked) return;
+                                  const nextQuantity = Number(event.target.value);
+                                  setCart((current) => current.map((entry) => entry.key === line.key ? { ...entry, quantity: nextQuantity } : entry));
+                                  resetAttempt();
+                                }}
+                              />
+                            </div>
+                            <p className="cart-line-amount numeric">{formatMoney(line.unitPriceMinor * line.quantity, line.currency)} {line.currency}</p>
+                            <button
+                              className="text-action"
+                              type="button"
                               disabled={checkoutLocked}
-                              onChange={(event) => {
+                              onClick={() => {
                                 if (checkoutLocked) return;
-                                const nextQuantity = Number(event.target.value);
-                                setCart((current) => current.map((entry) => entry.key === line.key ? { ...entry, quantity: nextQuantity } : entry));
+                                setCart((current) => current.filter((entry) => entry.key !== line.key));
                                 resetAttempt();
                               }}
-                            />
+                            >
+                              Remove
+                            </button>
                           </div>
-                          <button
-                            className="text-action"
-                            type="button"
-                            disabled={checkoutLocked}
-                            onClick={() => {
-                              if (checkoutLocked) return;
-                              setCart((current) => current.filter((entry) => entry.key !== line.key));
-                              resetAttempt();
-                            }}
-                          >
-                            Remove
-                          </button>
                         </li>
                       ))}
                     </ul>
@@ -994,69 +1100,71 @@ export function StorefrontApp() {
                   {mixedCurrency ? <p className="field-error" role="alert">{MIXED_CURRENCY}</p> : null}
                   {fieldErrors.cart ? <p id="cart-error" className="field-error">{fieldErrors.cart}</p> : null}
                 </section>
+                <div className="checkout-fields">
+                  <div className="field">
+                    <label htmlFor="checkout-name">Name</label>
+                    <input id="checkout-name" autoComplete="name" value={name} disabled={checkoutLocked} aria-invalid={Boolean(fieldErrors.name)} aria-describedby={fieldErrors.name ? 'name-error' : undefined} onBlur={() => setFieldErrors((current) => ({ ...current, name: name.trim() && name.trim().length <= 120 ? undefined : 'Enter your name using 1 to 120 characters.' }))} onChange={(event) => { if (checkoutLocked) return; setName(event.target.value); }} />
+                    {fieldErrors.name ? <span id="name-error" className="field-error">{fieldErrors.name}</span> : null}
+                  </div>
+                  <div className="field">
+                    <label htmlFor="checkout-email">Email</label>
+                    <input id="checkout-email" type="email" autoComplete="email" value={email} disabled={checkoutLocked} aria-invalid={Boolean(fieldErrors.email)} aria-describedby={fieldErrors.email ? 'email-error' : undefined} onBlur={() => setFieldErrors((current) => ({ ...current, email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ? undefined : 'Enter a valid email address.' }))} onChange={(event) => { if (checkoutLocked) return; setEmail(event.target.value); }} />
+                    {fieldErrors.email ? <span id="email-error" className="field-error">{fieldErrors.email}</span> : null}
+                  </div>
+                </div>
                 <div className="purchase-total">
-                  <span>Order total</span>
-                  <strong className="numeric">{cartCurrency ? formatMoney(cartTotalMinor, cartCurrency) : '—'}</strong>
+                  {cart.length > 0 ? (
+                    <ul className="purchase-total-lines">
+                      {cart.map((line) => (
+                        <li key={line.key}>
+                          <span>{line.productName} × <span className="numeric">{line.quantity}</span></span>
+                          <span className="numeric">{formatMoney(line.unitPriceMinor * line.quantity, line.currency)} {line.currency}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  <div className="purchase-total-row">
+                    <strong>Order total</strong>
+                    <strong className="numeric">{cartCurrency ? formatMoney(cartTotalMinor, cartCurrency) : '—'}</strong>
+                  </div>
+                  <p className="purchase-price-source">{PRICE_SOURCE_NOTE}</p>
                 </div>
                 {submitMessage ? <p className="submit-message" role="alert">{submitMessage}</p> : null}
                 {contractOutdated ? <button className="secondary-action" type="button" onClick={() => { window.location.reload(); }}>Reload Storefront</button> : null}
                 <button className="primary-action" type="submit" disabled={placeLocked || cart.length === 0 || mixedCurrency}>{submitState === 'submitting' ? 'Placing Order' : submitState === 'retry' ? 'Retry checkout' : 'Place Order'}</button>
-              </form> : null}
-            </div>
-            <section className="editorial-band">
-              <div>
-                <p className="catalog-kicker">Private delivery</p>
-                <h2>Checkout creates a private Order link.</h2>
-                <p>Payment instructions stay off this catalog. Open the complete link after placing an Order.</p>
-              </div>
-            </section>
-          </>
+                <p className="checkout-link-warning">{CHECKOUT_LINK_WARNING}</p>
+              </form>
+            ) : null}
+          </div>
         ) : null}
       </main>
     </StorefrontFrame>
   );
 }
 
-function StorefrontFrame({ children }: { children: ReactNode }) {
+function StorefrontFrame({
+  children,
+  storeName,
+  isCatalog,
+}: {
+  children: ReactNode;
+  storeName: string | null;
+  isCatalog: boolean;
+}) {
   return (
     <div className="storefront-shell">
       <a className="skip-link" href="#storefront-content">Skip to main content</a>
-      <p className="storefront-banner">
-        <span className="icon-glyph" aria-hidden="true">verified</span>
-        Shop digital products from this store · Checkout creates an Order link
-      </p>
       <header className="storefront-header">
-        <div className="storefront-header-row">
-          <a className="storefront-brand" href="/">
-            <span className="storefront-brand-mark">Nexus</span>
-            <span className="storefront-brand-meta">/ STOREFRONT</span>
-          </a>
-          <nav className="storefront-nav" aria-label="Storefront">
-            <a className="storefront-nav-current" href="/" aria-current="page">Catalog</a>
-          </nav>
-        </div>
+        <span className="storefront-brand">
+          <span className="storefront-brand-mark">Nexus</span>
+          <span className="storefront-brand-meta">Storefront</span>
+        </span>
+        {storeName ? <span className="storefront-store-name">{storeName}</span> : null}
+        <nav className="storefront-nav" aria-label="Storefront">
+          <a className={isCatalog ? 'storefront-nav-current' : undefined} href="/" aria-current={isCatalog ? 'page' : undefined}>Catalog</a>
+        </nav>
       </header>
       {children}
-      <footer className="storefront-footer">
-        <div className="storefront-footer-inner">
-          <div>
-            <div className="storefront-footer-brand">Nexus</div>
-            <p>Digital products from this Store. Checkout creates an Order link.</p>
-          </div>
-          <div>
-            <p className="footer-heading">Catalog</p>
-            <p>Published Products appear here when Active.</p>
-          </div>
-          <div>
-            <p className="footer-heading">Orders</p>
-            <p>Checkout creates an Order link for the Customer.</p>
-          </div>
-          <div>
-            <p className="footer-heading">Console</p>
-            <p>Operators manage Products and Orders.</p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

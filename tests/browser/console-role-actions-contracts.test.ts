@@ -136,7 +136,7 @@ describe('Console role-aware Order controls', () => {
     expect(buttonByName('Approve refund')?.disabled).toBe(true);
 
     await renderDetail(detailB.reference, 2);
-    await waitUntil(() => container.querySelector('h1')?.textContent === detailB.reference);
+    await waitUntil(() => container.querySelector('h1')?.textContent === detailB.reference && Boolean(container.querySelector('.order-detail-grid')));
     expect(buttonByName('Approve refund')?.disabled).toBe(false);
     expect(buttonByName('Reject refund')?.disabled).toBe(false);
 

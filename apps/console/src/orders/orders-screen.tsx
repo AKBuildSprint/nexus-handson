@@ -1,4 +1,5 @@
-import { useRef, type KeyboardEvent, type MouseEvent } from 'react';
+import { useCallback, useLayoutEffect, useRef, type KeyboardEvent, type MouseEvent } from 'react';
+import { createPortal } from 'react-dom';
 import type {
   ConsoleOrderSummary,
   ConsoleOrderView,
@@ -8,6 +9,7 @@ import type {
   OrderStatusFilter,
 } from './order-ui-types';
 import { formatMoney } from './format-money';
+import { useConsoleSearchHost } from '../layout/console-search-host';
 
 export interface OrdersScreenProps {
   state: ConsoleOrdersState;
@@ -73,6 +75,17 @@ function itemPreview(order: ConsoleOrderView): { title: string; detail: string }
   };
 }
 
+function customerInitials(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => Array.from(part)[0] ?? '')
+    .join('')
+    .toLocaleUpperCase() || '—';
+}
+
 function statusPresentation(status: string): { label: string; className: string } {
   if (status === 'pending' || status === 'paid' || status === 'fulfilled' || status === 'canceled') {
     return { label: STATUS_LABEL[status], className: `status-tag ${STATUS_CLASS[status]}` };
@@ -94,7 +107,7 @@ function OrderStatusBadge({ order }: { order: ConsoleOrderView }) {
   return (
     <span className="order-status-cluster">
       <span className={status.className}>{status.label}</span>
-      {order.refundRequestStatus === 'pending' ? <span className="refund-badge">Refund request pending</span> : null}
+      {order.refundRequestStatus === 'pending' ? <span className="refund-tag-outline">Refund request pending</span> : null}
     </span>
   );
 }
@@ -118,33 +131,6 @@ function OrderReferenceLink({
     >
       {reference}
     </a>
-  );
-}
-
-function MatchingSummary({ summary }: { summary: ConsoleOrderSummary }) {
-  return (
-    <section className="metric-strip" aria-label="Matching current filters">
-      <article className="metric-card metric-card-accent">
-        <p className="metric-label">Matching Orders</p>
-        <p className="metric-value numeric">{summary.totalOrders}</p>
-        <p className="metric-meta">Server aggregate for current filters</p>
-      </article>
-      <article className="metric-card">
-        <p className="metric-label">Pending</p>
-        <p className="metric-value numeric">{summary.byStatus.pending}</p>
-        <p className="metric-meta">Paid {summary.byStatus.paid}</p>
-      </article>
-      <article className="metric-card">
-        <p className="metric-label">Fulfilled</p>
-        <p className="metric-value numeric">{summary.byStatus.fulfilled}</p>
-        <p className="metric-meta">Canceled {summary.byStatus.canceled}</p>
-      </article>
-      <article className="metric-card">
-        <p className="metric-label">Open refund requests</p>
-        <p className="metric-value numeric">{summary.openRefundRequests}</p>
-        <p className="metric-meta">Pending refund requests on matching Orders</p>
-      </article>
-    </section>
   );
 }
 
@@ -172,15 +158,15 @@ function OrderListPager({
   onNext: () => void;
 }) {
   return (
-    <nav className="order-pager" aria-label={`Order pages ${placement}`}>
+    <nav className="pager" aria-label={`Order pages ${placement}`}>
       <p className="pager-range">
         Showing {start}–{end} of {total}
         <span aria-hidden="true"> · </span>
         Page {page}{page <= totalPages ? <> of {totalPages}</> : null}
       </p>
       <div className="pager-actions">
-        <button className="button" type="button" disabled={!hasPreviousPage} onClick={onPrevious}>Previous</button>
-        <button className="button" type="button" disabled={!hasNextPage} onClick={onNext}>Next</button>
+        <button className="button pager-step" type="button" disabled={!hasPreviousPage} onClick={onPrevious}>Previous</button>
+        <button className="button pager-step" type="button" disabled={!hasNextPage} onClick={onNext}>Next</button>
       </div>
     </nav>
   );
@@ -212,6 +198,14 @@ export function OrdersScreen({
 }: OrdersScreenProps) {
   const filterRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const resultsRef = useRef<HTMLElement>(null);
+  const searchHost = useConsoleSearchHost();
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchHeldFocusRef = useRef(false);
+  const searchCaretRef = useRef<number | null>(null);
+  const searchHostRef = useRef<HTMLElement | null>(null);
+  const rememberSearchCursor = useCallback((input: HTMLInputElement) => {
+    searchCaretRef.current = input.selectionStart;
+  }, []);
   const total = summary?.totalOrders ?? 0;
   const rangeStart = orders.length === 0 ? 0 : pageIndex * ORDER_PAGE_SIZE + 1;
   const rangeEnd = orders.length === 0 ? 0 : pageIndex * ORDER_PAGE_SIZE + orders.length;
@@ -223,7 +217,32 @@ export function OrdersScreen({
     if (placement === 'bottom') resultsRef.current?.scrollIntoView({ block: 'start' });
   };
   const paging = state === 'ready' || state === 'no-results';
-  const showSummary = summary !== null && (state === 'ready' || state === 'no-results' || state === 'empty');
+  const showFooter = summary !== null && (state === 'ready' || state === 'no-results' || state === 'empty');
+
+  // The host swap remounts the input and drops its selection. Snapshot the live
+  // caret while the current input is still attached to the document.
+  if (searchHostRef.current !== searchHost && searchInputRef.current && document.activeElement === searchInputRef.current) {
+    searchCaretRef.current = searchInputRef.current.selectionStart;
+    searchHeldFocusRef.current = true;
+  }
+
+  // The search control changes host at 719↔720 px, which remounts the input.
+  // Hand focus and the caret back to the same draft without submitting.
+  useLayoutEffect(() => {
+    if (searchHostRef.current === searchHost) return;
+    searchHostRef.current = searchHost;
+    if (!searchHeldFocusRef.current) return;
+    const input = searchInputRef.current;
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    const caret = searchCaretRef.current;
+    if (caret === null) return;
+    try {
+      input.setSelectionRange(caret, caret);
+    } catch {
+      // Some engines refuse a selection range on a search input; focus still moves.
+    }
+  }, [searchHost]);
 
   const handleFilterKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     let nextIndex = index;
@@ -237,39 +256,57 @@ export function OrdersScreen({
     filterRefs.current[nextIndex]?.focus();
   };
 
+  const searchField = (
+    <form
+      className="console-search"
+      role="search"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSearchSubmit();
+      }}
+    >
+      <label className="console-search-label" htmlFor="order-search">Search Orders</label>
+      <input
+        id="order-search"
+        ref={searchInputRef}
+        type="search"
+        value={searchDraft}
+        placeholder="Search by Order reference, payment reference, Customer name, or email"
+        onFocus={() => { searchHeldFocusRef.current = true; }}
+        onBlur={(event) => {
+          searchHeldFocusRef.current = false;
+          rememberSearchCursor(event.currentTarget);
+        }}
+        onSelect={(event) => rememberSearchCursor(event.currentTarget)}
+        onChange={(event) => {
+          rememberSearchCursor(event.target);
+          onSearchDraftChange(event.target.value);
+        }}
+      />
+      <button className="button console-search-submit" type="submit">Search</button>
+    </form>
+  );
 
   return (
     <div className="page-stack">
-      <header className="page-header">
-        <div className="page-header-copy">
-          <p className="page-kicker">Order operations · Nexus</p>
-          <h1>Orders</h1>
-          <p>Review Customer purchases from the Storefront.</p>
-        </div>
+      <header className="console-tab-row">
+        <h1 className="console-tab">Orders</h1>
+        <div className="console-tab-spacer" />
+        <label className="checkbox-row console-tab-filter">
+          <input
+            type="checkbox"
+            checked={refundPendingOnly}
+            onChange={(event) => onRefundPendingOnlyChange(event.target.checked)}
+          />
+          Pending refund requests
+        </label>
       </header>
 
-      <section className="product-tools order-tools" aria-label="Search and filter Orders">
-        <form
-          className="field"
-          onSubmit={(event) => {
-            event.preventDefault();
-            onSearchSubmit();
-          }}
-        >
-          <label htmlFor="order-search">Search Orders</label>
-          <div className="order-search-row">
-            <input
-              id="order-search"
-              type="search"
-              value={searchDraft}
-              placeholder="Search by Order reference, payment reference, Customer name, or email"
-              onChange={(event) => onSearchDraftChange(event.target.value)}
-            />
-            <button className="button" type="submit">Search</button>
-          </div>
-        </form>
-        <div>
-          <span className="field-label" id="order-status-filter-label">Order status</span>
+      {searchHost ? createPortal(searchField, searchHost) : searchField}
+
+      <section ref={resultsRef} className="data-region" aria-labelledby="order-results-title" aria-busy={state === 'loading'}>
+        <div className="console-panel-head">
+          <span className="sr-only" id="order-status-filter-label">Filter Orders by status</span>
           <div className="status-tabs" role="tablist" aria-labelledby="order-status-filter-label">
             {STATUS_TABS.map((option, index) => (
               <button
@@ -288,36 +325,24 @@ export function OrdersScreen({
               </button>
             ))}
           </div>
+          {paging ? (
+            <OrderListPager
+              placement="top"
+              start={rangeStart}
+              end={rangeEnd}
+              total={total}
+              page={pageNumber}
+              totalPages={totalPages}
+              hasPreviousPage={hasPreviousPage}
+              hasNextPage={hasNextPage}
+              onPrevious={() => goToAdjacent('previous', 'top')}
+              onNext={() => goToAdjacent('next', 'top')}
+            />
+          ) : null}
         </div>
-        <label className="checkbox-row">
-          <input
-            type="checkbox"
-            checked={refundPendingOnly}
-            onChange={(event) => onRefundPendingOnlyChange(event.target.checked)}
-          />
-          Pending refund requests
-        </label>
-      </section>
 
-      {showSummary ? <MatchingSummary summary={summary} /> : null}
-
-      <section ref={resultsRef} className="data-region" aria-labelledby="order-results-title" aria-busy={state === 'loading'}>
         <h2 id="order-results-title" className="sr-only">Order results</h2>
         <p className="sr-only" aria-live="polite">{state === 'ready' ? `Showing ${rangeStart}–${rangeEnd} of ${total} Orders.` : ''}</p>
-        {paging ? (
-          <OrderListPager
-            placement="top"
-            start={rangeStart}
-            end={rangeEnd}
-            total={total}
-            page={pageNumber}
-            totalPages={totalPages}
-            hasPreviousPage={hasPreviousPage}
-            hasNextPage={hasNextPage}
-            onPrevious={() => goToAdjacent('previous', 'top')}
-            onNext={() => goToAdjacent('next', 'top')}
-          />
-        ) : null}
 
         {state === 'loading' ? (
           <div aria-label="Loading Orders">
@@ -363,37 +388,47 @@ export function OrdersScreen({
 
         {state === 'ready' ? (
           <>
-            <table className="console-table orders-table" aria-label="Storefront Orders">
-              <thead>
-                <tr>
-                  <th scope="col">Order</th>
-                  <th scope="col">Customer</th>
-                  <th scope="col">Items</th>
-                  <th scope="col">Total</th>
-                  <th scope="col">Payment reference</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Created</th>
-                </tr>
-              </thead>
-              <tbody>{orders.map((order) => {
-                const status = statusPresentation(order.status);
-                const preview = itemPreview(order);
-                return (
-                  <tr key={order.reference}>
-                    <td><OrderReferenceLink reference={order.reference} onOpenOrder={onOpenOrder} /></td>
-                    <td><strong>{order.customer.name}</strong><br /><span className="meta-text">{order.customer.email}</span></td>
-                    <td><strong>{preview.title}</strong><br /><span className="meta-text">{preview.detail}</span></td>
-                    <td className="numeric order-total">{formatMoney(order.totalMinor, order.currency)} {order.currency}</td>
-                    <td className="order-reference">{order.paymentReference}</td>
-                    <td>
-                      <span className={status.className}>{status.label}</span>
-                      {order.refundRequestStatus === 'pending' ? <span className="refund-badge">Refund request pending</span> : null}
-                    </td>
-                    <td>{new Date(order.createdAt).toLocaleString()}</td>
+            <div className="console-table-scroll">
+              <table className="console-table orders-table" aria-label="Storefront Orders">
+                <thead>
+                  <tr>
+                    <th className="orders-col-order" scope="col">Order</th>
+                    <th className="orders-col-customer" scope="col">Customer</th>
+                    <th className="orders-col-email" scope="col">Email</th>
+                    <th scope="col">Items</th>
+                    <th className="orders-col-total" scope="col">Total</th>
+                    <th className="orders-col-payment" scope="col">Payment ref</th>
+                    <th className="orders-col-status" scope="col">Status</th>
+                    <th className="orders-col-created" scope="col">Created</th>
                   </tr>
-                );
-              })}</tbody>
-            </table>
+                </thead>
+                <tbody>{orders.map((order) => {
+                  const preview = itemPreview(order);
+                  return (
+                    <tr key={order.reference}>
+                      <td className="orders-col-order"><OrderReferenceLink reference={order.reference} onOpenOrder={onOpenOrder} /></td>
+                      <td className="orders-col-customer">
+                        <span className="order-customer">
+                          <span className="order-customer-initials" aria-hidden="true">{customerInitials(order.customer.name)}</span>
+                          <span>{order.customer.name}</span>
+                        </span>
+                      </td>
+                      <td className="orders-col-email order-email">{order.customer.email}</td>
+                      <td>
+                        <span className="order-items-cell">
+                          <span>{preview.title}</span>
+                          <span className="meta-text">{preview.detail}</span>
+                        </span>
+                      </td>
+                      <td className="orders-col-total numeric order-total">{formatMoney(order.totalMinor, order.currency)} {order.currency}</td>
+                      <td className="orders-col-payment order-payment-ref numeric">{order.paymentReference}</td>
+                      <td className="orders-col-status"><OrderStatusBadge order={order} /></td>
+                      <td className="orders-col-created order-created numeric">{new Date(order.createdAt).toLocaleString()}</td>
+                    </tr>
+                  );
+                })}</tbody>
+              </table>
+            </div>
             <div className="order-list-mobile" aria-label="Storefront Orders">{orders.map((order) => {
               const preview = itemPreview(order);
               return (
@@ -416,19 +451,31 @@ export function OrdersScreen({
           </>
         ) : null}
 
-        {paging ? (
-          <OrderListPager
-            placement="bottom"
-            start={rangeStart}
-            end={rangeEnd}
-            total={total}
-            page={pageNumber}
-            totalPages={totalPages}
-            hasPreviousPage={hasPreviousPage}
-            hasNextPage={hasNextPage}
-            onPrevious={() => goToAdjacent('previous', 'bottom')}
-            onNext={() => goToAdjacent('next', 'bottom')}
-          />
+        {showFooter && summary ? (
+          <div className="console-table-footer">
+            <p className="summary-row">
+              <span className="summary-stat">Matching Orders <strong className="numeric">{summary.totalOrders}</strong></span>
+              <span className="summary-stat">Pending <strong className="numeric">{summary.byStatus.pending}</strong></span>
+              <span className="summary-stat">Paid <strong className="numeric">{summary.byStatus.paid}</strong></span>
+              <span className="summary-stat">Fulfilled <strong className="numeric">{summary.byStatus.fulfilled}</strong></span>
+              <span className="summary-stat">Canceled <strong className="numeric">{summary.byStatus.canceled}</strong></span>
+              <span className="summary-stat">Open refund requests <strong className="numeric">{summary.openRefundRequests}</strong></span>
+            </p>
+            {paging ? (
+              <OrderListPager
+                placement="bottom"
+                start={rangeStart}
+                end={rangeEnd}
+                total={total}
+                page={pageNumber}
+                totalPages={totalPages}
+                hasPreviousPage={hasPreviousPage}
+                hasNextPage={hasNextPage}
+                onPrevious={() => goToAdjacent('previous', 'bottom')}
+                onNext={() => goToAdjacent('next', 'bottom')}
+              />
+            ) : null}
+          </div>
         ) : null}
       </section>
     </div>

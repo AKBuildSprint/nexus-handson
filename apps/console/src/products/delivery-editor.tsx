@@ -132,53 +132,40 @@ export function DeliveryEditor({
   };
 
   return (
-    <div className="section-stack">
-      <div className="field-grid">
-        <div className="field span-2">
-          <label htmlFor={accessTitleId}>Private access title</label>
-          <input
-            id={accessTitleId}
-            value={delivery.accessTitle}
-            disabled={disabled}
-            aria-invalid={Boolean(errors.accessTitle)}
-            aria-describedby={`${accessTitleId}-help${errors.accessTitle ? ` ${accessTitleId}-error` : ''}`}
-            onChange={(event) => onChange('accessTitle', event.target.value)}
-            onBlur={() => onBlur('accessTitle')}
-          />
-          <span id={`${accessTitleId}-help`} className="field-help">Shown only in the private delivery configuration.</span>
-          {errors.accessTitle ? <span id={`${accessTitleId}-error`} className="field-error">{errors.accessTitle}</span> : null}
-        </div>
-
-        <div className="field span-2">
-          <label htmlFor={accessInstructionsId}>Private access instructions</label>
-          <textarea
-            id={accessInstructionsId}
-            value={delivery.accessInstructions}
-            disabled={disabled}
-            aria-invalid={Boolean(errors.accessInstructions)}
-            aria-describedby={`${accessInstructionsId}-help${errors.accessInstructions ? ` ${accessInstructionsId}-error` : ''}`}
-            onChange={(event) => onChange('accessInstructions', event.target.value)}
-            onBlur={() => onBlur('accessInstructions')}
-          />
-          <span id={`${accessInstructionsId}-help`} className="field-help">Explain exactly how a paying Customer opens what they purchased.</span>
-          {errors.accessInstructions ? <span id={`${accessInstructionsId}-error`} className="field-error">{errors.accessInstructions}</span> : null}
-        </div>
+    <div className="editor-fields">
+      <div className="field">
+        <label htmlFor={accessTitleId}>Private access title</label>
+        <input
+          id={accessTitleId}
+          value={delivery.accessTitle}
+          disabled={disabled}
+          aria-invalid={Boolean(errors.accessTitle)}
+          aria-describedby={`${accessTitleId}-help${errors.accessTitle ? ` ${accessTitleId}-error` : ''}`}
+          onChange={(event) => onChange('accessTitle', event.target.value)}
+          onBlur={() => onBlur('accessTitle')}
+        />
+        <span id={`${accessTitleId}-help`} className="field-help">Shown only in the private delivery configuration.</span>
+        {errors.accessTitle ? <span id={`${accessTitleId}-error`} className="field-error">{errors.accessTitle}</span> : null}
       </div>
 
-      <div className="field" id="delivery-private-file">
-        <span className="field-label">Optional private file</span>
-        <span id={`${inputId}-help`} className="field-help">No private file is required. If selected, use PDF or ZIP up to 25 MB. The prototype checks the first file bytes, not only the extension.</span>
+      <div className="field">
+        <label htmlFor={accessInstructionsId}>Private access instructions</label>
+        <textarea
+          id={accessInstructionsId}
+          value={delivery.accessInstructions}
+          disabled={disabled}
+          aria-invalid={Boolean(errors.accessInstructions)}
+          aria-describedby={`${accessInstructionsId}-help${errors.accessInstructions ? ` ${accessInstructionsId}-error` : ''}`}
+          onChange={(event) => onChange('accessInstructions', event.target.value)}
+          onBlur={() => onBlur('accessInstructions')}
+        />
+        <span id={`${accessInstructionsId}-help`} className="field-help">Explain exactly how a paying Customer opens what they purchased.</span>
+        {errors.accessInstructions ? <span id={`${accessInstructionsId}-error`} className="field-error">{errors.accessInstructions}</span> : null}
+      </div>
 
-        {savedFile && !removedCurrent ? (
-          <div className="file-summary">
-            <strong>Current saved file</strong>
-            <span>{savedFile.kind} · {savedFile.name}</span>
-            <span className="meta-text numeric">{savedFile.sizeLabel}</span>
-            <button className="text-button" type="button" disabled={disabled || validating} onClick={removeCurrent}>
-              Remove current file after save
-            </button>
-          </div>
-        ) : null}
+      <div className="field delivery-file" id="delivery-private-file">
+        <span className="field-label">Optional private file</span>
+        <span id={`${inputId}-help`} className="field-help">No private file is required. If selected, use PDF or ZIP up to 25 MB. The first file bytes are checked, not only the extension.</span>
 
         {removedCurrent ? (
           <div className="notice notice-warning" role="status">
@@ -217,7 +204,20 @@ export function DeliveryEditor({
           </div>
         ) : null}
 
-        <div className="file-actions">
+        <div className="delivery-file-row">
+          <span className="delivery-file-state">
+            {removedCurrent
+              ? 'No private file saved'
+              : savedFile
+                ? `${savedFile.kind} · ${savedFile.name} · ${savedFile.sizeLabel}`
+                : 'No private file saved'}
+          </span>
+          <div className="editor-spacer" />
+          {savedFile && !removedCurrent ? (
+            <button className="text-button" type="button" disabled={disabled || validating} onClick={removeCurrent}>
+              Remove current file after save
+            </button>
+          ) : null}
           <label className={`button file-input-label${disabled || validating ? ' disabled' : ''}`} htmlFor={inputId}>
             {savedFile || selectedFile ? 'Replace file' : 'Choose PDF or ZIP'}
             <input

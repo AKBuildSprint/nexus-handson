@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { createPortal } from 'react-dom';
 import type { ProductListState, ProductStatus, ProductSummary } from './product-ui-types';
+import { useConsoleSearchHost } from '../layout/console-search-host';
 
 interface ProductListScreenProps {
   state: ProductListState;
@@ -60,15 +62,17 @@ function ProductListPager({
   onNext: () => void;
 }) {
   return (
-    <nav className="product-pager" aria-label={`Product pages ${placement}`}>
+    <nav className="pager" aria-label={`Product pages ${placement}`}>
       <p className="pager-range">
         Showing {start}–{end} of {total}
         <span aria-hidden="true"> · </span>
         Page {page} of {totalPages}
       </p>
       <div className="pager-actions">
-        <button className="button" type="button" disabled={page <= 1} onClick={onPrevious}>Previous</button>
-        <button className="button" type="button" disabled={page >= totalPages} onClick={onNext}>Next</button>
+        <button className="button pager-step" type="button" disabled={page <= 1} onClick={onPrevious}>Previous</button>
+        {placement === 'bottom' ? <span className="pager-chip numeric" aria-hidden="true">{page}</span> : null}
+        <button className="button pager-step" type="button" disabled={page >= totalPages} onClick={onNext}>Next</button>
+        {placement === 'bottom' ? <span className="pager-page-size numeric">{PRODUCT_PAGE_SIZE} / page</span> : null}
       </div>
     </nav>
   );
@@ -95,6 +99,11 @@ export function ProductListScreen({
   );
   const resultsRef = useRef<HTMLElement>(null);
   const filterRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const searchHost = useConsoleSearchHost();
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchHeldFocusRef = useRef(false);
+  const searchCaretRef = useRef<number | null>(null);
+  const searchHostRef = useRef<HTMLElement | null>(null);
   const applyQuery = (value: string) => {
     setQuery(value);
     setPage(1);
@@ -107,6 +116,34 @@ export function ProductListScreen({
     setPage(nextPage);
     if (placement === 'bottom') resultsRef.current?.scrollIntoView({ block: 'start' });
   };
+  const rememberSearchCursor = useCallback((input: HTMLInputElement) => {
+    searchCaretRef.current = input.selectionStart;
+  }, []);
+
+  // The host swap remounts the input and drops its selection. Snapshot the live
+  // caret while the current input is still attached to the document.
+  if (searchHostRef.current !== searchHost && searchInputRef.current && document.activeElement === searchInputRef.current) {
+    searchCaretRef.current = searchInputRef.current.selectionStart;
+    searchHeldFocusRef.current = true;
+  }
+
+  // The search control changes host at 719↔720 px, which remounts the input.
+  // Hand focus and the caret back to the same query without touching criteria.
+  useLayoutEffect(() => {
+    if (searchHostRef.current === searchHost) return;
+    searchHostRef.current = searchHost;
+    if (!searchHeldFocusRef.current) return;
+    const input = searchInputRef.current;
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    const caret = searchCaretRef.current;
+    if (caret === null) return;
+    try {
+      input.setSelectionRange(caret, caret);
+    } catch {
+      // Some engines refuse a selection range on a search input; focus still moves.
+    }
+  }, [searchHost]);
 
   useEffect(() => {
     setTemplateState(state === 'template-error' ? 'error' : 'idle');
@@ -170,22 +207,70 @@ export function ProductListScreen({
   const showProducts = state === 'populated' || state === 'row-opening' || state === 'template-error';
   const openingProductId = state === 'row-opening' ? products[0]?.id : undefined;
 
+  const productName = (product: ProductSummary) => {
+    if (product.id === openingProductId) {
+      return (
+        <button className="text-button" type="button" disabled aria-label={`Opening ${product.name}`}>
+          Opening Product…
+        </button>
+      );
+    }
+    if (readOnly) return <strong>{product.name}</strong>;
+    return (
+      <a
+        className="product-link"
+        href={`/console/products/${encodeURIComponent(product.slug ?? product.id)}`}
+        onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+          event.preventDefault();
+          onEditProduct(product.id);
+        }}
+      >
+        {product.name}
+      </a>
+    );
+  };
+
+  const searchField = (
+    <form
+      className="console-search"
+      role="search"
+      onSubmit={(event) => event.preventDefault()}
+    >
+      <label className="console-search-label" htmlFor="product-search">Search Products</label>
+      <input
+        id="product-search"
+        ref={searchInputRef}
+        type="search"
+        value={query}
+        placeholder="Field Notes…"
+        name="q"
+        autoComplete="off"
+        onFocus={() => { searchHeldFocusRef.current = true; }}
+        onBlur={(event) => {
+          searchHeldFocusRef.current = false;
+          rememberSearchCursor(event.currentTarget);
+        }}
+        onSelect={(event) => rememberSearchCursor(event.currentTarget)}
+        onChange={(event) => {
+          rememberSearchCursor(event.target);
+          applyQuery(event.target.value);
+        }}
+      />
+    </form>
+  );
+
   return (
     <div className="page-stack">
-      <header className="page-header">
-        <div className="page-header-copy">
-          <p className="page-kicker">Catalog operations · Nexus</p>
-          <h1>Products</h1>
-          <p>{readOnly
-            ? 'Read-only Product catalog for this Store.'
-            : 'Find, create, and import the digital Products available in this Store.'}</p>
-        </div>
-        {!readOnly ? <div className="page-actions" aria-label="Product list actions">
-          <button className="button" type="button" onClick={onImportCsv}>
-            Import CSV
-          </button>
+      <header className="console-tab-row">
+        <h1 className="console-tab">Products</h1>
+        {readOnly ? <p className="console-tab-note">Read-only Product catalog for this Store.</p> : null}
+        {!readOnly ? <div className="inline-actions" aria-label="Product list actions">
           <button className="button" type="button" onClick={downloadTemplate} disabled={templateState === 'loading'}>
             {templateState === 'loading' ? 'Downloading template…' : templateState === 'error' ? 'Retry CSV template' : 'Download CSV template'}
+          </button>
+          <button className="button" type="button" onClick={onImportCsv}>
+            Import CSV
           </button>
           <button className="button button-primary" type="button" onClick={onAddProduct}>
             Add Product
@@ -193,30 +278,7 @@ export function ProductListScreen({
         </div> : null}
       </header>
 
-      {state !== 'loading' && state !== 'error' ? (
-        <section className="metric-strip" aria-label="Catalog counts">
-          <article className="metric-card metric-card-accent">
-            <p className="metric-label">Products</p>
-            <p className="metric-value">{catalogCounts.total}</p>
-            <p className="metric-meta">{catalogCounts.active} Active in this Store</p>
-          </article>
-          <article className="metric-card">
-            <p className="metric-label">Active</p>
-            <p className="metric-value">{catalogCounts.active}</p>
-            <p className="metric-meta">Visible on the Storefront</p>
-          </article>
-          <article className="metric-card">
-            <p className="metric-label">Simple</p>
-            <p className="metric-value">{catalogCounts.simple}</p>
-            <p className="metric-meta">No Variant schema</p>
-          </article>
-          <article className="metric-card">
-            <p className="metric-label">Variant</p>
-            <p className="metric-value">{catalogCounts.variant}</p>
-            <p className="metric-meta">Enabled combinations in the matrix</p>
-          </article>
-        </section>
-      ) : null}
+      {searchHost ? createPortal(searchField, searchHost) : searchField}
 
       {templateState === 'success' ? (
         <div className="notice notice-success" role="status">
@@ -232,23 +294,21 @@ export function ProductListScreen({
         </div>
       ) : null}
 
-      <section className="product-tools" aria-label="Search and filter Products">
-        <div className="field">
-          <label htmlFor="product-search">Search Products</label>
-          <input
-            id="product-search"
-            type="search"
-            value={query}
-            placeholder="Field Notes…"
-            name="q"
-            autoComplete="off"
-            onChange={(event) => applyQuery(event.target.value)}
-          />
-        </div>
-        <div>
-          <span className="field-label" id="product-status-filter-label">
-            Product status
-          </span>
+      <section
+        ref={resultsRef}
+        className="data-region"
+        aria-labelledby="product-results-title"
+        aria-busy={state === 'loading' || state === 'filtered-loading'}
+      >
+        <h2 id="product-results-title" className="sr-only">
+          Product results
+        </h2>
+        <p className="sr-only" aria-live="polite">
+          {state === 'populated' && filteredProducts.length > 0 ? `Showing ${rangeStart}–${rangeEnd} of ${filteredProducts.length} Products.` : ''}
+        </p>
+
+        <div className="console-panel-head">
+          <span className="sr-only" id="product-status-filter-label">Filter Products by status</span>
           <div className="status-tabs" role="tablist" aria-labelledby="product-status-filter-label">
             {FILTERS.map((option, index) => (
               <button
@@ -267,27 +327,25 @@ export function ProductListScreen({
               </button>
             ))}
           </div>
+          {showProducts && filteredProducts.length > 0 ? (
+            <ProductListPager
+              placement="top"
+              start={rangeStart}
+              end={rangeEnd}
+              total={filteredProducts.length}
+              page={currentPage}
+              totalPages={totalPages}
+              onPrevious={() => goToPage(currentPage - 1, 'top')}
+              onNext={() => goToPage(currentPage + 1, 'top')}
+            />
+          ) : null}
         </div>
-      </section>
-
-      <section
-        ref={resultsRef}
-        className="data-region"
-        aria-labelledby="product-results-title"
-        aria-busy={state === 'loading' || state === 'filtered-loading'}
-      >
-        <h2 id="product-results-title" className="sr-only">
-          Product results
-        </h2>
-        <p className="sr-only" aria-live="polite">
-          {state === 'populated' && filteredProducts.length > 0 ? `Showing ${rangeStart}–${rangeEnd} of ${filteredProducts.length} Products.` : ''}
-        </p>
 
         {state === 'loading' || state === 'filtered-loading' ? (
           <div aria-label={state === 'filtered-loading' ? 'Updating filtered Products' : 'Loading…'}>
             {[0, 1, 2, 3].map((row) => (
               <div className="skeleton-row" key={row} aria-hidden="true">
-                {[0, 1, 2, 3, 4, 5].map((cell) => (
+                {[0, 1, 2, 3, 4, 5, 6].map((cell) => (
                   <span className="skeleton-line" key={cell} />
                 ))}
               </div>
@@ -339,79 +397,39 @@ export function ProductListScreen({
 
         {showProducts && filteredProducts.length > 0 ? (
           <>
-            <ProductListPager
-              placement="top"
-              start={rangeStart}
-              end={rangeEnd}
-              total={filteredProducts.length}
-              page={currentPage}
-              totalPages={totalPages}
-              onPrevious={() => goToPage(currentPage - 1, 'top')}
-              onNext={() => goToPage(currentPage + 1, 'top')}
-            />
-            <table className="console-table" aria-label="Products in this Store">
-              <thead>
-                <tr>
-                  <th className="product-column" scope="col">Product</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Type</th>
-                  <th scope="col">Effective price range</th>
-                  <th scope="col">Enabled Variants</th>
-                  <th scope="col">Updated time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageProducts.map((product) => (
-                  <tr key={product.id}>
-                    <td>
-                      {product.id === openingProductId ? (
-                        <button className="text-button" type="button" disabled aria-label={`Opening ${product.name}`}>
-                          Opening Product…
-                        </button>
-                      ) : readOnly ? <strong>{product.name}</strong> : (
-                        <a
-                          className="product-link"
-                          href={`/console/products/${encodeURIComponent(product.slug ?? product.id)}`}
-                          onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-                            if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
-                            event.preventDefault();
-                            onEditProduct(product.id);
-                          }}
-                        >
-                          {product.name}
-                        </a>
-                      )}
-                    </td>
-                    <td><StatusTag status={product.status} /></td>
-                    <td>{product.type}</td>
-                    <td className="numeric">{product.effectivePrice}</td>
-                    <td className="numeric">{product.enabledVariants === null ? 'Not applicable' : product.enabledVariants}</td>
-                    <td>{product.updated}</td>
+            <div className="console-table-scroll">
+              <table className="console-table products-table" aria-label="Products in this Store">
+                <thead>
+                  <tr>
+                    <th className="products-col-slug" scope="col">Slug</th>
+                    <th scope="col">Product</th>
+                    <th className="products-col-status" scope="col">Status</th>
+                    <th className="products-col-type" scope="col">Type</th>
+                    <th className="products-col-price" scope="col">Effective price</th>
+                    <th className="products-col-variants" scope="col">Variants</th>
+                    <th className="products-col-updated" scope="col">Updated</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {pageProducts.map((product) => (
+                    <tr key={product.id}>
+                      <td className="products-col-slug products-slug">{product.slug ?? '—'}</td>
+                      <td>{productName(product)}</td>
+                      <td className="products-col-status"><StatusTag status={product.status} /></td>
+                      <td className="products-col-type products-type">{product.type}</td>
+                      <td className="products-col-price numeric">{product.effectivePrice}</td>
+                      <td className="products-col-variants numeric">{product.enabledVariants === null ? 'Not applicable' : product.enabledVariants}</td>
+                      <td className="products-col-updated products-updated numeric">{product.updated}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             <div className="product-list-mobile" aria-label="Products in this Store">
               {pageProducts.map((product) => (
                 <article className="product-summary-card" key={product.id}>
-                  {product.id === openingProductId ? (
-                    <button className="text-button" type="button" disabled aria-label={`Opening ${product.name}`}>
-                      Opening Product…
-                    </button>
-                  ) : readOnly ? <strong>{product.name}</strong> : (
-                    <a
-                      className="product-link"
-                      href={`/console/products/${encodeURIComponent(product.slug ?? product.id)}`}
-                      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-                        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
-                        event.preventDefault();
-                        onEditProduct(product.id);
-                      }}
-                    >
-                      {product.name}
-                    </a>
-                  )}
+                  {productName(product)}
                   <StatusTag status={product.status} />
                   <dl>
                     <div><dt>Type</dt><dd>{product.type}</dd></div>
@@ -422,17 +440,37 @@ export function ProductListScreen({
                 </article>
               ))}
             </div>
-            <ProductListPager
-              placement="bottom"
-              start={rangeStart}
-              end={rangeEnd}
-              total={filteredProducts.length}
-              page={currentPage}
-              totalPages={totalPages}
-              onPrevious={() => goToPage(currentPage - 1, 'bottom')}
-              onNext={() => goToPage(currentPage + 1, 'bottom')}
-            />
+
+            <div className="console-table-footer">
+              <p className="summary-row">
+                <span className="summary-stat">Products <strong className="numeric">{catalogCounts.total}</strong></span>
+                <span className="summary-stat">Active <strong className="numeric">{catalogCounts.active}</strong></span>
+                <span className="summary-stat">Simple <strong className="numeric">{catalogCounts.simple}</strong></span>
+                <span className="summary-stat">Variant <strong className="numeric">{catalogCounts.variant}</strong></span>
+              </p>
+              <ProductListPager
+                placement="bottom"
+                start={rangeStart}
+                end={rangeEnd}
+                total={filteredProducts.length}
+                page={currentPage}
+                totalPages={totalPages}
+                onPrevious={() => goToPage(currentPage - 1, 'bottom')}
+                onNext={() => goToPage(currentPage + 1, 'bottom')}
+              />
+            </div>
           </>
+        ) : null}
+
+        {(showProducts || state === 'empty') && filteredProducts.length === 0 ? (
+          <div className="console-table-footer">
+            <p className="summary-row">
+              <span className="summary-stat">Products <strong className="numeric">{catalogCounts.total}</strong></span>
+              <span className="summary-stat">Active <strong className="numeric">{catalogCounts.active}</strong></span>
+              <span className="summary-stat">Simple <strong className="numeric">{catalogCounts.simple}</strong></span>
+              <span className="summary-stat">Variant <strong className="numeric">{catalogCounts.variant}</strong></span>
+            </p>
+          </div>
         ) : null}
       </section>
 

@@ -1,0 +1,68 @@
+{
+  "panel": {
+    "w": 1280,
+    "h": 852,
+    "x": 80,
+    "y": 24
+  },
+  "panelStyle": {
+    "maxWidth": "1280px",
+    "backgroundColor": "rgb(246, 243, 241)",
+    "borderRadius": "4px",
+    "overflow": "auto"
+  },
+  "header": {
+    "w": 1280,
+    "h": 56,
+    "x": 80,
+    "y": 24
+  },
+  "contextStrip": {
+    "w": 1280,
+    "h": 45,
+    "x": 80,
+    "y": 80
+  },
+  "body": {
+    "w": 1280,
+    "h": 1129,
+    "x": 80,
+    "y": 125
+  },
+  "bodyStyle": {
+    "padding": "20px",
+    "gap": "16px",
+    "gridTemplateColumns": "402.656px 402.672px 402.656px"
+  },
+  "footer": {
+    "w": 1280,
+    "h": 61,
+    "x": 80,
+    "y": 815
+  },
+  "footerStyle": {
+    "padding": "8px 20px",
+    "height": "61px",
+    "minHeight": "60px"
+  },
+  "cards": [
+    {
+      "width": 402.66,
+      "span": "auto"
+    },
+    {
+      "width": 402.67,
+      "span": "auto"
+    },
+    {
+      "width": 1239.98,
+      "span": "1 / -1"
+    },
+    {
+      "width": 1239.98,
+      "span": "1 / -1"
+    }
+  ],
+  "dialogPadding": "24px",
+  "backdropFocusable": ""
+}

@@ -1,0 +1,12 @@
+{
+  "grid": {
+    "width": 1160,
+    "gridTemplateColumns": "572px 572px",
+    "gap": "16px"
+  },
+  "columnWidths": [
+    572,
+    572
+  ],
+  "headHeight": 44
+}

@@ -1,6 +1,6 @@
 ---
 title: "Phase 2: Console Surfaces"
-status: todo
+status: done
 ---
 
 # Phase 2: Console Surfaces

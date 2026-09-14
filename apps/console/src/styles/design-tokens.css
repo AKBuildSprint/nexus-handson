@@ -7,22 +7,64 @@
   --font-display: 'Source Serif 4', Georgia, 'Times New Roman', serif;
   --font-body: Inter, 'Helvetica Neue', sans-serif;
   --weight-regular: 400;
+  --weight-medium: 500;
   --weight-semibold: 600;
   --weight-bold: 600;
 
-  --type-page-size: 2.5rem;
-  --type-page-line: 3rem;
-  --type-section-size: 1.375rem;
-  --type-section-line: 2rem;
-  --type-subhead-size: 1.125rem;
-  --type-subhead-line: 1.625rem;
+  /* Editable-control text role. Stays 16 px; never shrink this. */
   --type-body-size: 1rem;
   --type-body-line: 1.5rem;
+  /* Interface body prose (reference 14/20). */
+  --type-ui-size: 0.875rem;
+  --type-ui-line: 1.25rem;
+  /* Status and notice prose (reference 14/21). */
+  --type-prose-size: 0.875rem;
+  --type-prose-line: 1.3125rem;
+  /* Secondary data, card description, detail values (reference 13/19). */
+  --type-data-size: 0.8125rem;
+  --type-data-line: 1.1875rem;
+  /* Short uppercase kickers (reference 10 px). */
+  --type-kicker-size: 0.625rem;
+  --type-kicker-line: 0.875rem;
+  --tracking-kicker: 0.14em;
   --type-compact-size: 0.875rem;
   --type-compact-line: 1.3125rem;
   --type-meta-size: 0.75rem;
   --type-meta-line: 1rem;
   --tracking-meta: 0.08em;
+  /* Table headings and help text (reference 11/16). */
+  --type-table-head-size: 0.6875rem;
+  --type-table-head-line: 1rem;
+  --tracking-table-head: 0.06em;
+  /* Product list row name (reference 14/20). */
+  --type-table-name-size: 0.875rem;
+  --type-table-name-line: 1.25rem;
+  /* Compact section titles inside paper panels (reference 18/24). */
+  --type-subhead-size: 1.125rem;
+  --type-subhead-line: 1.5rem;
+  /* Retrospective sections: refund and brand headings (reference 20 px). */
+  --type-heading-size: 1.25rem;
+  --type-heading-line: 1.75rem;
+  --type-section-size: 1.375rem;
+  --type-section-line: 1.75rem;
+  /* CSV workspace and ledger titles (reference 22/28). */
+  --type-ledger-size: 1.375rem;
+  --type-ledger-line: 1.75rem;
+  /* Sign-in title (reference 28/34). */
+  --type-signin-size: 1.75rem;
+  --type-signin-line: 2.125rem;
+  /* Storefront hero (reference 42/48). */
+  --type-hero-size: 2.625rem;
+  --type-hero-line: 3rem;
+  /* Private Order title (reference 32/38). */
+  --type-order-title-size: 2rem;
+  --type-order-title-line: 2.375rem;
+  /* Storefront catalog card name (reference 19/25). */
+  --type-card-title-size: 1.1875rem;
+  --type-card-title-line: 1.5625rem;
+  /* Storefront card price (reference 15 px). */
+  --type-price-size: 0.9375rem;
+  --type-price-line: 1.25rem;
 
   --color-canvas: #fbf8f6;
   --color-surface: #ffffff;
@@ -32,6 +74,7 @@
   --color-ink-muted: #6c6a6a;
   --color-border: #8a8182;
   --color-border-strong: #7e7576;
+  --color-divider: #eae8e6;
   --color-accent: #000000;
   --color-accent-hover: #1b1b1b;
   --color-accent-active: #333333;
@@ -46,15 +89,20 @@
   --color-info-surface: #f0edeb;
   --color-info-ink: #4c4546;
   --color-scrim: rgb(27 28 27 / 0.42);
-  --shadow-soft: 0 1px 8px rgb(0 0 0 / 0.04);
-  --shadow-panel: 0 4px 16px rgb(0 0 0 / 0.06);
 
   --space-1: 0.25rem;
+  --space-1-5: 0.375rem;
   --space-2: 0.5rem;
+  --space-2-5: 0.625rem;
   --space-3: 0.75rem;
+  --space-3-5: 0.875rem;
   --space-4: 1rem;
+  --space-4-5: 1.125rem;
+  --space-5: 1.25rem;
   --space-6: 1.5rem;
+  --space-7: 1.75rem;
   --space-8: 2rem;
+  --space-10: 2.5rem;
   --space-12: 3rem;
   --space-16: 4rem;
   --space-24: 6rem;
@@ -73,47 +121,50 @@
   --focus-ring-width: 0.125rem;
   --focus-ring-offset: 0.125rem;
   --target-min: 2.75rem;
-  --layout-rail-width: 16rem;
+  /* Unitless combination count that maps to a 100 % meter fill. */
+  --meter-display-scale: 36;
+  --layout-compact-inset: 1rem;
+  --layout-rail-width: 14.5rem;
+  --layout-deskbar-height: 3.5rem;
   --layout-topbar-height: 4rem;
-  --layout-editor-measure: 60rem;
+  --layout-content-inset: 1.5rem;
+  --layout-section-gap: 1.125rem;
+  --layout-search-max: 38.75rem;
+  --layout-auth-measure: 23.75rem;
+  --layout-auth-padding: 1.75rem;
+  --layout-editor-measure: 80rem;
+  --layout-editor-track-min: 22.5rem;
+  --layout-split-track-min: 21.25rem;
+  --layout-products-table-min: 56.25rem;
+  --layout-orders-table-min: 65rem;
   --layout-drawer-width: 30rem;
   --layout-control-wide: 18rem;
   --layout-control-medium: 12rem;
   --layout-control-short: 7.5rem;
   --layout-skeleton-line: 1rem;
-  --layout-meter-height: 0.75rem;
+  --layout-meter-width: 8.75rem;
+  --layout-meter-height: 0.5rem;
+  --layout-tag-height: 1.375rem;
+  --layout-media-well: 6rem;
   --layout-dialog-offset: 4rem;
+  /* Intrinsic reference column measures (Products and Orders tables). */
+  --layout-col-slug: 8.125rem;
+  --layout-col-status: 6.875rem;
+  --layout-col-type: 6.25rem;
+  --layout-col-price: 9.375rem;
+  --layout-col-variants: 6.25rem;
+  --layout-col-updated: 9.375rem;
+  --layout-col-order: 6rem;
+  --layout-col-customer: 9.375rem;
+  --layout-col-email: 10.625rem;
+  --layout-col-total: 6.25rem;
+  --layout-col-payment: 6.875rem;
+  --layout-col-order-status: 8.125rem;
+  --layout-col-created: 7.5rem;
+  /* Editor chrome intrinsic measures. */
+  --layout-editor-context-height: 2.625rem;
+  --layout-editor-footer-min: 3.75rem;
   --z-sticky: 20;
   --z-scrim: 30;
   --z-dialog: 40;
-}
-
-.console-auth-page {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: var(--space-4);
-  background: var(--color-canvas);
-}
-
-.console-auth-card {
-  width: min(100%, var(--layout-control-wide));
-  display: grid;
-  gap: var(--space-4);
-  padding: var(--space-8);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-surface);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-panel);
-}
-
-.console-auth-card h1,
-.console-auth-card p {
-  margin: 0;
-}
-
-.console-auth-form {
-  display: grid;
-  gap: var(--space-4);
-  min-width: 0;
 }

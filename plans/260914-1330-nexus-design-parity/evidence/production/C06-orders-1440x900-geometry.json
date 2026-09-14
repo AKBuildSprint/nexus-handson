@@ -1,0 +1,59 @@
+{
+  "tableMinWidth": "1040px",
+  "columns": [
+    {
+      "label": "Order",
+      "width": 96,
+      "textAlign": "start"
+    },
+    {
+      "label": "Customer",
+      "width": 150,
+      "textAlign": "start"
+    },
+    {
+      "label": "Email",
+      "width": 170,
+      "textAlign": "start"
+    },
+    {
+      "label": "Items",
+      "width": 282,
+      "textAlign": "start"
+    },
+    {
+      "label": "Total",
+      "width": 100,
+      "textAlign": "end"
+    },
+    {
+      "label": "Payment ref",
+      "width": 110,
+      "textAlign": "start"
+    },
+    {
+      "label": "Status",
+      "width": 130,
+      "textAlign": "start"
+    },
+    {
+      "label": "Created",
+      "width": 120,
+      "textAlign": "end"
+    }
+  ],
+  "bodyPadding": "12px 12px 12px 16px",
+  "statistics": [
+    "Matching Orders 200",
+    "Pending 108",
+    "Paid 74",
+    "Fulfilled 6",
+    "Canceled 12",
+    "Open refund requests 30"
+  ],
+  "targetsUnder44": [],
+  "overflow": {
+    "documentScrollWidth": 1440,
+    "clientWidth": 1440
+  }
+}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { DeliveryFixture, OptionGroupFixture, VariantFixture } from './product-ui-types';
 import { SchemaChangePreview } from './schema-change-preview';
 import { VariantMatrix } from './variant-matrix';
@@ -297,143 +297,165 @@ export function VariantBuilder({
   };
 
   return (
-    <div className="section-stack">
-      <div className="notice notice-info">
-        <strong>One active Variant schema</strong>
-        <span>Add up to 5 option groups with up to 10 values in each group. Only participating groups contribute to the Cartesian count.</span>
-      </div>
-
-
-      {groups.length === 0 ? (
-        <div className="notice notice-info">
-          <strong>This is currently a simple Product.</strong>
-          <span>Add an option group to build purchasable Variant combinations.</span>
+    <>
+      <section className="editor-card editor-card-span" aria-labelledby="option-groups-title">
+        <div className="editor-card-head">
+          <h2 id="option-groups-title" className="editor-card-title">Option groups</h2>
+          <span className="editor-card-note">0 to 5 groups · up to 10 values each</span>
+          <div className="editor-spacer" />
+          <span className="meta-text numeric">{groups.length} of 5 option groups</span>
+          <button className="button" type="button" disabled={groups.length >= 5} onClick={addGroup}>Add option group</button>
         </div>
-      ) : (
-        <div className="option-group-list">
-          {groups.map((group, groupIndex) => (
-            <section className="option-group" key={group.id} aria-labelledby={`group-title-${group.id}`}>
-              <div className="option-group-header">
-                <div className="field">
-                  <label id={`group-title-${group.id}`} htmlFor={`group-name-${group.id}`}>Option group {groupIndex + 1}</label>
-                  <input
-                    id={`group-name-${group.id}`}
-                    value={group.name}
-                    aria-invalid={Boolean(groupErrors[groupIndex]?.nameError || serverMessage(`/optionLabels/groups/${groupIndex}/name`, `/schema/groups/${groupIndex}/name`))}
-                    aria-describedby={groupErrors[groupIndex]?.nameError || serverMessage(`/optionLabels/groups/${groupIndex}/name`, `/schema/groups/${groupIndex}/name`) ? `group-name-error-${group.id}` : undefined}
-                    onChange={(event) => updateGroup(group.id, { name: event.target.value }, false)}
-                  />
-                  {groupErrors[groupIndex]?.nameError || serverMessage(`/optionLabels/groups/${groupIndex}/name`, `/schema/groups/${groupIndex}/name`) ? <span className="field-error" id={`group-name-error-${group.id}`}>{groupErrors[groupIndex]?.nameError || serverMessage(`/optionLabels/groups/${groupIndex}/name`, `/schema/groups/${groupIndex}/name`)}</span> : null}
-                </div>
-                <label className="checkbox-row">
-                  <input type="checkbox" checked={group.participating} onChange={(event) => updateGroup(group.id, { participating: event.target.checked })} />
-                  {group.participating ? 'Participating' : 'Not participating'}
-                </label>
-                <button
-                  className="button button-danger"
-                  type="button"
-                  aria-label={`Remove option group ${group.name || groupIndex + 1}`}
-                  onClick={() => {
-                    setGroups((current) => current.filter((candidate) => candidate.id !== group.id));
-                    markStructuralDirty();
-                  }}
-                >
-                  Remove group
-                </button>
-              </div>
-
-              {groupErrors[groupIndex]?.groupValueError ? <p className="field-error" role="alert">{groupErrors[groupIndex].groupValueError}</p> : null}
-              <div className="option-values">
-                {group.values.map((value, valueIndex) => (
-                  <div className="value-control" key={`${group.id}-${valueIndex}`}>
-                    <div className="field">
-                      <label htmlFor={`value-${group.id}-${valueIndex}`}>Value {valueIndex + 1}</label>
-                      <input
-                        id={`value-${group.id}-${valueIndex}`}
-                        value={value}
-                        aria-invalid={Boolean(groupErrors[groupIndex]?.valueErrors[valueIndex] || serverMessage(`/optionLabels/groups/${groupIndex}/values/${valueIndex}/label`, `/schema/groups/${groupIndex}/values/${valueIndex}/label`))}
-                        aria-describedby={groupErrors[groupIndex]?.valueErrors[valueIndex] || serverMessage(`/optionLabels/groups/${groupIndex}/values/${valueIndex}/label`, `/schema/groups/${groupIndex}/values/${valueIndex}/label`) ? `value-error-${group.id}-${valueIndex}` : undefined}
-                        onChange={(event) => updateValue(group.id, valueIndex, event.target.value)}
-                      />
-                      {groupErrors[groupIndex]?.valueErrors[valueIndex] || serverMessage(`/optionLabels/groups/${groupIndex}/values/${valueIndex}/label`, `/schema/groups/${groupIndex}/values/${valueIndex}/label`) ? <span className="field-error" id={`value-error-${group.id}-${valueIndex}`}>{groupErrors[groupIndex]?.valueErrors[valueIndex] || serverMessage(`/optionLabels/groups/${groupIndex}/values/${valueIndex}/label`, `/schema/groups/${groupIndex}/values/${valueIndex}/label`)}</span> : null}
-                    </div>
-                    <button className="icon-button" type="button" aria-label={`Remove value ${value || valueIndex + 1} from ${group.name || 'option group'}`} onClick={() => removeValue(group.id, valueIndex)}>×</button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="inline-actions">
-                <button className="button" type="button" disabled={group.values.length >= 10} onClick={() => addValue(group.id)}>Add value</button>
-                <span className="meta-text numeric">{group.values.length} of 10 values</span>
-              </div>
-            </section>
-          ))}
-        </div>
-      )}
-
-      <div className="inline-actions">
-        <button className="button" type="button" disabled={groups.length >= 5} onClick={addGroup}>Add option group</button>
-        <span className="meta-text numeric">{groups.length} of 5 option groups</span>
-      </div>
-
-      <section className={`combination-meter${warning ? ' warning' : ''}${blocked ? ' blocked' : ''}`} aria-live="polite" aria-label={`${combinationCount} combinations. ${meterMessage}`}>
-        <div className="meter-count"><strong>{combinationCount}</strong><span>combinations</span></div>
-        <div className="meter-copy">
-          <strong>{blocked ? 'Blocked' : warning ? 'Confirmation required' : 'Generation status'}</strong>
-          <span>{meterMessage}</span>
-          {warning ? (
-            <label className="checkbox-row">
-              <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
-              I reviewed this {combinationCount}-combination matrix.
-            </label>
-          ) : null}
-        </div>
-        <div className="meter-track-wrap" aria-hidden="true">
-          <div className="meter-track">
-            <div className="meter-fill" style={{ transform: `scaleX(${Math.min(combinationCount, 31) / 31})` }} />
-            <span className="meter-marker meter-marker-ten" />
-            <span className="meter-marker meter-marker-thirty" />
+        <div className="editor-card-body">
+          <div className="notice notice-info">
+            <strong>One active Variant schema</strong>
+            <span>Add up to 5 option groups with up to 10 values in each group. Only participating groups contribute to the Cartesian count.</span>
           </div>
-          <div className="meter-labels"><span className="meter-label-ten">10</span><span className="meter-label-thirty">30</span></div>
+
+          {groups.length === 0 ? (
+            <p className="editor-card-empty">This is a simple Product. Add an option group to build a Variant schema.</p>
+          ) : (
+            <div className="option-group-list">
+              {groups.map((group, groupIndex) => {
+                const nameError = groupErrors[groupIndex]?.nameError || serverMessage(`/optionLabels/groups/${groupIndex}/name`, `/schema/groups/${groupIndex}/name`);
+                return (
+                  <section className="option-group" key={group.id} aria-labelledby={`group-title-${group.id}`}>
+                    <label className="option-group-participation">
+                      <input type="checkbox" checked={group.participating} onChange={(event) => updateGroup(group.id, { participating: event.target.checked })} />
+                      {group.participating ? 'participating' : 'not participating'}
+                    </label>
+                    <div className="field option-group-name">
+                      <label id={`group-title-${group.id}`} htmlFor={`group-name-${group.id}`}>Option group {groupIndex + 1}</label>
+                      <input
+                        id={`group-name-${group.id}`}
+                        value={group.name}
+                        aria-invalid={Boolean(nameError)}
+                        aria-describedby={nameError ? `group-name-error-${group.id}` : undefined}
+                        onChange={(event) => updateGroup(group.id, { name: event.target.value }, false)}
+                      />
+                      {nameError ? <span className="field-error" id={`group-name-error-${group.id}`}>{nameError}</span> : null}
+                    </div>
+
+                    <div className="option-values">
+                      {group.values.map((value, valueIndex) => {
+                        const valueError = groupErrors[groupIndex]?.valueErrors[valueIndex]
+                          || serverMessage(`/optionLabels/groups/${groupIndex}/values/${valueIndex}/label`, `/schema/groups/${groupIndex}/values/${valueIndex}/label`);
+                        return (
+                          <div className="value-control" key={`${group.id}-${valueIndex}`}>
+                            <div className="field">
+                              <label htmlFor={`value-${group.id}-${valueIndex}`}>Value {valueIndex + 1}</label>
+                              <input
+                                id={`value-${group.id}-${valueIndex}`}
+                                value={value}
+                                aria-invalid={Boolean(valueError)}
+                                aria-describedby={valueError ? `value-error-${group.id}-${valueIndex}` : undefined}
+                                onChange={(event) => updateValue(group.id, valueIndex, event.target.value)}
+                              />
+                              {valueError ? <span className="field-error" id={`value-error-${group.id}-${valueIndex}`}>{valueError}</span> : null}
+                            </div>
+                            <button className="icon-button" type="button" aria-label={`Remove value ${value || valueIndex + 1} from ${group.name || 'option group'}`} onClick={() => removeValue(group.id, valueIndex)}>×</button>
+                          </div>
+                        );
+                      })}
+                      <button className="option-value-add" type="button" disabled={group.values.length >= 10} onClick={() => addValue(group.id)}>Add value</button>
+                    </div>
+
+                    {groupErrors[groupIndex]?.groupValueError ? <p className="field-error" role="alert">{groupErrors[groupIndex].groupValueError}</p> : null}
+
+                    <div className="option-group-foot">
+                      <button
+                        className="button button-danger"
+                        type="button"
+                        aria-label={`Remove option group ${group.name || groupIndex + 1}`}
+                        onClick={() => {
+                          setGroups((current) => current.filter((candidate) => candidate.id !== group.id));
+                          markStructuralDirty();
+                        }}
+                      >
+                        Remove group
+                      </button>
+                      <div className="editor-spacer" />
+                      <span className="meta-text numeric">{group.values.length} of 10 values</span>
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          )}
         </div>
-        <button className="button button-primary" type="button" disabled={generateDisabled} onClick={generateMatrix}>
-          {matrixRows.length > 0 && structuralDirty ? 'Preview regeneration' : 'Generate matrix'}
-        </button>
       </section>
 
-      {previewOpen ? (
-        <SchemaChangePreview
-          rows={previewRows.length > 0 ? previewRows : regenerationRows}
-          combinationCount={combinationCount}
-          onApply={(proposedRows) => {
-            const applied = proposedRows
-              .filter((row) => row.outcome !== 'Will disable')
-              .map((row) => ({ ...row, outcome: undefined }));
-            setMatrixRows(applied);
-            setPreviewOpen(false);
-            setStructuralDirty(false);
-            onSchemaChange?.(groups, applied);
-            onDirty();
-          }}
-          onCancel={() => setPreviewOpen(false)}
-        />
-      ) : null}
+      <section className="editor-card editor-card-span" aria-labelledby="variant-matrix-title">
+        <div className="editor-card-head">
+          <h2 id="variant-matrix-title" className="editor-card-title">Variant matrix</h2>
+          <div className="editor-spacer" />
+          <section
+            className={`combination-meter${warning ? ' warning' : ''}${blocked ? ' blocked' : ''}`}
+            aria-live="polite"
+            aria-label={`${combinationCount} combinations. ${meterMessage}`}
+            style={{ '--meter-count': combinationCount } as CSSProperties}
+          >
+            <p className="meter-count"><strong className="numeric">{combinationCount}</strong> of 30 combinations</p>
+            <div className="meter-track-wrap" aria-hidden="true">
+              <div className="meter-track">
+                <div className="meter-fill" />
+                <span className="meter-marker meter-marker-ten" />
+                <span className="meter-marker meter-marker-thirty" />
+              </div>
+              <div className="meter-labels"><span className="meter-label-ten">10</span><span className="meter-label-thirty">30</span></div>
+            </div>
+            <p className="meter-copy">
+              <strong>{blocked ? 'Blocked' : warning ? 'Confirmation required' : 'Generation status'}</strong>
+              <span>{meterMessage}</span>
+            </p>
+            {warning ? (
+              <label className="checkbox-row meter-confirm">
+                <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
+                I reviewed this {combinationCount}-combination matrix.
+              </label>
+            ) : null}
+            <button className="button button-primary meter-action" type="button" disabled={generateDisabled} onClick={generateMatrix}>
+              {matrixRows.length > 0 && structuralDirty ? 'Preview regeneration' : 'Generate matrix'}
+            </button>
+          </section>
+        </div>
 
-      <VariantMatrix
-        variants={matrixRows}
-        basePrice={basePrice}
-        onPendingVariantFileChange={onPendingVariantFileChange}
-        currency={currency}
-        productDelivery={productDelivery}
-        onRowsChange={(rows) => {
-          setMatrixRows(rows);
-          onSchemaChange?.(groups, rows);
-        }}
-        onDirty={onDirty}
-        onBlockersChange={setMatrixBlockers}
-        onTransientDirtyChange={onTransientDirtyChange}
-        serverFieldErrors={serverFieldErrors}
-      />
-    </div>
+        <div className="editor-card-body">
+          {previewOpen ? (
+            <SchemaChangePreview
+              rows={previewRows.length > 0 ? previewRows : regenerationRows}
+              combinationCount={combinationCount}
+              onApply={(proposedRows) => {
+                const applied = proposedRows
+                  .filter((row) => row.outcome !== 'Will disable')
+                  .map((row) => ({ ...row, outcome: undefined }));
+                setMatrixRows(applied);
+                setPreviewOpen(false);
+                setStructuralDirty(false);
+                onSchemaChange?.(groups, applied);
+                onDirty();
+              }}
+              onCancel={() => setPreviewOpen(false)}
+            />
+          ) : null}
+
+          <VariantMatrix
+            variants={matrixRows}
+            basePrice={basePrice}
+            onPendingVariantFileChange={onPendingVariantFileChange}
+            currency={currency}
+            productDelivery={productDelivery}
+            onRowsChange={(rows) => {
+              setMatrixRows(rows);
+              onSchemaChange?.(groups, rows);
+            }}
+            onDirty={onDirty}
+            onBlockersChange={setMatrixBlockers}
+            onTransientDirtyChange={onTransientDirtyChange}
+            serverFieldErrors={serverFieldErrors}
+          />
+        </div>
+      </section>
+    </>
   );
 }
