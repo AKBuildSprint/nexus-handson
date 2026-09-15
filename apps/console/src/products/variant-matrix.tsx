@@ -246,8 +246,8 @@ export function VariantMatrix({
         </td>
         <td className="variant-col-delivery variant-delivery">{row.deliverySource}</td>
         <td className="variant-col-row">
-          <button className="button" type="button" onClick={(event) => openDelivery(row.id, event)}>
-            Edit delivery for {row.combination}
+          <button className="button" type="button" aria-label={`Edit delivery for ${row.combination}`} onClick={(event) => openDelivery(row.id, event)}>
+            Edit
           </button>
         </td>
       </tr>
@@ -256,12 +256,12 @@ export function VariantMatrix({
 
   return (
     <div className="editor-matrix">
-      <p className="editor-card-note">Suggested SKUs are editable. Blank price overrides use the Product base price. Each row keeps delivery source and availability explicit.</p>
-
       {variants.length === 0 ? (
-        <div className="notice notice-info">
-          <strong>No combinations generated yet.</strong>
-          <span>Configure participating groups and use Generate matrix.</span>
+        <div className="editor-matrix-empty">
+          <div className="notice notice-info">
+            <strong>No combinations generated yet.</strong>
+            <span>Configure participating groups and use Generate matrix.</span>
+          </div>
         </div>
       ) : (
         <>

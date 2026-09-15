@@ -255,11 +255,11 @@ dl.catalog-snapshot dd { margin: 0; font-family: var(--font-display); font-size:
 .catalog-search input:hover { border-color: var(--color-accent-active); }
 .catalog-count { flex: none; color: var(--color-ink-muted); font-size: var(--type-meta-size); }
 
-.catalog-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.catalog-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .status-pills { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .status-pills button {
   min-height: var(--target-min);
-  padding: 0 var(--space-4);
+  padding: 0 var(--space-2);
   border: var(--border-hairline) solid var(--color-divider);
   border-radius: var(--radius-pill);
   background: var(--color-surface);
@@ -273,6 +273,9 @@ dl.catalog-snapshot dd { margin: 0; font-family: var(--font-display); font-size:
 
 .catalog-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .catalog-pager p { color: var(--color-ink-muted); font-size: var(--type-meta-size); }
+.catalog-toolbar .catalog-pager { min-width: calc(var(--layout-card-track-min) + var(--space-8)); flex: 1; justify-content: flex-end; gap: var(--space-2); }
+.catalog-toolbar .catalog-pager .inline-actions { gap: var(--space-2); }
+.catalog-toolbar .catalog-pager .secondary-action { padding-inline: var(--space-3); }
 
 .catalog-list {
   display: grid;
@@ -323,7 +326,7 @@ dl.catalog-snapshot dd { margin: 0; font-family: var(--font-display); font-size:
   font-size: var(--type-meta-size);
 }
 .catalog-select:hover { background: var(--color-surface-muted); }
-.catalog-select[aria-pressed='true'] { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-ink); }
+.catalog-select[aria-pressed='true'] { background: var(--color-surface); border-color: var(--color-divider); color: var(--color-ink); }
 
 .skeleton-pill { display: block; height: var(--target-min); border-radius: var(--radius-pill); background: var(--color-surface-muted); }
 .skeleton-card { display: block; height: var(--space-24); border-radius: var(--radius-surface); background: var(--color-surface-muted); }

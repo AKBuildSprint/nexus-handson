@@ -1024,8 +1024,15 @@ export function OrderDetailScreen({
                     <div><dt>Recorded time</dt><dd className="numeric">{new Date(order.payment.recordedAt).toLocaleString()}</dd></div>
                   </dl>
                 ) : order.paymentRecordState === 'none' ? (
-                  <p>No payment has been recorded.</p>
+                  <dl className="detail-fields">
+                    <div><dt>Source</dt><dd>No payment recorded</dd></div>
+                    <div><dt>Method</dt><dd>—</dd></div>
+                    <div><dt>External reference</dt><dd className="numeric">—</dd></div>
+                    <div><dt>Recorded actor</dt><dd>—</dd></div>
+                    <div><dt>Recorded time</dt><dd className="numeric">—</dd></div>
+                  </dl>
                 ) : null}
+                <p className="meta-text">External reference is Console-only evidence of money received outside Nexus. It is never shown to the Customer.</p>
               </section>
 
               <section className="paper-card" aria-labelledby="order-history-title">

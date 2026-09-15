@@ -295,7 +295,22 @@ export function ProductEditorScreen({
       ? 'Complete Product name, base price, private access title, and private access instructions.'
       : childBlockers[0] ?? '';
   const saveDisabled = !dirty || !requiredReady || childBlockers.length > 0 || saving;
-  const editorState = saving ? 'Saving Product' : dirty ? 'Unsaved changes' : saved ? 'Product saved' : 'Saved';
+  // A clean editor only claims persistence when the Product is actually
+  // persisted: an edit route with a real slug, or a completed save in this
+  // session. A clean, never-saved create stays honest instead of reading
+  // `dirty === false` as "Saved". Unapplied nested Variant edits already make
+  // the editor dirty for navigation, so they must not read as "Saved" either.
+  const persisted = persistedSlug !== null || saved;
+  const unsaved = dirty || transientVariantDirty;
+  const editorState = saving
+    ? 'Saving Product'
+    : unsaved
+      ? 'Unsaved changes'
+      : saved
+        ? 'Product saved'
+        : persisted
+          ? 'Saved'
+          : 'Not saved';
   const deliverySummary = product.delivery.file
     ? `Private file ${product.delivery.file.kind} · ${product.delivery.file.name}`
     : 'No private file selected';
@@ -375,27 +390,25 @@ export function ProductEditorScreen({
                   <option>Active</option>
                   <option>Archived</option>
                 </select>
-                <span className="field-help">Status changes are saved with the whole Product.</span>
               </div>
             </div>
             <div className="field">
-              <label htmlFor="product-name">Product name</label>
+              <label htmlFor="product-name">Product name <span className="required-mark" aria-hidden="true">*</span></label>
               <input
                 id="product-name"
                 autoFocus={scenario.lifecycle === 'create'}
                 value={product.name}
+                required
                 aria-invalid={Boolean(errors.name)}
-                aria-describedby={`product-name-help${errors.name ? ' product-name-error' : ''}`}
+                aria-describedby={errors.name ? 'product-name-error' : undefined}
                 onChange={(event) => updateProduct('name', event.target.value)}
                 onBlur={() => validateOne('name')}
               />
-              <span id="product-name-help" className="field-help">Required. This is the Customer-visible Product name.</span>
               {errors.name ? <span id="product-name-error" className="field-error">{errors.name}</span> : null}
             </div>
             <div className="field">
               <label htmlFor="public-description">Customer-visible description</label>
               <textarea id="public-description" value={product.publicDescription} onChange={(event) => updateProduct('publicDescription', event.target.value)} />
-              <span className="field-help">Optional public catalog copy. Private delivery details do not belong here.</span>
             </div>
           </div>
         </section>
@@ -405,17 +418,17 @@ export function ProductEditorScreen({
             <h2 id="pricing-title" className="sr-only">Pricing and delivery</h2>
             <div className="editor-pair">
               <div className="field">
-                <label htmlFor="base-price">Base price</label>
+                <label htmlFor="base-price">Base price <span className="required-mark" aria-hidden="true">*</span></label>
                 <input
                   id="base-price"
                   inputMode="decimal"
                   value={product.basePrice}
+                  required
                   aria-invalid={Boolean(errors.basePrice)}
-                  aria-describedby={`base-price-help${errors.basePrice ? ' base-price-error' : ''}`}
+                  aria-describedby={`currency-help${errors.basePrice ? ' base-price-error' : ''}`}
                   onChange={(event) => updateProduct('basePrice', event.target.value)}
                   onBlur={() => validateOne('basePrice')}
                 />
-                <span id="base-price-help" className="field-help">Use a non-negative decimal valid for the selected currency.</span>
                 {errors.basePrice ? <span id="base-price-error" className="field-error">{errors.basePrice}</span> : null}
               </div>
               <div className="field">
@@ -429,9 +442,9 @@ export function ProductEditorScreen({
                   onChange={(event) => updateProduct('currency', event.target.value.toUpperCase())}
                   onBlur={() => validateOne('currency')}
                 />
-                <span id="currency-help" className="field-help">One currency per Product. Changing currency does not convert prices.</span>
                 {errors.currency ? <span id="currency-error" className="field-error">{errors.currency}</span> : null}
               </div>
+              <p id="currency-help" className="field-help editor-pair-help">One currency per Product. Changing currency does not convert prices.</p>
             </div>
 
             <div className="editor-divider" aria-hidden="true" />

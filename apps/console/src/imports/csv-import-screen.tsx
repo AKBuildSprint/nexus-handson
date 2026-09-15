@@ -237,7 +237,7 @@ export function CsvImportScreen({ onBack, onReset, onShowResult, onSessionExpire
         <span className="meta-text">One fixed template · no field mapping</span>
       </header>
 
-      <div className="notice notice-info">
+      <div className="notice notice-info csv-additive-notice">
         <strong>Additive exact-match import</strong>
         <span>Import adds new exact matches. It does not update existing Products or Variants. Private delivery files and Variant delivery overrides are not imported.</span>
       </div>
@@ -303,10 +303,6 @@ export function CsvImportScreen({ onBack, onReset, onShowResult, onSessionExpire
               {fileCheck.message ? <span>{fileCheck.message}</span> : null}
             </div>
           ) : null}
-          {selectedFile && fileCheck.status === 'valid' ? (
-            <div className="file-summary"><strong>Selected file preview</strong><span>{selectedFile.name}</span><span className="meta-text numeric">{sizeLabel(selectedFile.size)} · {fileCheck.rows} data rows</span></div>
-          ) : null}
-
           {warning ? (
             <div className="notice notice-warning">
               <strong>{warningGroups.length} Product {warningGroups.length === 1 ? 'group requires' : 'groups require'} confirmation.</strong>

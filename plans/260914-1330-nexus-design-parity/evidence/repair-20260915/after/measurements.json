@@ -1,0 +1,1856 @@
+{
+  "consoleProducts1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScrollWidth": 1440
+    },
+    ".console-rail": {
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 232,
+        "height": 900
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px",
+      "gap": "normal",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(27, 28, 27) rgb(234, 232, 230) rgb(27, 28, 27) rgb(27, 28, 27)"
+    },
+    ".console-deskbar": {
+      "rect": {
+        "x": 232,
+        "y": 0,
+        "width": 1208,
+        "height": 56
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px 24px",
+      "gap": "12px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(27, 28, 27) rgb(27, 28, 27) rgb(234, 232, 230)"
+    },
+    ".console-main": {
+      "rect": {
+        "x": 232,
+        "y": 0,
+        "width": 1208,
+        "height": 791
+      },
+      "display": "block",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "80px 24px 24px",
+      "gap": "normal",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".console-tab": {
+      "rect": {
+        "x": 256,
+        "y": 91,
+        "width": 86.453125,
+        "height": 34
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "13px",
+      "lineHeight": "19px",
+      "padding": "0px 14px",
+      "gap": "normal",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(234, 232, 230) rgb(234, 232, 230) rgb(255, 255, 255)"
+    },
+    ".data-region": {
+      "rect": {
+        "x": 256,
+        "y": 142,
+        "width": 1160,
+        "height": 625
+      },
+      "display": "block",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px",
+      "gap": "normal",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    ".console-panel-head": {
+      "rect": {
+        "x": 257,
+        "y": 143,
+        "width": 1158,
+        "height": 69
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "12px 16px",
+      "gap": "10px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27) rgb(27, 28, 27) rgb(234, 232, 230)"
+    },
+    ".products-table": {
+      "rect": {
+        "x": 257,
+        "y": 212,
+        "width": 1158,
+        "height": 485
+      },
+      "display": "table",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px",
+      "gap": "normal",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".console-table-footer": {
+      "rect": {
+        "x": 257,
+        "y": 697,
+        "width": 1158,
+        "height": 69
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "12px 16px",
+      "gap": "18px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(251, 248, 246)",
+      "borderColor": "rgb(234, 232, 230) rgb(27, 28, 27) rgb(27, 28, 27)"
+    },
+    ".console-search": {
+      "rect": {
+        "x": 256,
+        "y": 4.5,
+        "width": 620,
+        "height": 46
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px 12px",
+      "gap": "10px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(251, 248, 246)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    ".button-primary": {
+      "rect": {
+        "x": 1306.625,
+        "y": 80,
+        "width": 109.375,
+        "height": 44
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "21px",
+      "padding": "8px 12px",
+      "gap": "8px",
+      "color": "rgb(255, 255, 255)",
+      "backgroundColor": "rgb(0, 0, 0)",
+      "borderColor": "rgb(0, 0, 0)"
+    },
+    "tableRows": [
+      105,
+      67,
+      86,
+      86,
+      104.5
+    ],
+    "targetsUnder44": []
+  },
+  "consoleProducts1024": {
+    "viewport": {
+      "width": 1024,
+      "height": 900
+    },
+    "document": {
+      "clientWidth": 1024,
+      "scrollWidth": 1024,
+      "bodyScrollWidth": 1024
+    },
+    ".console-rail": {
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 232,
+        "height": 900
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px",
+      "gap": "normal",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(27, 28, 27) rgb(234, 232, 230) rgb(27, 28, 27) rgb(27, 28, 27)"
+    },
+    ".console-deskbar": {
+      "rect": {
+        "x": 232,
+        "y": 0,
+        "width": 792,
+        "height": 56
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px 24px",
+      "gap": "12px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(27, 28, 27) rgb(27, 28, 27) rgb(234, 232, 230)"
+    },
+    ".console-main": {
+      "rect": {
+        "x": 232,
+        "y": 0,
+        "width": 792,
+        "height": 819
+      },
+      "display": "block",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "80px 24px 24px",
+      "gap": "normal",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".console-tab": {
+      "rect": {
+        "x": 256,
+        "y": 91,
+        "width": 86.453125,
+        "height": 34
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "13px",
+      "lineHeight": "19px",
+      "padding": "0px 14px",
+      "gap": "normal",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(234, 232, 230) rgb(234, 232, 230) rgb(255, 255, 255)"
+    },
+    ".data-region": {
+      "rect": {
+        "x": 256,
+        "y": 142,
+        "width": 744,
+        "height": 653
+      },
+      "display": "block",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px",
+      "gap": "normal",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    ".console-panel-head": {
+      "rect": {
+        "x": 257,
+        "y": 143,
+        "width": 742,
+        "height": 69
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "12px 16px",
+      "gap": "10px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27) rgb(27, 28, 27) rgb(234, 232, 230)"
+    },
+    ".products-table": {
+      "rect": {
+        "x": 257,
+        "y": 212,
+        "width": 900,
+        "height": 485
+      },
+      "display": "table",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px",
+      "gap": "normal",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".console-table-footer": {
+      "rect": {
+        "x": 257,
+        "y": 697,
+        "width": 742,
+        "height": 97
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "12px 16px",
+      "gap": "18px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(251, 248, 246)",
+      "borderColor": "rgb(234, 232, 230) rgb(27, 28, 27) rgb(27, 28, 27)"
+    },
+    ".console-search": {
+      "rect": {
+        "x": 256,
+        "y": 4.5,
+        "width": 620,
+        "height": 46
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px 12px",
+      "gap": "10px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(251, 248, 246)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    ".button-primary": {
+      "rect": {
+        "x": 890.625,
+        "y": 80,
+        "width": 109.375,
+        "height": 44
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "21px",
+      "padding": "8px 12px",
+      "gap": "8px",
+      "color": "rgb(255, 255, 255)",
+      "backgroundColor": "rgb(0, 0, 0)",
+      "borderColor": "rgb(0, 0, 0)"
+    },
+    "tableRows": [
+      105,
+      67,
+      86,
+      86,
+      104.5
+    ],
+    "targetsUnder44": []
+  },
+  "consoleProducts375": {
+    "viewport": {
+      "width": 375,
+      "height": 812
+    },
+    "document": {
+      "clientWidth": 375,
+      "scrollWidth": 375,
+      "bodyScrollWidth": 375
+    },
+    ".console-rail": {
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "display": "none",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px",
+      "gap": "normal",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(27, 28, 27) rgb(234, 232, 230) rgb(27, 28, 27) rgb(27, 28, 27)"
+    },
+    ".console-deskbar": {
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "display": "none",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px 24px",
+      "gap": "12px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(27, 28, 27) rgb(27, 28, 27) rgb(234, 232, 230)"
+    },
+    ".console-main": {
+      "rect": {
+        "x": 0,
+        "y": 64,
+        "width": 375,
+        "height": 1569
+      },
+      "display": "block",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "16px",
+      "gap": "normal",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".console-tab": {
+      "rect": {
+        "x": 16,
+        "y": 80,
+        "width": 86.453125,
+        "height": 37
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "13px",
+      "lineHeight": "19px",
+      "padding": "8px 14px",
+      "gap": "normal",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(234, 232, 230) rgb(234, 232, 230) rgb(255, 255, 255)"
+    },
+    ".data-region": {
+      "rect": {
+        "x": 16,
+        "y": 308,
+        "width": 343,
+        "height": 1309
+      },
+      "display": "block",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px",
+      "gap": "normal",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    ".console-panel-head": {
+      "rect": {
+        "x": 17,
+        "y": 309,
+        "width": 341,
+        "height": 151
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "12px 16px",
+      "gap": "10px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27) rgb(27, 28, 27) rgb(234, 232, 230)"
+    },
+    ".products-table": {
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "display": "none",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px",
+      "gap": "normal",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".console-table-footer": {
+      "rect": {
+        "x": 17,
+        "y": 1485,
+        "width": 341,
+        "height": 131
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "12px 16px",
+      "gap": "18px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(251, 248, 246)",
+      "borderColor": "rgb(234, 232, 230) rgb(27, 28, 27) rgb(27, 28, 27)"
+    },
+    ".console-search": {
+      "rect": {
+        "x": 16,
+        "y": 244,
+        "width": 343,
+        "height": 46
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px 12px",
+      "gap": "10px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(251, 248, 246)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    ".button-primary": {
+      "rect": {
+        "x": 16,
+        "y": 182,
+        "width": 343,
+        "height": 44
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "21px",
+      "padding": "8px 12px",
+      "gap": "8px",
+      "color": "rgb(255, 255, 255)",
+      "backgroundColor": "rgb(0, 0, 0)",
+      "borderColor": "rgb(0, 0, 0)"
+    },
+    "tableRows": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "targetsUnder44": []
+  },
+  "consoleEditor1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScrollWidth": 1440
+    },
+    ".console-editor-dialog": {
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "24px",
+      "gap": "normal",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".console-editor-panel": {
+      "rect": {
+        "x": 80,
+        "y": 24,
+        "width": 1280,
+        "height": 852
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px",
+      "gap": "normal",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(246, 243, 241)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".console-editor-header": {
+      "rect": {
+        "x": 80,
+        "y": 24,
+        "width": 1280,
+        "height": 56
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px 20px",
+      "gap": "12px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(27, 28, 27) rgb(27, 28, 27) rgb(234, 232, 230)"
+    },
+    ".console-editor-context": {
+      "rect": {
+        "x": 80,
+        "y": 80,
+        "width": 1280,
+        "height": 45
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px 20px",
+      "gap": "12px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(27, 28, 27) rgb(27, 28, 27) rgb(234, 232, 230)"
+    },
+    ".console-editor-body": {
+      "rect": {
+        "x": 80,
+        "y": 125,
+        "width": 1280,
+        "height": 1015
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "20px",
+      "gap": "16px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".editor-card": {
+      "rect": {
+        "x": 100,
+        "y": 145,
+        "width": 402.65625,
+        "height": 354
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "20px",
+      "gap": "14px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    ".console-editor-footer": {
+      "rect": {
+        "x": 80,
+        "y": 815,
+        "width": 1280,
+        "height": 61
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "8px 20px",
+      "gap": "14px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(234, 232, 230) rgb(27, 28, 27) rgb(27, 28, 27)"
+    },
+    ".field input": {
+      "rect": {
+        "x": 121,
+        "y": 302,
+        "width": 360.65625,
+        "height": 44
+      },
+      "display": "block",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "24px",
+      "padding": "8px 12px",
+      "gap": "normal",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(138, 129, 130)"
+    },
+    "tableRows": [
+      105,
+      67,
+      86,
+      86,
+      104.5
+    ],
+    "targetsUnder44": []
+  },
+  "consoleCsv1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScrollWidth": 1440
+    },
+    ".csv-head": {
+      "rect": {
+        "x": 256,
+        "y": 80,
+        "width": 1160,
+        "height": 44
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px",
+      "gap": "14px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".notice": {
+      "rect": {
+        "x": 256,
+        "y": 142,
+        "width": 1160,
+        "height": 45
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "13px",
+      "lineHeight": "19px",
+      "padding": "12px 16px",
+      "gap": "12px",
+      "color": "rgb(76, 69, 70)",
+      "backgroundColor": "rgb(240, 237, 235)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    ".csv-workspace": {
+      "rect": {
+        "x": 256,
+        "y": 205,
+        "width": 1160,
+        "height": 614
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px",
+      "gap": "16px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".csv-source": {
+      "rect": {
+        "x": 256,
+        "y": 205,
+        "width": 572,
+        "height": 614
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "20px",
+      "gap": "14px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    ".csv-preview": {
+      "rect": {
+        "x": 844,
+        "y": 205,
+        "width": 572,
+        "height": 514
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px",
+      "gap": "0px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    ".dropzone": {
+      "rect": {
+        "x": 277,
+        "y": 352,
+        "width": 530,
+        "height": 164
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "28px 20px",
+      "gap": "8px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(251, 248, 246)",
+      "borderColor": "rgb(138, 129, 130)"
+    },
+    "tableRows": [],
+    "targetsUnder44": [
+      {
+        "tag": "INPUT",
+        "text": "",
+        "id": "csv-file",
+        "className": "",
+        "rect": {
+          "x": 486.75,
+          "y": 443,
+          "width": 110.5,
+          "height": 42,
+          "top": 443,
+          "right": 597.25,
+          "bottom": 485,
+          "left": 486.75
+        }
+      }
+    ]
+  },
+  "csvImportState": {
+    "disabled": false,
+    "className": "button button-primary",
+    "backgroundColor": "rgb(0, 0, 0)",
+    "color": "rgb(255, 255, 255)",
+    "accent": "#000000",
+    "accentInk": "#ffffff",
+    "opacity": "1"
+  },
+  "storefrontCatalog1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScrollWidth": 1440
+    },
+    ".storefront-header": {
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 64
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px 32px",
+      "gap": "16px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(27, 28, 27) rgb(27, 28, 27) rgb(234, 232, 230)"
+    },
+    ".catalog-page": {
+      "rect": {
+        "x": 80,
+        "y": 64,
+        "width": 1280,
+        "height": 1094
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "40px 32px",
+      "gap": "28px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".catalog-hero": {
+      "rect": {
+        "x": 112,
+        "y": 104,
+        "width": 1216,
+        "height": 176
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px 0px 24px",
+      "gap": "32px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27) rgb(27, 28, 27) rgb(234, 232, 230)"
+    },
+    ".catalog-snapshot": {
+      "rect": {
+        "x": 736,
+        "y": 155,
+        "width": 592,
+        "height": 100
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "16px",
+      "gap": "10px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    ".storefront-workspace": {
+      "rect": {
+        "x": 112,
+        "y": 308,
+        "width": 1216,
+        "height": 810
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px",
+      "gap": "28px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".catalog-column": {
+      "rect": {
+        "x": 112,
+        "y": 308,
+        "width": 594,
+        "height": 810
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px",
+      "gap": "16px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".catalog-search": {
+      "rect": {
+        "x": 112,
+        "y": 308,
+        "width": 594,
+        "height": 44
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px",
+      "gap": "12px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".catalog-toolbar": {
+      "rect": {
+        "x": 112,
+        "y": 368,
+        "width": 594,
+        "height": 44
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px",
+      "gap": "8px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".catalog-pager": {
+      "rect": {
+        "x": 336.171875,
+        "y": 368,
+        "width": 369.828125,
+        "height": 44
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px",
+      "gap": "8px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".catalog-row": {
+      "rect": {
+        "x": 112,
+        "y": 428,
+        "width": 289,
+        "height": 307
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "18px",
+      "gap": "10px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(0, 0, 0)"
+    },
+    ".purchase-ledger": {
+      "rect": {
+        "x": 734,
+        "y": 308,
+        "width": 594,
+        "height": 724.59375
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "20px",
+      "gap": "14px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    ".primary-action": {
+      "rect": {
+        "x": 755,
+        "y": 937.59375,
+        "width": 552,
+        "height": 44
+      },
+      "display": "block",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "normal",
+      "padding": "0px 16px",
+      "gap": "normal",
+      "color": "rgb(76, 69, 70)",
+      "backgroundColor": "rgb(234, 232, 230)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    "tableRows": [],
+    "targetsUnder44": []
+  },
+  "storefrontCatalog1024": {
+    "viewport": {
+      "width": 1024,
+      "height": 900
+    },
+    "document": {
+      "clientWidth": 1024,
+      "scrollWidth": 1024,
+      "bodyScrollWidth": 1024
+    },
+    ".storefront-header": {
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 64
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px 32px",
+      "gap": "16px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(27, 28, 27) rgb(27, 28, 27) rgb(234, 232, 230)"
+    },
+    ".catalog-page": {
+      "rect": {
+        "x": 0,
+        "y": 64,
+        "width": 1024,
+        "height": 1385
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "40px 32px",
+      "gap": "28px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".catalog-hero": {
+      "rect": {
+        "x": 32,
+        "y": 104,
+        "width": 960,
+        "height": 224
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px 0px 24px",
+      "gap": "32px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27) rgb(27, 28, 27) rgb(234, 232, 230)"
+    },
+    ".catalog-snapshot": {
+      "rect": {
+        "x": 528,
+        "y": 203,
+        "width": 464,
+        "height": 100
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "16px",
+      "gap": "10px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    ".storefront-workspace": {
+      "rect": {
+        "x": 32,
+        "y": 356,
+        "width": 960,
+        "height": 1053
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px",
+      "gap": "28px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".catalog-column": {
+      "rect": {
+        "x": 32,
+        "y": 356,
+        "width": 466,
+        "height": 1053
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px",
+      "gap": "16px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".catalog-search": {
+      "rect": {
+        "x": 32,
+        "y": 356,
+        "width": 466,
+        "height": 44
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px",
+      "gap": "12px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".catalog-toolbar": {
+      "rect": {
+        "x": 32,
+        "y": 416,
+        "width": 466,
+        "height": 96
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px",
+      "gap": "8px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".catalog-pager": {
+      "rect": {
+        "x": 32,
+        "y": 468,
+        "width": 466,
+        "height": 44
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px",
+      "gap": "8px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".catalog-row": {
+      "rect": {
+        "x": 32,
+        "y": 528,
+        "width": 466,
+        "height": 263
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "18px",
+      "gap": "10px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(0, 0, 0)"
+    },
+    ".purchase-ledger": {
+      "rect": {
+        "x": 526,
+        "y": 356,
+        "width": 466,
+        "height": 740.59375
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "20px",
+      "gap": "14px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    ".primary-action": {
+      "rect": {
+        "x": 547,
+        "y": 985.59375,
+        "width": 424,
+        "height": 44
+      },
+      "display": "block",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "normal",
+      "padding": "0px 16px",
+      "gap": "normal",
+      "color": "rgb(76, 69, 70)",
+      "backgroundColor": "rgb(234, 232, 230)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    "tableRows": [],
+    "targetsUnder44": []
+  },
+  "storefrontCatalog375": {
+    "viewport": {
+      "width": 375,
+      "height": 812
+    },
+    "document": {
+      "clientWidth": 375,
+      "scrollWidth": 375,
+      "bodyScrollWidth": 375
+    },
+    ".storefront-header": {
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 375,
+        "height": 64
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "8px 16px",
+      "gap": "16px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(27, 28, 27) rgb(27, 28, 27) rgb(234, 232, 230)"
+    },
+    ".catalog-page": {
+      "rect": {
+        "x": 0,
+        "y": 64,
+        "width": 375,
+        "height": 2504.78125
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "40px 16px",
+      "gap": "28px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".catalog-hero": {
+      "rect": {
+        "x": 16,
+        "y": 104,
+        "width": 343,
+        "height": 404
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px 0px 24px",
+      "gap": "32px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27) rgb(27, 28, 27) rgb(234, 232, 230)"
+    },
+    ".catalog-snapshot": {
+      "rect": {
+        "x": 16,
+        "y": 383,
+        "width": 343,
+        "height": 100
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "16px",
+      "gap": "10px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    ".storefront-workspace": {
+      "rect": {
+        "x": 16,
+        "y": 536,
+        "width": 343,
+        "height": 1992.78125
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px",
+      "gap": "28px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".catalog-column": {
+      "rect": {
+        "x": 16,
+        "y": 536,
+        "width": 343,
+        "height": 1193.1875
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px",
+      "gap": "16px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".catalog-search": {
+      "rect": {
+        "x": 16,
+        "y": 536,
+        "width": 343,
+        "height": 71
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px",
+      "gap": "12px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".catalog-toolbar": {
+      "rect": {
+        "x": 16,
+        "y": 623,
+        "width": 343,
+        "height": 96
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px",
+      "gap": "8px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".catalog-pager": {
+      "rect": {
+        "x": 16,
+        "y": 675,
+        "width": 343,
+        "height": 44
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px",
+      "gap": "8px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".catalog-row": {
+      "rect": {
+        "x": 16,
+        "y": 735,
+        "width": 343,
+        "height": 282
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "18px",
+      "gap": "10px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(0, 0, 0)"
+    },
+    ".purchase-ledger": {
+      "rect": {
+        "x": 16,
+        "y": 1757.1875,
+        "width": 343,
+        "height": 771.59375
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "16px",
+      "gap": "14px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    ".primary-action": {
+      "rect": {
+        "x": 33,
+        "y": 2421.78125,
+        "width": 309,
+        "height": 44
+      },
+      "display": "block",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "normal",
+      "padding": "0px 16px",
+      "gap": "normal",
+      "color": "rgb(76, 69, 70)",
+      "backgroundColor": "rgb(234, 232, 230)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    "tableRows": [],
+    "targetsUnder44": []
+  },
+  "storefrontPrivateOrder1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScrollWidth": 1440
+    },
+    ".storefront-header": {
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 64
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px 32px",
+      "gap": "16px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(27, 28, 27) rgb(27, 28, 27) rgb(234, 232, 230)"
+    },
+    ".order-page": {
+      "rect": {
+        "x": 340,
+        "y": 64,
+        "width": 760,
+        "height": 704
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "40px 32px",
+      "gap": "20px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".order-link-notice": {
+      "rect": {
+        "x": 372,
+        "y": 168,
+        "width": 696,
+        "height": 42
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "12px 16px",
+      "gap": "12px",
+      "color": "rgb(76, 69, 70)",
+      "backgroundColor": "rgb(240, 237, 235)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    ".order-ledger": {
+      "rect": {
+        "x": 372,
+        "y": 230,
+        "width": 696,
+        "height": 498
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "28px",
+      "gap": "24px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    ".order-section": {
+      "rect": {
+        "x": 401,
+        "y": 339,
+        "width": 638,
+        "height": 119
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "0px",
+      "gap": "10px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".amount-ledger": {
+      "rect": {
+        "x": 401,
+        "y": 482,
+        "width": 638,
+        "height": 89
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "padding": "16px",
+      "gap": "8px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(246, 243, 241)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    "tableRows": [],
+    "targetsUnder44": []
+  },
+  "consoleOrders1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScrollWidth": 1440
+    },
+    ".console-tab-row": {
+      "rect": {
+        "x": 256,
+        "y": 80,
+        "width": 1160,
+        "height": 44
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px",
+      "gap": "14px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".data-region": {
+      "rect": {
+        "x": 256,
+        "y": 142,
+        "width": 1160,
+        "height": 681
+      },
+      "display": "block",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px",
+      "gap": "normal",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    ".console-panel-head": {
+      "rect": {
+        "x": 257,
+        "y": 143,
+        "width": 1158,
+        "height": 69
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "12px 16px",
+      "gap": "10px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27) rgb(27, 28, 27) rgb(234, 232, 230)"
+    },
+    ".orders-table": {
+      "rect": {
+        "x": 257,
+        "y": 212,
+        "width": 1158,
+        "height": 541
+      },
+      "display": "table",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px",
+      "gap": "normal",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".console-table-footer": {
+      "rect": {
+        "x": 257,
+        "y": 753,
+        "width": 1158,
+        "height": 69
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "12px 16px",
+      "gap": "18px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(251, 248, 246)",
+      "borderColor": "rgb(234, 232, 230) rgb(27, 28, 27) rgb(27, 28, 27)"
+    },
+    "tableRows": [
+      101,
+      101,
+      101,
+      101,
+      100.5
+    ],
+    "targetsUnder44": [
+      {
+        "tag": "INPUT",
+        "text": "",
+        "id": "",
+        "className": "",
+        "rect": {
+          "x": 1226.0625,
+          "y": 92,
+          "width": 16,
+          "height": 16,
+          "top": 92,
+          "right": 1242.0625,
+          "bottom": 108,
+          "left": 1226.0625
+        }
+      }
+    ]
+  },
+  "consoleOrderDetail1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScrollWidth": 1440
+    },
+    ".order-detail-head": {
+      "rect": {
+        "x": 256,
+        "y": 80,
+        "width": 1160,
+        "height": 44
+      },
+      "display": "flex",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px",
+      "gap": "14px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".order-detail-intro": {
+      "rect": {
+        "x": 256,
+        "y": 142,
+        "width": 832,
+        "height": 21
+      },
+      "display": "block",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "21px",
+      "padding": "0px",
+      "gap": "normal",
+      "color": "rgb(108, 106, 106)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(108, 106, 106)"
+    },
+    ".order-detail-grid": {
+      "rect": {
+        "x": 256,
+        "y": 181,
+        "width": 1160,
+        "height": 608
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "0px",
+      "gap": "16px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(27, 28, 27)"
+    },
+    ".paper-card": {
+      "rect": {
+        "x": 256,
+        "y": 181,
+        "width": 572,
+        "height": 344
+      },
+      "display": "grid",
+      "fontFamily": "Inter, \"Helvetica Neue\", sans-serif",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "padding": "20px",
+      "gap": "14px",
+      "color": "rgb(27, 28, 27)",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "borderColor": "rgb(234, 232, 230)"
+    },
+    "tableRows": [],
+    "targetsUnder44": [
+      {
+        "tag": "INPUT",
+        "text": "",
+        "id": "",
+        "className": "",
+        "rect": {
+          "x": 869,
+          "y": 462,
+          "width": 16,
+          "height": 16,
+          "top": 462,
+          "right": 885,
+          "bottom": 478,
+          "left": 869
+        }
+      }
+    ]
+  },
+  "smoke": {
+    "consoleSearch": "passed",
+    "editorDirtyStayDiscard": "passed",
+    "storefrontSelectQuantityCartCheckout": "passed",
+    "privateOrderRoute": "/orders/[redacted-reference]"
+  }
+}

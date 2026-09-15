@@ -265,6 +265,7 @@ Storefront chrome: a **white 64 px header in normal document flow** with 32 px i
 - Product editor primary action: **Save Product**; secondary: **Discard changes**, shown only when dirty.
 - CSV workspace primary action changes by state: **Choose CSV**, then **Import Products** after a valid preview and any required confirmation.
 - Order detail shows only the commands permitted by the loaded Order's `allowedActions`.
+- Order detail keeps one labelled field set for every payment-record state: **Source**, **Method**, **External reference**, **Recorded actor** and **Recorded time**. With no recorded payment the values are truthful absences — **No payment recorded** and em dashes — never a collapsed single sentence, and the Console-only evidence sentence stays at the end of the card.
 - A view has one visually primary action. Disabled primary actions preserve the label and expose the reason.
 
 ### 4.3 Buttons and links
@@ -328,7 +329,7 @@ The whole Product editor is a **centered overlay**, not a side drawer and not a 
 - Sticky white header, 56 px: **Product configuration** at 18 px serif, the real status tag, the durable dirty/Saved state, and one 44 px Close control. No Save/Discard stack here.
 - A 42 px context strip naming the Console surface and the real Product context. There is no Storefront preview tab.
 - Body: 20 px padding, `display: grid`, `grid-template-columns: repeat(auto-fit, minmax(360px, 1fr))`, 16 px gap, `align-items: start`. At 1440 the capped panel fits **three** tracks: Basics, Pricing/Delivery, and an empty third before the full-span sections. Do not stretch the first two to 50/50.
-- Full-span sections: Option groups, then the Variant matrix.
+- Full-span sections: Option groups, then the Variant matrix. They carry no outer padding of their own: a 14 px/16 px divided header sits above a body with its own 16 px inset and 10 px gap, so the desktop matrix table reaches the panel's inside edges. Only the two top cards use the uniform 20 px padding and 14 px gap.
 - Sticky white footer, minimum 60 px: a concise real state/delivery summary at left, **Discard changes** when dirty, and one primary **Save Product** at right. One footer across breakpoints.
 - The real route `/console/products/new` and `/console/products/:slug` renders this overlay over the real Products list as an inert backdrop. Direct navigation and reload show the same overlay and a legitimate loading/empty backdrop, never fabricated rows.
 
@@ -361,13 +362,13 @@ The confirmation label interpolates the actual count (`I reviewed this {count}-c
 
 Desktop matrix columns, in source order:
 
-1. Enabled — 90 px
+1. Enabled — 90 px (the cell stacks the real labelled checkbox above its visible Enabled/Disabled state so the source measure holds)
 2. Combination — 20 %
 3. SKU — 20 %
 4. Price override — 14 %
 5. Effective price — 13 %
 6. Delivery — 14 %
-7. Row action — remainder
+7. Row action — remainder, holding one compact single-line control whose accessible name still names the row (`Edit delivery for <combination>`)
 
 - The option-group section above the matrix renders a one-row group card: bordered participation tag, group-name input, value chips (real 16 px inputs with 44 px targets), a dashed **Add value** affordance, and the `N of 10 values` counter. Butter marks the value chips.
 - Suggested SKU is editable before save. The SKU and price-override cells are real inputs inside a bordered control frame.
@@ -409,6 +410,7 @@ Never show a public URL, storage key, R2 terminology, or private delivery detail
 - The workspace is a page, not a modal-only flow.
 - The template action always names the single file: `nexus-product-import-template.csv`.
 - Dropzone instructions state **CSV, UTF-8, up to 1 MB and 500 data rows**.
+- The dropzone heading and helper are non-editable text at the reference 14 px and 12 px roles; the file control keeps 16 px editable text and a 44 px target. File metadata (name, size, row count and check result) stays in one summary block, and **Import Products** spans the source panel's content track once the preview is eligible.
 - Drag-active state uses a 2 px accent boundary plus copy. It does not rely on color alone.
 - Browser preview groups rows by Product slug and labels each group **Simple Product** or **Variant Product**. There is no type selector or field-mapping step.
 - Preview shows derived combination count for Variant groups and applies the same 10, 11, 30, and 31 meter behavior as the editor.

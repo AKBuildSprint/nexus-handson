@@ -264,6 +264,7 @@ export function ProductListScreen({
     <div className="page-stack">
       <header className="console-tab-row">
         <h1 className="console-tab">Products</h1>
+        <div className="console-tab-spacer" />
         {readOnly ? <p className="console-tab-note">Read-only Product catalog for this Store.</p> : null}
         {!readOnly ? <div className="inline-actions" aria-label="Product list actions">
           <button className="button" type="button" onClick={downloadTemplate} disabled={templateState === 'loading'}>

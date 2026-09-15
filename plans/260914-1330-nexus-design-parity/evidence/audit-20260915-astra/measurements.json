@@ -1,0 +1,1104 @@
+{
+  "scope": "Independent local visual audit, no source fixes. Original scale screenshots; no fresh full-state acceptance.",
+  "measurements": [
+    {
+      "name": "signin-current",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": ".console-auth-card",
+          "text": "NNexus · Operations ConsoleSign inContinue with the Google account provisioned for your Store.Contin",
+          "box": {
+            "x": 530,
+            "y": 232.5,
+            "width": 380,
+            "height": 435,
+            "top": 232.5,
+            "right": 910,
+            "bottom": 667.5,
+            "left": 530
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(234, 232, 230)",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "28px",
+          "gap": "18px"
+        },
+        {
+          "selector": ".console-auth-card button",
+          "text": "Continue with Google",
+          "box": {
+            "x": 559,
+            "y": 437.5,
+            "width": 322,
+            "height": 44,
+            "top": 437.5,
+            "right": 881,
+            "bottom": 481.5,
+            "left": 559
+          },
+          "font": "14px",
+          "line": "21px",
+          "fontWeight": "400",
+          "border": "rgb(234, 232, 230)",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "8px 12px",
+          "gap": "8px"
+        }
+      ]
+    },
+    {
+      "name": "signin-reference",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": "section",
+          "text": "\n      N\n      \n        Nexus · Operations Console\n        Sign in\n        Continue with the Google ",
+          "box": {
+            "x": 530,
+            "y": 203.5,
+            "width": 380,
+            "height": 493,
+            "top": 203.5,
+            "right": 910,
+            "bottom": 696.5,
+            "left": 530
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(234, 232, 230)",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "28px",
+          "gap": "18px"
+        },
+        {
+          "selector": "section button",
+          "text": "\n        G\n        Continue with Google\n      ",
+          "box": {
+            "x": 559,
+            "y": 412.5,
+            "width": 322,
+            "height": 44,
+            "top": 412.5,
+            "right": 881,
+            "bottom": 456.5,
+            "left": 559
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "500",
+          "border": "rgb(138, 129, 130)",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "1px 6px",
+          "gap": "10px"
+        }
+      ]
+    },
+    {
+      "name": "products-current",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": ".console-tab-row",
+          "text": "ProductsDownload CSV templateImport CSVAdd Product",
+          "box": {
+            "x": 256,
+            "y": 80,
+            "width": 1160,
+            "height": 44,
+            "top": 80,
+            "right": 1416,
+            "bottom": 124,
+            "left": 256
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(27, 28, 27)",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".console-deskbar",
+          "text": "Search ProductsNexus · Owner",
+          "box": {
+            "x": 232,
+            "y": 0,
+            "width": 1208,
+            "height": 56,
+            "top": 0,
+            "right": 1440,
+            "bottom": 56,
+            "left": 232
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(27, 28, 27) rgb(27, 28, 27) rgb(234, 232, 230)",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 24px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-table",
+          "text": "SlugProductStatusTypeEffective priceVariantsUpdatedproduct_e2e_auth_0bdda44a463c4879a2167517bc673d63",
+          "box": {
+            "x": 257,
+            "y": 212,
+            "width": 1158,
+            "height": 313,
+            "top": 212,
+            "right": 1415,
+            "bottom": 525,
+            "left": 257
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(27, 28, 27)",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".console-table tbody tr",
+          "text": "product_e2e_auth_0bdda44a463c4879a2167517bc673d63E2E auth sentinel 18da8b68ActiveSimpleUSD 1.00Not a",
+          "box": {
+            "x": 257,
+            "y": 248.5,
+            "width": 1158,
+            "height": 105,
+            "top": 248.5,
+            "right": 1415,
+            "bottom": 353.5,
+            "left": 257
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(27, 28, 27)",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".console-table-footer",
+          "text": "Products 3Active 3Simple 3Variant 0Showing 1–3 of 3 · Page 1 of 1Previous1Next25 / page",
+          "box": {
+            "x": 257,
+            "y": 525,
+            "width": 1158,
+            "height": 69,
+            "top": 525,
+            "right": 1415,
+            "bottom": 594,
+            "left": 257
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(234, 232, 230) rgb(27, 28, 27) rgb(27, 28, 27)",
+          "background": "rgb(251, 248, 246)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "12px 16px",
+          "gap": "18px"
+        }
+      ]
+    },
+    {
+      "name": "products-reference",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": "table",
+          "text": "\n                \n                  \n                    Slug\n                    Product\n          ",
+          "box": {
+            "x": 257,
+            "y": 188,
+            "width": 1158,
+            "height": 194,
+            "top": 188,
+            "right": 1415,
+            "bottom": 382,
+            "left": 257
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(27, 28, 27)",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": "table tbody tr",
+          "text": "\n                      field-notes\n                      Field Notes for Independent Product Teams\n ",
+          "box": {
+            "x": 257,
+            "y": 228.5,
+            "width": 1158,
+            "height": 51,
+            "top": 228.5,
+            "right": 1415,
+            "bottom": 279.5,
+            "left": 257
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(27, 28, 27)",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        }
+      ]
+    },
+    {
+      "name": "products-current",
+      "viewport": {
+        "width": 1024,
+        "height": 900,
+        "scrollWidth": 1024,
+        "bodyWidth": 1024
+      },
+      "regions": [
+        {
+          "selector": ".console-tab-row",
+          "text": "ProductsDownload CSV templateImport CSVAdd Product",
+          "box": {
+            "x": 256,
+            "y": 80,
+            "width": 744,
+            "height": 44,
+            "top": 80,
+            "right": 1000,
+            "bottom": 124,
+            "left": 256
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(27, 28, 27)",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "14px"
+        }
+      ]
+    },
+    {
+      "name": "products-current",
+      "viewport": {
+        "width": 375,
+        "height": 812,
+        "scrollWidth": 375,
+        "bodyWidth": 375
+      },
+      "regions": [
+        {
+          "selector": ".console-tab-row",
+          "text": "ProductsDownload CSV templateImport CSVAdd Product",
+          "box": {
+            "x": 16,
+            "y": 80,
+            "width": 343,
+            "height": 146,
+            "top": 80,
+            "right": 359,
+            "bottom": 226,
+            "left": 16
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(27, 28, 27)",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "14px"
+        }
+      ]
+    },
+    {
+      "name": "editor-empty-current",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": ".console-editor-header",
+          "text": "Product configurationDraftSaved✕",
+          "box": {
+            "x": 80,
+            "y": 24,
+            "width": 1280,
+            "height": 56,
+            "top": 24,
+            "right": 1360,
+            "bottom": 80,
+            "left": 80
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(27, 28, 27) rgb(27, 28, 27) rgb(234, 232, 230)",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 20px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-editor-body",
+          "text": "BasicsProduct slugAssigned after saveProduct statusDraftActiveArchivedProduct name *Customer-visible",
+          "box": {
+            "x": 80,
+            "y": 125,
+            "width": 1280,
+            "height": 1015,
+            "top": 125,
+            "right": 1360,
+            "bottom": 1140,
+            "left": 80
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(27, 28, 27)",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "16px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"]",
+          "text": "Option groups0 to 5 groups · up to 10 values each0 of 5 option groupsAdd option groupOne active Vari",
+          "box": {
+            "x": 100,
+            "y": 674,
+            "width": 1239.984375,
+            "height": 201,
+            "top": 674,
+            "right": 1339.984375,
+            "bottom": 875,
+            "left": 100
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(234, 232, 230)",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] .notice",
+          "text": "One active Variant schemaAdd up to 5 option groups with up to 10 values in each group. Only particip",
+          "box": {
+            "x": 121,
+            "y": 753,
+            "width": 1197.984375,
+            "height": 68,
+            "top": 753,
+            "right": 1318.984375,
+            "bottom": 821,
+            "left": 121
+          },
+          "font": "13px",
+          "line": "19px",
+          "fontWeight": "400",
+          "border": "rgb(234, 232, 230)",
+          "background": "rgb(240, 237, 235)",
+          "color": "rgb(76, 69, 70)",
+          "padding": "12px 16px",
+          "gap": "4px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] button",
+          "text": "Add option group",
+          "box": {
+            "x": 1177.828125,
+            "y": 695,
+            "width": 141.15625,
+            "height": 44,
+            "top": 695,
+            "right": 1318.984375,
+            "bottom": 739,
+            "left": 1177.828125
+          },
+          "font": "14px",
+          "line": "21px",
+          "fontWeight": "400",
+          "border": "rgb(234, 232, 230)",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "8px 12px",
+          "gap": "8px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"]",
+          "text": "Variant matrix0 of 30 combinations1030Generation statusSelect at least one option group and value to",
+          "box": {
+            "x": 100,
+            "y": 891,
+            "width": 1239.984375,
+            "height": 229,
+            "top": 891,
+            "right": 1339.984375,
+            "bottom": 1120,
+            "left": 100
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(234, 232, 230)",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        }
+      ]
+    },
+    {
+      "name": "editor-empty-reference",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "regions": []
+    },
+    {
+      "name": "editor-groups-current",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "regions": []
+    },
+    {
+      "name": "editor-groups-reference",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "regions": []
+    },
+    {
+      "name": "variant-matrix-current",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": ".variant-table",
+          "text": "EnabledCombinationSKUPrice overrideEffective priceDeliveryRowEnabledDarkSKU for DarkPrice override f",
+          "box": {
+            "x": 121,
+            "y": 714,
+            "width": 1197.984375,
+            "height": 273,
+            "top": 714,
+            "right": 1318.984375,
+            "bottom": 987,
+            "left": 121
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(27, 28, 27)",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".combination-meter",
+          "text": "2 of 30 combinations1030Generation statusReady to generate.Generate matrix",
+          "box": {
+            "x": 121,
+            "y": 626,
+            "width": 1197.984375,
+            "height": 44,
+            "top": 626,
+            "right": 1318.984375,
+            "bottom": 670,
+            "left": 121
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(27, 28, 27)",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "12px"
+        }
+      ]
+    },
+    {
+      "name": "variant-drawer-current",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": ".drawer-dialog",
+          "text": "DarkFocused Variant editorCloseSKU PRODUCT-DARKEffective price $36. Status Enabled.SKURequired. SKU ",
+          "box": {
+            "x": 960,
+            "y": 0,
+            "width": 480,
+            "height": 900,
+            "top": 0,
+            "right": 1440,
+            "bottom": 900,
+            "left": 960
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(27, 28, 27)",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        }
+      ]
+    },
+    {
+      "name": "variant-drawer-current",
+      "viewport": {
+        "width": 375,
+        "height": 812,
+        "scrollWidth": 375,
+        "bodyWidth": 375
+      },
+      "regions": [
+        {
+          "selector": ".drawer-dialog",
+          "text": "DarkFocused Variant editorCloseSKU PRODUCT-DARKEffective price $36. Status Enabled.SKURequired. SKU ",
+          "box": {
+            "x": 0,
+            "y": 0,
+            "width": 375,
+            "height": 812,
+            "top": 0,
+            "right": 375,
+            "bottom": 812,
+            "left": 0
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(27, 28, 27)",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        }
+      ]
+    },
+    {
+      "name": "editor-mobile-current",
+      "viewport": {
+        "width": 375,
+        "height": 812,
+        "scrollWidth": 375,
+        "bodyWidth": 375
+      },
+      "regions": [
+        {
+          "selector": ".console-editor-header",
+          "text": "Product configurationDraftUnsaved changes✕",
+          "box": {
+            "x": 0,
+            "y": 0,
+            "width": 375,
+            "height": 81,
+            "top": 0,
+            "right": 375,
+            "bottom": 81,
+            "left": 0
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(27, 28, 27) rgb(27, 28, 27) rgb(234, 232, 230)",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-editor-panel",
+          "text": "Product configurationDraftUnsaved changes✕ConsoleAudit VariantBack to ProductsBasicsProduct slugAssi",
+          "box": {
+            "x": 0,
+            "y": 0,
+            "width": 375,
+            "height": 812,
+            "top": 0,
+            "right": 375,
+            "bottom": 812,
+            "left": 0
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(27, 28, 27)",
+          "background": "rgb(246, 243, 241)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        }
+      ]
+    },
+    {
+      "name": "csv-current",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": ".csv-additive-notice",
+          "text": "Additive exact-match importImport adds new exact matches. It does not update existing Products or Va",
+          "box": {
+            "x": 256,
+            "y": 142,
+            "width": 1160,
+            "height": 45,
+            "top": 142,
+            "right": 1416,
+            "bottom": 187,
+            "left": 256
+          },
+          "font": "13px",
+          "line": "19px",
+          "fontWeight": "400",
+          "border": "rgb(234, 232, 230)",
+          "background": "rgb(240, 237, 235)",
+          "color": "rgb(76, 69, 70)",
+          "padding": "12px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".csv-summary",
+          "missing": true
+        }
+      ]
+    },
+    {
+      "name": "csv-reference",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "regions": []
+    },
+    {
+      "name": "csv-current",
+      "viewport": {
+        "width": 375,
+        "height": 812,
+        "scrollWidth": 375,
+        "bodyWidth": 375
+      },
+      "regions": [
+        {
+          "selector": ".csv-additive-notice",
+          "text": "Additive exact-match importImport adds new exact matches. It does not update existing Products or Va",
+          "box": {
+            "x": 16,
+            "y": 214,
+            "width": 343,
+            "height": 133,
+            "top": 214,
+            "right": 359,
+            "bottom": 347,
+            "left": 16
+          },
+          "font": "13px",
+          "line": "19px",
+          "fontWeight": "400",
+          "border": "rgb(234, 232, 230)",
+          "background": "rgb(240, 237, 235)",
+          "color": "rgb(76, 69, 70)",
+          "padding": "12px 16px",
+          "gap": "12px"
+        }
+      ]
+    },
+    {
+      "name": "orders-current",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": ".console-tab-row",
+          "text": "OrdersPending refund requests",
+          "box": {
+            "x": 256,
+            "y": 80,
+            "width": 1160,
+            "height": 44,
+            "top": 80,
+            "right": 1416,
+            "bottom": 124,
+            "left": 256
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(27, 28, 27)",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".orders-metrics",
+          "missing": true
+        }
+      ]
+    },
+    {
+      "name": "orders-reference",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "regions": []
+    },
+    {
+      "name": "orders-current",
+      "viewport": {
+        "width": 375,
+        "height": 812,
+        "scrollWidth": 375,
+        "bodyWidth": 375
+      },
+      "regions": []
+    },
+    {
+      "name": "order-detail-current",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "regions": []
+    },
+    {
+      "name": "order-detail-current",
+      "viewport": {
+        "width": 375,
+        "height": 812,
+        "scrollWidth": 375,
+        "bodyWidth": 375
+      },
+      "regions": []
+    },
+    {
+      "name": "storefront-current",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": ".storefront-hero",
+          "missing": true
+        },
+        {
+          "selector": ".storefront-workspace",
+          "text": "Search Products3 publishedAll ProductsSimpleVariantShowing 1–3 of 3 · Page 1 of 1PreviousNextE2E aut",
+          "box": {
+            "x": 112,
+            "y": 308,
+            "width": 1216,
+            "height": 741,
+            "top": 308,
+            "right": 1328,
+            "bottom": 1049,
+            "left": 112
+          },
+          "font": "16px",
+          "line": "normal",
+          "fontWeight": "400",
+          "border": "rgb(27, 28, 27)",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "28px"
+        },
+        {
+          "selector": ".catalog-row",
+          "text": "E2E auth sentinel 18da8b68Local binding continuity sentinel$1.00Selected",
+          "box": {
+            "x": 112,
+            "y": 428,
+            "width": 289,
+            "height": 282,
+            "top": 428,
+            "right": 401,
+            "bottom": 710,
+            "left": 112
+          },
+          "font": "16px",
+          "line": "normal",
+          "fontWeight": "400",
+          "border": "rgb(0, 0, 0)",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "18px",
+          "gap": "10px"
+        },
+        {
+          "selector": ".purchase-ledger",
+          "text": "Purchase ledgerE2E auth sentinel 18da8b68Local binding continuity sentinelSimple Product. No format ",
+          "box": {
+            "x": 734,
+            "y": 308,
+            "width": 594,
+            "height": 724.59375,
+            "top": 308,
+            "right": 1328,
+            "bottom": 1032.59375,
+            "left": 734
+          },
+          "font": "16px",
+          "line": "normal",
+          "fontWeight": "400",
+          "border": "rgb(234, 232, 230)",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        }
+      ]
+    },
+    {
+      "name": "storefront-current",
+      "viewport": {
+        "width": 375,
+        "height": 812,
+        "scrollWidth": 375,
+        "bodyWidth": 375
+      },
+      "regions": []
+    },
+    {
+      "name": "order-detail-reference",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "regions": []
+    },
+    {
+      "name": "storefront-reference",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "regions": []
+    },
+    {
+      "name": "order-payment-current",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "regions": []
+    },
+    {
+      "name": "order-payment-current",
+      "viewport": {
+        "width": 375,
+        "height": 812,
+        "scrollWidth": 375,
+        "bodyWidth": 375
+      },
+      "regions": []
+    },
+    {
+      "name": "csv-preview-current",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": ".dropzone h3",
+          "text": "Choose a CSV to check",
+          "box": {
+            "x": 440.34375,
+            "y": 464,
+            "width": 203.296875,
+            "height": 24,
+            "top": 464,
+            "right": 643.640625,
+            "bottom": 488,
+            "left": 440.34375
+          },
+          "font": "18px",
+          "line": "24px",
+          "fontWeight": "700",
+          "border": "rgb(27, 28, 27)",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".dropzone p",
+          "text": "CSV, UTF-8, up to 1 MB and 500 data rows.",
+          "box": {
+            "x": 398.796875,
+            "y": 496,
+            "width": 286.40625,
+            "height": 20,
+            "top": 496,
+            "right": 685.203125,
+            "bottom": 516,
+            "left": 398.796875
+          },
+          "font": "14px",
+          "line": "20px",
+          "fontWeight": "400",
+          "border": "rgb(27, 28, 27)",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".csv-import-actions button",
+          "text": "Import Products",
+          "box": {
+            "x": 277,
+            "y": 836,
+            "width": 133.4375,
+            "height": 44,
+            "top": 836,
+            "right": 410.4375,
+            "bottom": 880,
+            "left": 277
+          },
+          "font": "14px",
+          "line": "21px",
+          "fontWeight": "500",
+          "border": "rgb(0, 0, 0)",
+          "background": "rgb(0, 0, 0)",
+          "color": "rgb(255, 255, 255)",
+          "padding": "8px 12px",
+          "gap": "8px"
+        }
+      ]
+    },
+    {
+      "name": "csv-preview-current",
+      "viewport": {
+        "width": 375,
+        "height": 812,
+        "scrollWidth": 375,
+        "bodyWidth": 375
+      },
+      "regions": [
+        {
+          "selector": ".csv-import-actions button",
+          "text": "Import Products",
+          "box": {
+            "x": 33,
+            "y": 1093,
+            "width": 133.4375,
+            "height": 44,
+            "top": 1093,
+            "right": 166.4375,
+            "bottom": 1137,
+            "left": 33
+          },
+          "font": "14px",
+          "line": "21px",
+          "fontWeight": "500",
+          "border": "rgb(0, 0, 0)",
+          "background": "rgb(0, 0, 0)",
+          "color": "rgb(255, 255, 255)",
+          "padding": "8px 12px",
+          "gap": "8px"
+        }
+      ]
+    }
+  ]
+}

@@ -301,17 +301,12 @@ export function VariantBuilder({
       <section className="editor-card editor-card-span" aria-labelledby="option-groups-title">
         <div className="editor-card-head">
           <h2 id="option-groups-title" className="editor-card-title">Option groups</h2>
-          <span className="editor-card-note">0 to 5 groups · up to 10 values each</span>
+          <span className="editor-card-note">0 to 5 groups · up to 10 values each · participating groups feed the count</span>
           <div className="editor-spacer" />
           <span className="meta-text numeric">{groups.length} of 5 option groups</span>
-          <button className="button" type="button" disabled={groups.length >= 5} onClick={addGroup}>Add option group</button>
+          <button className="button button-primary" type="button" disabled={groups.length >= 5} onClick={addGroup}>Add option group</button>
         </div>
         <div className="editor-card-body">
-          <div className="notice notice-info">
-            <strong>One active Variant schema</strong>
-            <span>Add up to 5 option groups with up to 10 values in each group. Only participating groups contribute to the Cartesian count.</span>
-          </div>
-
           {groups.length === 0 ? (
             <p className="editor-card-empty">This is a simple Product. Add an option group to build a Variant schema.</p>
           ) : (
@@ -420,23 +415,25 @@ export function VariantBuilder({
           </section>
         </div>
 
-        <div className="editor-card-body">
+        <div className="editor-card-body editor-card-body-flush">
           {previewOpen ? (
-            <SchemaChangePreview
-              rows={previewRows.length > 0 ? previewRows : regenerationRows}
-              combinationCount={combinationCount}
-              onApply={(proposedRows) => {
-                const applied = proposedRows
-                  .filter((row) => row.outcome !== 'Will disable')
-                  .map((row) => ({ ...row, outcome: undefined }));
-                setMatrixRows(applied);
-                setPreviewOpen(false);
-                setStructuralDirty(false);
-                onSchemaChange?.(groups, applied);
-                onDirty();
-              }}
-              onCancel={() => setPreviewOpen(false)}
-            />
+            <div className="editor-card-inset">
+              <SchemaChangePreview
+                rows={previewRows.length > 0 ? previewRows : regenerationRows}
+                combinationCount={combinationCount}
+                onApply={(proposedRows) => {
+                  const applied = proposedRows
+                    .filter((row) => row.outcome !== 'Will disable')
+                    .map((row) => ({ ...row, outcome: undefined }));
+                  setMatrixRows(applied);
+                  setPreviewOpen(false);
+                  setStructuralDirty(false);
+                  onSchemaChange?.(groups, applied);
+                  onDirty();
+                }}
+                onCancel={() => setPreviewOpen(false)}
+              />
+            </div>
           ) : null}
 
           <VariantMatrix

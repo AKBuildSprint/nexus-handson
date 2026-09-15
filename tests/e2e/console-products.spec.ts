@@ -170,3 +170,48 @@ test('exposes skip navigation, focusable filters, and keyboard-visible Product c
   const focusStyle = await page.getByRole('tab', { name: 'Archived' }).evaluate((element) => getComputedStyle(element).outlineStyle);
   expect(focusStyle).not.toBe('none');
 });
+test('keeps a clean new Product unpersisted until a save succeeds', async ({ consoleOwnerPage: page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/console/products/new');
+  const state = page.locator('.console-editor-state');
+  await expect(state).toHaveText('Not saved');
+  await expect(visibleSave(page)).toBeDisabled();
+
+  const name = uniqueName('lifecycle');
+  await fillRequiredProduct(page, name);
+  await expect(state).toHaveText('Unsaved changes');
+
+  // Fail the first create at the network boundary using the Worker's own error
+  // envelope, then let the same editor retry for real.
+  let failOnce = true;
+  await page.route('**/api/console/products**', async (route) => {
+    if (failOnce && route.request().method() === 'POST') {
+      failOnce = false;
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: { code: 'internal_error', message: 'Injected save failure.', fields: [], incidentId: null } }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+
+  await visibleSave(page).click();
+  await expect(page.getByRole('alert').filter({ hasText: 'Product could not be saved' })).toBeVisible();
+  await expect(state).toHaveText('Unsaved changes');
+  await expect(page.getByLabel('Product name')).toHaveValue(name);
+
+  await visibleSave(page).click();
+  await expect(page.getByText('The editor remains open so you can review the saved Product.')).toBeVisible();
+  await expect(state).toHaveText('Product saved');
+  await expect(page).toHaveURL(/\/console\/products\/[^/]+$/);
+
+  await page.reload();
+  await expect(state).toHaveText('Saved');
+  await expect(page.getByLabel('Product name')).toHaveValue(name);
+
+  await page.goto('/console/products/new');
+  await expect(state).toHaveText('Not saved');
+  await expect(page.getByLabel('Product name')).toHaveValue('');
+});

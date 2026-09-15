@@ -1,0 +1,368 @@
+{
+  "measurements": [
+    {
+      "name": "reference-editor-empty-1440",
+      "scrollTop": 0,
+      "header": {
+        "x": 80,
+        "y": 24,
+        "w": 1280,
+        "h": 56,
+        "padding": "0px 20px",
+        "gap": "12px"
+      },
+      "context": {
+        "x": 80,
+        "y": 80,
+        "w": 1280,
+        "h": 43,
+        "padding": "0px 20px",
+        "gap": "20px"
+      },
+      "body": {
+        "x": 80,
+        "y": 123,
+        "w": 1280,
+        "h": 852,
+        "padding": "20px",
+        "gap": "16px"
+      },
+      "topCards": [
+        {
+          "section": {
+            "x": 100,
+            "y": 143,
+            "w": 402.66,
+            "h": 320,
+            "padding": "20px",
+            "gap": "14px"
+          }
+        },
+        {
+          "section": {
+            "x": 518.66,
+            "y": 143,
+            "w": 402.67,
+            "h": 493,
+            "padding": "20px",
+            "gap": "14px"
+          }
+        }
+      ],
+      "pricingChildren": [
+        {
+          "label": "Base price *0.00USD CurrencyUSD▾",
+          "height": 64
+        },
+        {
+          "label": "One currency per Product. USD show",
+          "height": 40
+        },
+        {
+          "label": "",
+          "height": 1
+        },
+        {
+          "label": "DeliveryPrivate Console content",
+          "height": 20
+        },
+        {
+          "label": "Private access title *",
+          "height": 64
+        },
+        {
+          "label": "Private access instructions *",
+          "height": 90
+        },
+        {
+          "label": "No private file selected · optiona",
+          "height": 88
+        }
+      ],
+      "sections": [
+        {
+          "section": {
+            "x": 100,
+            "y": 652,
+            "w": 1239.98,
+            "h": 115,
+            "padding": "0px",
+            "gap": "normal"
+          },
+          "head": {
+            "x": 101,
+            "y": 653,
+            "w": 1237.98,
+            "h": 61,
+            "padding": "14px 16px",
+            "gap": "12px"
+          },
+          "sectionBody": {
+            "x": 101,
+            "y": 714,
+            "w": 1237.98,
+            "h": 52,
+            "padding": "16px",
+            "gap": "10px"
+          },
+          "table": null,
+          "headText": "Option groups 0 to 5 groups · up to 10 values each Add optio"
+        },
+        {
+          "section": {
+            "x": 100,
+            "y": 783,
+            "w": 1239.98,
+            "h": 172,
+            "padding": "0px",
+            "gap": "normal"
+          },
+          "head": {
+            "x": 101,
+            "y": 784,
+            "w": 1237.98,
+            "h": 61,
+            "padding": "14px 16px",
+            "gap": "10px"
+          },
+          "sectionBody": {
+            "x": 101,
+            "y": 845,
+            "w": 1237.98,
+            "h": 41,
+            "padding": "0px",
+            "gap": "normal"
+          },
+          "table": {
+            "x": 101,
+            "y": 845,
+            "w": 1237.98,
+            "h": 41,
+            "padding": "0px",
+            "gap": "normal"
+          },
+          "headText": "Auto-suggest SKUs 0 of 30 combinations Generate combinations"
+        }
+      ],
+      "columns": [
+        {
+          "label": "Enabled",
+          "width": 90,
+          "left": 101
+        },
+        {
+          "label": "Combination",
+          "width": 247.59,
+          "left": 191
+        },
+        {
+          "label": "SKU",
+          "width": 247.59,
+          "left": 438.59
+        },
+        {
+          "label": "Price override",
+          "width": 173.31,
+          "left": 686.19
+        },
+        {
+          "label": "Effective price",
+          "width": 160.94,
+          "left": 859.5
+        },
+        {
+          "label": "Delivery",
+          "width": 173.31,
+          "left": 1020.44
+        },
+        {
+          "label": "Row",
+          "width": 145.23,
+          "left": 1193.75
+        }
+      ]
+    },
+    {
+      "name": "reference-editor-groups-1440",
+      "scrollTop": 0,
+      "header": {
+        "x": 80,
+        "y": 24,
+        "w": 1280,
+        "h": 56,
+        "padding": "0px 20px",
+        "gap": "12px"
+      },
+      "context": {
+        "x": 80,
+        "y": 80,
+        "w": 1280,
+        "h": 43,
+        "padding": "0px 20px",
+        "gap": "20px"
+      },
+      "body": {
+        "x": 80,
+        "y": 123,
+        "w": 1280,
+        "h": 1094,
+        "padding": "20px",
+        "gap": "16px"
+      },
+      "topCards": [
+        {
+          "section": {
+            "x": 100,
+            "y": 143,
+            "w": 402.66,
+            "h": 320,
+            "padding": "20px",
+            "gap": "14px"
+          }
+        },
+        {
+          "section": {
+            "x": 518.66,
+            "y": 143,
+            "w": 402.67,
+            "h": 493,
+            "padding": "20px",
+            "gap": "14px"
+          }
+        }
+      ],
+      "pricingChildren": [
+        {
+          "label": "Base price *58.00USD CurrencyUSD▾",
+          "height": 64
+        },
+        {
+          "label": "One currency per Product. USD show",
+          "height": 40
+        },
+        {
+          "label": "",
+          "height": 1
+        },
+        {
+          "label": "DeliveryPrivate Console content",
+          "height": 20
+        },
+        {
+          "label": "Private access title *",
+          "height": 64
+        },
+        {
+          "label": "Private access instructions *Open ",
+          "height": 90
+        },
+        {
+          "label": "launch-systems-library.zip · 21.7 ",
+          "height": 88
+        }
+      ],
+      "sections": [
+        {
+          "section": {
+            "x": 100,
+            "y": 652,
+            "w": 1239.98,
+            "h": 197,
+            "padding": "0px",
+            "gap": "normal"
+          },
+          "head": {
+            "x": 101,
+            "y": 653,
+            "w": 1237.98,
+            "h": 61,
+            "padding": "14px 16px",
+            "gap": "12px"
+          },
+          "sectionBody": {
+            "x": 101,
+            "y": 714,
+            "w": 1237.98,
+            "h": 134,
+            "padding": "16px",
+            "gap": "10px"
+          },
+          "table": null,
+          "headText": "Option groups 0 to 5 groups · up to 10 values each Add optio"
+        },
+        {
+          "section": {
+            "x": 100,
+            "y": 865,
+            "w": 1239.98,
+            "h": 332,
+            "padding": "0px",
+            "gap": "normal"
+          },
+          "head": {
+            "x": 101,
+            "y": 866,
+            "w": 1237.98,
+            "h": 61,
+            "padding": "14px 16px",
+            "gap": "10px"
+          },
+          "sectionBody": {
+            "x": 101,
+            "y": 927,
+            "w": 1237.98,
+            "h": 269,
+            "padding": "0px",
+            "gap": "normal"
+          },
+          "table": {
+            "x": 101,
+            "y": 927,
+            "w": 1237.98,
+            "h": 269,
+            "padding": "0px",
+            "gap": "normal"
+          },
+          "headText": "Auto-suggest SKUs 4 of 30 combinations Generate combinations"
+        }
+      ],
+      "columns": [
+        {
+          "label": "Enabled",
+          "width": 90,
+          "left": 101
+        },
+        {
+          "label": "Combination",
+          "width": 247.59,
+          "left": 191
+        },
+        {
+          "label": "SKU",
+          "width": 247.59,
+          "left": 438.59
+        },
+        {
+          "label": "Price override",
+          "width": 173.31,
+          "left": 686.19
+        },
+        {
+          "label": "Effective price",
+          "width": 160.94,
+          "left": 859.5
+        },
+        {
+          "label": "Delivery",
+          "width": 173.31,
+          "left": 1020.44
+        },
+        {
+          "label": "Row",
+          "width": 145.23,
+          "left": 1193.75
+        }
+      ]
+    }
+  ]
+}

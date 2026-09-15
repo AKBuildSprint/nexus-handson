@@ -271,6 +271,10 @@ legend {
   line-height: var(--type-meta-line);
 }
 
+.required-mark {
+  color: var(--color-error-ink);
+}
+
 .field input,
 .field select,
 .field textarea {
@@ -300,6 +304,10 @@ legend {
 .field textarea {
   min-height: var(--space-24);
   resize: vertical;
+}
+
+.field textarea.delivery-instructions {
+  min-height: calc(var(--space-12) + var(--space-2-5));
 }
 
 .field-help,
@@ -1213,8 +1221,20 @@ legend {
 }
 
 .variant-table .variant-col-enabled {
-  width: var(--layout-control-short);
+  width: var(--layout-col-variant-enabled);
   padding-inline-start: var(--space-4);
+}
+
+/* The source cell is a 22 px display tag. Production keeps a real labelled
+   checkbox, so the 90 px source column only fits when the control and its
+   visible state stack inside the cell's 62 px content box. */
+.variant-table .variant-col-enabled .switch-row {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  font-size: var(--type-meta-size);
+  line-height: var(--type-meta-line);
+  white-space: nowrap;
 }
 
 .variant-table .variant-col-combination {
@@ -1241,6 +1261,7 @@ legend {
 .variant-table .variant-col-row {
   padding-inline-end: var(--space-4);
   text-align: end;
+  white-space: nowrap;
 }
 
 .variant-table input:not([type='checkbox']) {
@@ -1579,8 +1600,13 @@ legend {
   background: var(--color-surface);
 }
 
+/* Reference full-span sections own no outer padding: a divided compact header
+   sits above a body that supplies its own inset, so the Variant matrix table
+   can reach the panel's inside edges. */
 .editor-card-span {
   grid-column: 1 / -1;
+  gap: 0;
+  padding: 0;
 }
 
 .editor-card-head {
@@ -1617,10 +1643,35 @@ legend {
   align-content: start;
 }
 
+.editor-card-span > .editor-card-head {
+  padding: var(--space-3-5) var(--space-4);
+  border-block-end: var(--border-hairline) solid var(--color-divider);
+}
+
+.editor-card-span > .editor-card-body {
+  padding: var(--space-4);
+  gap: var(--space-2-5);
+}
+
+/* The matrix table and its scroll region are the full-bleed content; their own
+   cells carry the source inline inset. */
+.editor-card-span > .editor-card-body-flush {
+  padding: 0;
+  gap: 0;
+}
+
+.editor-card-inset {
+  padding: var(--space-4);
+}
+
 .editor-pair {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(var(--layout-control-short), 1fr));
   gap: var(--space-3-5);
+}
+
+.editor-pair-help {
+  grid-column: 1 / -1;
 }
 
 .editor-meta {
@@ -1640,10 +1691,10 @@ legend {
   min-height: var(--target-min);
   align-items: center;
   padding: var(--space-2) var(--space-3);
-  border: var(--border-hairline) solid var(--color-divider);
+  border: var(--border-hairline) solid var(--color-border);
   border-radius: var(--radius-control);
-  background: var(--color-canvas);
-  color: var(--color-ink-muted);
+  background: var(--color-surface);
+  color: var(--color-ink);
   overflow-wrap: anywhere;
 }
 
@@ -1792,7 +1843,9 @@ legend {
 .combination-meter {
   display: flex;
   min-width: 0;
-  flex: 1 1 100%;
+  /* Shares the reference's single header row with the section title; it wraps
+     to its own row only when the header cannot hold it. */
+  flex: 1 1 auto;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
@@ -1912,11 +1965,18 @@ legend {
   flex: none;
 }
 
+/* The Variant matrix body is flush so the table reaches the panel edges; the
+   table cells and these local insets carry the reference inline padding. */
 .editor-matrix {
   display: grid;
   min-width: 0;
-  gap: var(--space-3-5);
+  gap: 0;
   align-content: start;
+}
+
+.editor-matrix-empty,
+.editor-matrix > .variant-list-mobile {
+  padding: var(--space-4);
 }
 
 .regeneration-preview {
@@ -2012,6 +2072,21 @@ legend {
   line-height: var(--type-ledger-line);
 }
 
+.csv-additive-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.csv-additive-notice strong {
+  flex: none;
+}
+
+.csv-additive-notice > span {
+  flex: 1 1 var(--layout-split-track-min);
+}
+
 .csv-workspace {
   display: grid;
   min-width: 0;
@@ -2038,6 +2113,10 @@ legend {
 
 .csv-source {
   padding: var(--space-5);
+}
+
+.csv-source > .button {
+  justify-self: start;
 }
 
 .csv-source h2,
@@ -2099,7 +2178,7 @@ legend {
 .csv-import-actions {
   display: grid;
   gap: var(--space-2);
-  justify-items: start;
+  justify-items: stretch;
 }
 
 .dropzone {
@@ -2116,6 +2195,20 @@ legend {
 .dropzone.active {
   border-color: var(--color-accent-active);
   background: var(--color-accent-soft);
+}
+
+/* Reference dropzone heading/helper are non-editable 14/12 px, so E02's
+   editable-input floor does not raise them. */
+.dropzone h3 {
+  font-size: var(--type-ui-size);
+  font-weight: var(--weight-semibold);
+  line-height: var(--type-ui-line);
+}
+
+.dropzone p {
+  color: var(--color-ink-muted);
+  font-size: var(--type-meta-size);
+  line-height: var(--type-meta-line);
 }
 
 .csv-group-list {
@@ -2438,7 +2531,7 @@ legend {
     padding-inline: var(--space-4);
   }
 
-  .editor-card,
+  .editor-card:not(.editor-card-span),
   .csv-source,
   .paper-card {
     padding: var(--space-4);

@@ -1,0 +1,4372 @@
+{
+  "measurements": [
+    {
+      "name": "A01-empty-1440",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440,
+        "clientWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": ".console-editor-panel",
+          "text": "Product configurationDraftNot saved✕ConsoleNew ProductBack to ProductsBasicsProduct slugAssigned after saveProduct statu",
+          "box": {
+            "x": 80,
+            "y": 24,
+            "width": 1280,
+            "height": 852,
+            "top": 24,
+            "right": 1360,
+            "bottom": 876,
+            "left": 80
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(246, 243, 241)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".console-editor-header",
+          "text": "Product configurationDraftNot saved✕",
+          "box": {
+            "x": 80,
+            "y": 24,
+            "width": 1280,
+            "height": 56,
+            "top": 24,
+            "right": 1360,
+            "bottom": 80,
+            "left": 80
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 20px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-editor-context",
+          "text": "ConsoleNew ProductBack to Products",
+          "box": {
+            "x": 80,
+            "y": 80,
+            "width": 1280,
+            "height": 45,
+            "top": 80,
+            "right": 1360,
+            "bottom": 125,
+            "left": 80
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 20px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-editor-body",
+          "text": "BasicsProduct slugAssigned after saveProduct statusDraftActiveArchivedProduct name *Customer-visible descriptionPricing ",
+          "box": {
+            "x": 80,
+            "y": 125,
+            "width": 1280,
+            "height": 886,
+            "top": 125,
+            "right": 1360,
+            "bottom": 1011,
+            "left": 80
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "16px"
+        },
+        {
+          "selector": ".console-editor-body > section.editor-card:nth-of-type(1)",
+          "text": "BasicsProduct slugAssigned after saveProduct statusDraftActiveArchivedProduct name *Customer-visible description",
+          "box": {
+            "x": 100,
+            "y": 145,
+            "width": 402.65625,
+            "height": 320,
+            "top": 145,
+            "right": 502.65625,
+            "bottom": 465,
+            "left": 100
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".console-editor-body > section.editor-card:nth-of-type(2)",
+          "text": "Pricing and deliveryBase price *CurrencyOne currency per Product. Changing currency does not convert prices.DeliveryPriv",
+          "box": {
+            "x": 518.65625,
+            "y": 145,
+            "width": 402.671875,
+            "height": 513,
+            "top": 145,
+            "right": 921.328125,
+            "bottom": 658,
+            "left": 518.65625
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".console-editor-footer",
+          "text": "No private file selectedSave ProductMake a change before saving.",
+          "box": {
+            "x": 80,
+            "y": 815,
+            "width": 1280,
+            "height": 61,
+            "top": 815,
+            "right": 1360,
+            "bottom": 876,
+            "left": 80
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "8px 20px",
+          "gap": "14px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"]",
+          "text": "Option groups0 to 5 groups · up to 10 values each · participating groups feed the count0 of 5 option groupsAdd option gr",
+          "box": {
+            "x": 100,
+            "y": 674,
+            "width": 1239.984375,
+            "height": 126,
+            "top": 674,
+            "right": 1339.984375,
+            "bottom": 800,
+            "left": 100
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] > .editor-card-head",
+          "text": "Option groups0 to 5 groups · up to 10 values each · participating groups feed the count0 of 5 option groupsAdd option gr",
+          "box": {
+            "x": 101,
+            "y": 675,
+            "width": 1237.984375,
+            "height": 73,
+            "top": 675,
+            "right": 1338.984375,
+            "bottom": 748,
+            "left": 101
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "14px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] > .editor-card-body",
+          "text": "This is a simple Product. Add an option group to build a Variant schema.",
+          "box": {
+            "x": 101,
+            "y": 748,
+            "width": 1237.984375,
+            "height": 51,
+            "top": 748,
+            "right": 1338.984375,
+            "bottom": 799,
+            "left": 101
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "16px",
+          "gap": "10px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] .notice",
+          "missing": true
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] button",
+          "text": "Add option group",
+          "box": {
+            "x": 1180.75,
+            "y": 689,
+            "width": 142.234375,
+            "height": 44,
+            "top": 689,
+            "right": 1322.984375,
+            "bottom": 733,
+            "left": 1180.75
+          },
+          "fontSize": "14px",
+          "lineHeight": "21px",
+          "fontWeight": "500",
+          "background": "rgb(0, 0, 0)",
+          "color": "rgb(255, 255, 255)",
+          "padding": "8px 12px",
+          "gap": "8px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"]",
+          "text": "Variant matrix0 of 30 combinations1030Generation statusSelect at least one option group and value to generate combinatio",
+          "box": {
+            "x": 100,
+            "y": 816,
+            "width": 1239.984375,
+            "height": 175,
+            "top": 816,
+            "right": 1339.984375,
+            "bottom": 991,
+            "left": 100
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"] > .editor-card-head",
+          "text": "Variant matrix0 of 30 combinations1030Generation statusSelect at least one option group and value to generate combinatio",
+          "box": {
+            "x": 101,
+            "y": 817,
+            "width": 1237.984375,
+            "height": 73,
+            "top": 817,
+            "right": 1338.984375,
+            "bottom": 890,
+            "left": 101
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "14px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"] > .editor-card-body",
+          "text": "No combinations generated yet.Configure participating groups and use Generate matrix.",
+          "box": {
+            "x": 101,
+            "y": 890,
+            "width": 1237.984375,
+            "height": 100,
+            "top": 890,
+            "right": 1338.984375,
+            "bottom": 990,
+            "left": 101
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": ".combination-meter",
+          "text": "0 of 30 combinations1030Generation statusSelect at least one option group and value to generate combinations.Generate ma",
+          "box": {
+            "x": 366.171875,
+            "y": 831,
+            "width": 956.8125,
+            "height": 44,
+            "top": 831,
+            "right": 1322.984375,
+            "bottom": 875,
+            "left": 366.171875
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".variant-table",
+          "missing": true
+        },
+        {
+          "selector": ".variant-table thead tr",
+          "missing": true
+        },
+        {
+          "selector": ".variant-table tbody tr",
+          "missing": true
+        }
+      ]
+    },
+    {
+      "name": "A01-empty-1440-top-cards",
+      "cards": [
+        {
+          "selector": "editor-card",
+          "children": [
+            {
+              "label": "BasicsProduct slugAssigned after s",
+              "height": 278
+            }
+          ]
+        },
+        {
+          "selector": "editor-card-body",
+          "children": [
+            {
+              "label": "Basics",
+              "height": 1
+            },
+            {
+              "label": "Product slugAssigned after savePro",
+              "height": 66
+            },
+            {
+              "label": "Product name *",
+              "height": 66
+            },
+            {
+              "label": "Customer-visible description",
+              "height": 118
+            }
+          ]
+        },
+        {
+          "selector": "editor-card",
+          "children": [
+            {
+              "label": "Pricing and deliveryBase price *Cu",
+              "height": 471
+            }
+          ]
+        },
+        {
+          "selector": "editor-card-body",
+          "children": [
+            {
+              "label": "Pricing and delivery",
+              "height": 1
+            },
+            {
+              "label": "Base price *CurrencyOne currency p",
+              "height": 112
+            },
+            {
+              "label": "",
+              "height": 1
+            },
+            {
+              "label": "DeliveryPrivate Console content",
+              "height": 16
+            },
+            {
+              "label": "Private access title *Private acce",
+              "height": 300
+            }
+          ]
+        },
+        {
+          "selector": "editor-card editor-card-span",
+          "children": [
+            {
+              "label": "Option groups0 to 5 groups · up to",
+              "height": 73
+            },
+            {
+              "label": "This is a simple Product. Add an o",
+              "height": 51
+            }
+          ]
+        },
+        {
+          "selector": "editor-card-body",
+          "children": [
+            {
+              "label": "This is a simple Product. Add an o",
+              "height": 19
+            }
+          ]
+        },
+        {
+          "selector": "editor-card editor-card-span",
+          "children": [
+            {
+              "label": "Variant matrix0 of 30 combinations",
+              "height": 73
+            },
+            {
+              "label": "No combinations generated yet.Conf",
+              "height": 100
+            }
+          ]
+        },
+        {
+          "selector": "editor-card-body editor-card-body-flush",
+          "children": [
+            {
+              "label": "No combinations generated yet.Conf",
+              "height": 100
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "A01-groups-1440",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440,
+        "clientWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": ".console-editor-panel",
+          "text": "Product configurationActiveUnsaved changes✕ConsoleA01 capture ProductBack to ProductsBasicsProduct slugAssigned after sa",
+          "box": {
+            "x": 80,
+            "y": 24,
+            "width": 1280,
+            "height": 852,
+            "top": 24,
+            "right": 1360,
+            "bottom": 876,
+            "left": 80
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(246, 243, 241)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".console-editor-header",
+          "text": "Product configurationActiveUnsaved changes✕",
+          "box": {
+            "x": 80,
+            "y": 24,
+            "width": 1280,
+            "height": 56,
+            "top": 24,
+            "right": 1360,
+            "bottom": 80,
+            "left": 80
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 20px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-editor-context",
+          "text": "ConsoleA01 capture ProductBack to Products",
+          "box": {
+            "x": 80,
+            "y": 80,
+            "width": 1280,
+            "height": 45,
+            "top": 80,
+            "right": 1360,
+            "bottom": 125,
+            "left": 80
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 20px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-editor-body",
+          "text": "BasicsProduct slugAssigned after saveProduct statusDraftActiveArchivedProduct name *Customer-visible descriptionPublic d",
+          "box": {
+            "x": 80,
+            "y": 125,
+            "width": 1280,
+            "height": 1087,
+            "top": 125,
+            "right": 1360,
+            "bottom": 1212,
+            "left": 80
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "16px"
+        },
+        {
+          "selector": ".console-editor-body > section.editor-card:nth-of-type(1)",
+          "text": "BasicsProduct slugAssigned after saveProduct statusDraftActiveArchivedProduct name *Customer-visible descriptionPublic d",
+          "box": {
+            "x": 100,
+            "y": 145,
+            "width": 402.65625,
+            "height": 320,
+            "top": 145,
+            "right": 502.65625,
+            "bottom": 465,
+            "left": 100
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".console-editor-body > section.editor-card:nth-of-type(2)",
+          "text": "Pricing and deliveryBase price *CurrencyOne currency per Product. Changing currency does not convert prices.DeliveryPriv",
+          "box": {
+            "x": 518.65625,
+            "y": 145,
+            "width": 402.671875,
+            "height": 513,
+            "top": 145,
+            "right": 921.328125,
+            "bottom": 658,
+            "left": 518.65625
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".console-editor-footer",
+          "text": "No private file selectedDiscard changesSave Product",
+          "box": {
+            "x": 80,
+            "y": 815,
+            "width": 1280,
+            "height": 61,
+            "top": 815,
+            "right": 1360,
+            "bottom": 876,
+            "left": 80
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "8px 20px",
+          "gap": "14px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"]",
+          "text": "Option groups0 to 5 groups · up to 10 values each · participating groups feed the count1 of 5 option groupsAdd option gr",
+          "box": {
+            "x": 100,
+            "y": 674,
+            "width": 1239.984375,
+            "height": 249,
+            "top": 674,
+            "right": 1339.984375,
+            "bottom": 923,
+            "left": 100
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] > .editor-card-head",
+          "text": "Option groups0 to 5 groups · up to 10 values each · participating groups feed the count1 of 5 option groupsAdd option gr",
+          "box": {
+            "x": 101,
+            "y": 675,
+            "width": 1237.984375,
+            "height": 73,
+            "top": 675,
+            "right": 1338.984375,
+            "bottom": 748,
+            "left": 101
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "14px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] > .editor-card-body",
+          "text": "participatingOption group 1Value 1×Value 2×Add valueRemove group2 of 10 values",
+          "box": {
+            "x": 101,
+            "y": 748,
+            "width": 1237.984375,
+            "height": 174,
+            "top": 748,
+            "right": 1338.984375,
+            "bottom": 922,
+            "left": 101
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "16px",
+          "gap": "10px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] .notice",
+          "missing": true
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] button",
+          "text": "Add option group",
+          "box": {
+            "x": 1180.75,
+            "y": 689,
+            "width": 142.234375,
+            "height": 44,
+            "top": 689,
+            "right": 1322.984375,
+            "bottom": 733,
+            "left": 1180.75
+          },
+          "fontSize": "14px",
+          "lineHeight": "21px",
+          "fontWeight": "500",
+          "background": "rgb(0, 0, 0)",
+          "color": "rgb(255, 255, 255)",
+          "padding": "8px 12px",
+          "gap": "8px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"]",
+          "text": "Variant matrix2 of 30 combinations1030Generation statusReady to generate.Generate matrixEnabledCombinationSKUPrice overr",
+          "box": {
+            "x": 100,
+            "y": 939,
+            "width": 1239.984375,
+            "height": 253,
+            "top": 939,
+            "right": 1339.984375,
+            "bottom": 1192,
+            "left": 100
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"] > .editor-card-head",
+          "text": "Variant matrix2 of 30 combinations1030Generation statusReady to generate.Generate matrix",
+          "box": {
+            "x": 101,
+            "y": 940,
+            "width": 1237.984375,
+            "height": 73,
+            "top": 940,
+            "right": 1338.984375,
+            "bottom": 1013,
+            "left": 101
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "14px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"] > .editor-card-body",
+          "text": "EnabledCombinationSKUPrice overrideEffective priceDeliveryRowEnabledPDFSKU for PDFPrice override for PDF$24.00Base price",
+          "box": {
+            "x": 101,
+            "y": 1013,
+            "width": 1237.984375,
+            "height": 178,
+            "top": 1013,
+            "right": 1338.984375,
+            "bottom": 1191,
+            "left": 101
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": ".combination-meter",
+          "text": "2 of 30 combinations1030Generation statusReady to generate.Generate matrix",
+          "box": {
+            "x": 507.40625,
+            "y": 954,
+            "width": 815.578125,
+            "height": 44,
+            "top": 954,
+            "right": 1322.984375,
+            "bottom": 998,
+            "left": 507.40625
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".variant-table",
+          "text": "EnabledCombinationSKUPrice overrideEffective priceDeliveryRowEnabledPDFSKU for PDFPrice override for PDF$24.00Base price",
+          "box": {
+            "x": 101,
+            "y": 1013,
+            "width": 1237.984375,
+            "height": 178,
+            "top": 1013,
+            "right": 1338.984375,
+            "bottom": 1191,
+            "left": 101
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".variant-table thead tr",
+          "text": "EnabledCombinationSKUPrice overrideEffective priceDeliveryRow",
+          "box": {
+            "x": 101,
+            "y": 1013,
+            "width": 1237.984375,
+            "height": 40.5,
+            "top": 1013,
+            "right": 1338.984375,
+            "bottom": 1053.5,
+            "left": 101
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".variant-table tbody tr",
+          "text": "EnabledPDFSKU for PDFPrice override for PDF$24.00Base priceProduct defaultEdit",
+          "box": {
+            "x": 101,
+            "y": 1053.5,
+            "width": 1237.984375,
+            "height": 69,
+            "top": 1053.5,
+            "right": 1338.984375,
+            "bottom": 1122.5,
+            "left": 101
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        }
+      ]
+    },
+    {
+      "name": "A01-groups-1440-columns",
+      "columns": [
+        {
+          "label": "Enabled",
+          "width": 90,
+          "left": 101
+        },
+        {
+          "label": "Combination",
+          "width": 247.59,
+          "left": 191
+        },
+        {
+          "label": "SKU",
+          "width": 247.59,
+          "left": 438.59
+        },
+        {
+          "label": "Price override",
+          "width": 173.31,
+          "left": 686.19
+        },
+        {
+          "label": "Effective price",
+          "width": 160.94,
+          "left": 859.5
+        },
+        {
+          "label": "Delivery",
+          "width": 173.31,
+          "left": 1020.44
+        },
+        {
+          "label": "Row",
+          "width": 145.23,
+          "left": 1193.75
+        }
+      ]
+    },
+    {
+      "name": "A01-groups-1440-rows",
+      "headerHeight": 40.5,
+      "rowHeights": [
+        69,
+        68.5
+      ],
+      "enabled": {
+        "cellWidth": 90,
+        "clientWidth": 62,
+        "scrollWidth": 62,
+        "height": 44,
+        "text": "Enabled"
+      },
+      "rowAction": {
+        "cellWidth": 145.234375,
+        "buttonWidth": 50.96875,
+        "buttonHeight": 44,
+        "lines": 2,
+        "overflowsCell": false
+      }
+    },
+    {
+      "name": "A01-groups-1440-rows-disabled",
+      "headerHeight": 40.5,
+      "rowHeights": [
+        69,
+        68.5
+      ],
+      "enabled": {
+        "cellWidth": 90,
+        "clientWidth": 62,
+        "scrollWidth": 62,
+        "height": 44,
+        "text": "Disabled"
+      },
+      "rowAction": {
+        "cellWidth": 145.234375,
+        "buttonWidth": 50.96875,
+        "buttonHeight": 44,
+        "lines": 2,
+        "overflowsCell": false
+      }
+    },
+    {
+      "name": "A01-groups-1024",
+      "viewport": {
+        "width": 1024,
+        "height": 900,
+        "scrollWidth": 1024,
+        "bodyWidth": 1024,
+        "clientWidth": 1024
+      },
+      "regions": [
+        {
+          "selector": ".console-editor-panel",
+          "text": "Product configurationActiveUnsaved changes✕ConsoleA01 capture ProductBack to ProductsBasicsProduct slugAssigned after sa",
+          "box": {
+            "x": 24,
+            "y": 24,
+            "width": 976,
+            "height": 852,
+            "top": 24,
+            "right": 1000,
+            "bottom": 876,
+            "left": 24
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(246, 243, 241)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".console-editor-header",
+          "text": "Product configurationActiveUnsaved changes✕",
+          "box": {
+            "x": 24,
+            "y": 24,
+            "width": 976,
+            "height": 56,
+            "top": 24,
+            "right": 1000,
+            "bottom": 80,
+            "left": 24
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 20px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-editor-context",
+          "text": "ConsoleA01 capture ProductBack to Products",
+          "box": {
+            "x": 24,
+            "y": 80,
+            "width": 976,
+            "height": 45,
+            "top": 80,
+            "right": 1000,
+            "bottom": 125,
+            "left": 24
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 20px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-editor-body",
+          "text": "BasicsProduct slugAssigned after saveProduct statusDraftActiveArchivedProduct name *Customer-visible descriptionPublic d",
+          "box": {
+            "x": 24,
+            "y": 125,
+            "width": 976,
+            "height": 1207,
+            "top": 125,
+            "right": 1000,
+            "bottom": 1332,
+            "left": 24
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "16px"
+        },
+        {
+          "selector": ".console-editor-body > section.editor-card:nth-of-type(1)",
+          "text": "BasicsProduct slugAssigned after saveProduct statusDraftActiveArchivedProduct name *Customer-visible descriptionPublic d",
+          "box": {
+            "x": 44,
+            "y": 145,
+            "width": 460,
+            "height": 320,
+            "top": 145,
+            "right": 504,
+            "bottom": 465,
+            "left": 44
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".console-editor-body > section.editor-card:nth-of-type(2)",
+          "text": "Pricing and deliveryBase price *CurrencyOne currency per Product. Changing currency does not convert prices.DeliveryPriv",
+          "box": {
+            "x": 520,
+            "y": 145,
+            "width": 460,
+            "height": 497,
+            "top": 145,
+            "right": 980,
+            "bottom": 642,
+            "left": 520
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".console-editor-footer",
+          "text": "No private file selectedDiscard changesSave Product",
+          "box": {
+            "x": 24,
+            "y": 815,
+            "width": 976,
+            "height": 61,
+            "top": 815,
+            "right": 1000,
+            "bottom": 876,
+            "left": 24
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "8px 20px",
+          "gap": "14px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"]",
+          "text": "Option groups0 to 5 groups · up to 10 values each · participating groups feed the count1 of 5 option groupsAdd option gr",
+          "box": {
+            "x": 44,
+            "y": 658,
+            "width": 936,
+            "height": 323,
+            "top": 658,
+            "right": 980,
+            "bottom": 981,
+            "left": 44
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] > .editor-card-head",
+          "text": "Option groups0 to 5 groups · up to 10 values each · participating groups feed the count1 of 5 option groupsAdd option gr",
+          "box": {
+            "x": 45,
+            "y": 659,
+            "width": 934,
+            "height": 73,
+            "top": 659,
+            "right": 979,
+            "bottom": 732,
+            "left": 45
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "14px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] > .editor-card-body",
+          "text": "participatingOption group 1Value 1×Value 2×Add valueRemove group2 of 10 values",
+          "box": {
+            "x": 45,
+            "y": 732,
+            "width": 934,
+            "height": 248,
+            "top": 732,
+            "right": 979,
+            "bottom": 980,
+            "left": 45
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "16px",
+          "gap": "10px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] .notice",
+          "missing": true
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] button",
+          "text": "Add option group",
+          "box": {
+            "x": 820.765625,
+            "y": 673,
+            "width": 142.234375,
+            "height": 44,
+            "top": 673,
+            "right": 963,
+            "bottom": 717,
+            "left": 820.765625
+          },
+          "fontSize": "14px",
+          "lineHeight": "21px",
+          "fontWeight": "500",
+          "background": "rgb(0, 0, 0)",
+          "color": "rgb(255, 255, 255)",
+          "padding": "8px 12px",
+          "gap": "8px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"]",
+          "text": "Variant matrix2 of 30 combinations1030Generation statusReady to generate.Generate matrixEnabledCombinationSKUPrice overr",
+          "box": {
+            "x": 44,
+            "y": 997,
+            "width": 936,
+            "height": 315,
+            "top": 997,
+            "right": 980,
+            "bottom": 1312,
+            "left": 44
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"] > .editor-card-head",
+          "text": "Variant matrix2 of 30 combinations1030Generation statusReady to generate.Generate matrix",
+          "box": {
+            "x": 45,
+            "y": 998,
+            "width": 934,
+            "height": 119,
+            "top": 998,
+            "right": 979,
+            "bottom": 1117,
+            "left": 45
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "14px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"] > .editor-card-body",
+          "text": "EnabledCombinationSKUPrice overrideEffective priceDeliveryRowEnabledPDFSKU for PDFPrice override for PDF$24.00Base price",
+          "box": {
+            "x": 45,
+            "y": 1117,
+            "width": 934,
+            "height": 194,
+            "top": 1117,
+            "right": 979,
+            "bottom": 1311,
+            "left": 45
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": ".combination-meter",
+          "text": "2 of 30 combinations1030Generation statusReady to generate.Generate matrix",
+          "box": {
+            "x": 299.40625,
+            "y": 1012,
+            "width": 663.59375,
+            "height": 90,
+            "top": 1012,
+            "right": 963,
+            "bottom": 1102,
+            "left": 299.40625
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".variant-table",
+          "text": "EnabledCombinationSKUPrice overrideEffective priceDeliveryRowEnabledPDFSKU for PDFPrice override for PDF$24.00Base price",
+          "box": {
+            "x": 45,
+            "y": 1117,
+            "width": 934,
+            "height": 194,
+            "top": 1117,
+            "right": 979,
+            "bottom": 1311,
+            "left": 45
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".variant-table thead tr",
+          "text": "EnabledCombinationSKUPrice overrideEffective priceDeliveryRow",
+          "box": {
+            "x": 45,
+            "y": 1117,
+            "width": 934,
+            "height": 56.5,
+            "top": 1117,
+            "right": 979,
+            "bottom": 1173.5,
+            "left": 45
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".variant-table tbody tr",
+          "text": "EnabledPDFSKU for PDFPrice override for PDF$24.00Base priceProduct defaultEdit",
+          "box": {
+            "x": 45,
+            "y": 1173.5,
+            "width": 934,
+            "height": 69,
+            "top": 1173.5,
+            "right": 979,
+            "bottom": 1242.5,
+            "left": 45
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        }
+      ]
+    },
+    {
+      "name": "A01-groups-1024-rows",
+      "headerHeight": 56.5,
+      "rowHeights": [
+        69,
+        68.5
+      ],
+      "enabled": {
+        "cellWidth": 90,
+        "clientWidth": 62,
+        "scrollWidth": 62,
+        "height": 44,
+        "text": "Enabled"
+      },
+      "rowAction": {
+        "cellWidth": 87.5,
+        "buttonWidth": 50.96875,
+        "buttonHeight": 44,
+        "lines": 2,
+        "overflowsCell": false
+      }
+    },
+    {
+      "name": "A01-groups-375",
+      "viewport": {
+        "width": 375,
+        "height": 812,
+        "scrollWidth": 375,
+        "bodyWidth": 375,
+        "clientWidth": 375
+      },
+      "regions": [
+        {
+          "selector": ".console-editor-panel",
+          "text": "Product configurationActiveUnsaved changes✕ConsoleA01 capture ProductBack to ProductsBasicsProduct slugAssigned after sa",
+          "box": {
+            "x": 0,
+            "y": 0,
+            "width": 375,
+            "height": 812,
+            "top": 0,
+            "right": 375,
+            "bottom": 812,
+            "left": 0
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(246, 243, 241)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".console-editor-header",
+          "text": "Product configurationActiveUnsaved changes✕",
+          "box": {
+            "x": 0,
+            "y": 0,
+            "width": 375,
+            "height": 81,
+            "top": 0,
+            "right": 375,
+            "bottom": 81,
+            "left": 0
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-editor-context",
+          "text": "ConsoleA01 capture ProductBack to Products",
+          "box": {
+            "x": 0,
+            "y": 81,
+            "width": 375,
+            "height": 45,
+            "top": 81,
+            "right": 375,
+            "bottom": 126,
+            "left": 0
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-editor-body",
+          "text": "BasicsProduct slugAssigned after saveProduct statusDraftActiveArchivedProduct name *Customer-visible descriptionPublic d",
+          "box": {
+            "x": 0,
+            "y": 126,
+            "width": 375,
+            "height": 2364,
+            "top": 126,
+            "right": 375,
+            "bottom": 2490,
+            "left": 0
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "16px",
+          "gap": "16px"
+        },
+        {
+          "selector": ".console-editor-body > section.editor-card:nth-of-type(1)",
+          "text": "BasicsProduct slugAssigned after saveProduct statusDraftActiveArchivedProduct name *Customer-visible descriptionPublic d",
+          "box": {
+            "x": 16,
+            "y": 142,
+            "width": 343,
+            "height": 392,
+            "top": 142,
+            "right": 359,
+            "bottom": 534,
+            "left": 16
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "16px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".console-editor-body > section.editor-card:nth-of-type(2)",
+          "text": "Pricing and deliveryBase price *CurrencyOne currency per Product. Changing currency does not convert prices.DeliveryPriv",
+          "box": {
+            "x": 16,
+            "y": 550,
+            "width": 343,
+            "height": 616,
+            "top": 550,
+            "right": 359,
+            "bottom": 1166,
+            "left": 16
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "16px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".console-editor-footer",
+          "text": "No private file selectedDiscard changesSave Product",
+          "box": {
+            "x": 0,
+            "y": 693,
+            "width": 375,
+            "height": 119,
+            "top": 693,
+            "right": 375,
+            "bottom": 812,
+            "left": 0
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "8px 16px",
+          "gap": "14px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"]",
+          "text": "Option groups0 to 5 groups · up to 10 values each · participating groups feed the count1 of 5 option groupsAdd option gr",
+          "box": {
+            "x": 16,
+            "y": 1182,
+            "width": 343,
+            "height": 580,
+            "top": 1182,
+            "right": 359,
+            "bottom": 1762,
+            "left": 16
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] > .editor-card-head",
+          "text": "Option groups0 to 5 groups · up to 10 values each · participating groups feed the count1 of 5 option groupsAdd option gr",
+          "box": {
+            "x": 17,
+            "y": 1183,
+            "width": 341,
+            "height": 148,
+            "top": 1183,
+            "right": 358,
+            "bottom": 1331,
+            "left": 17
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "14px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] > .editor-card-body",
+          "text": "participatingOption group 1Value 1×Value 2×Add valueRemove group2 of 10 values",
+          "box": {
+            "x": 17,
+            "y": 1331,
+            "width": 341,
+            "height": 430,
+            "top": 1331,
+            "right": 358,
+            "bottom": 1761,
+            "left": 17
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "16px",
+          "gap": "10px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] .notice",
+          "missing": true
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] button",
+          "text": "Add option group",
+          "box": {
+            "x": 199.765625,
+            "y": 1272,
+            "width": 142.234375,
+            "height": 44,
+            "top": 1272,
+            "right": 342,
+            "bottom": 1316,
+            "left": 199.765625
+          },
+          "fontSize": "14px",
+          "lineHeight": "21px",
+          "fontWeight": "500",
+          "background": "rgb(0, 0, 0)",
+          "color": "rgb(255, 255, 255)",
+          "padding": "8px 12px",
+          "gap": "8px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"]",
+          "text": "Variant matrix2 of 30 combinations1030Generation statusReady to generate.Generate matrixEnabledCombinationSKUPrice overr",
+          "box": {
+            "x": 16,
+            "y": 1778,
+            "width": 343,
+            "height": 696,
+            "top": 1778,
+            "right": 359,
+            "bottom": 2474,
+            "left": 16
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"] > .editor-card-head",
+          "text": "Variant matrix2 of 30 combinations1030Generation statusReady to generate.Generate matrix",
+          "box": {
+            "x": 17,
+            "y": 1779,
+            "width": 341,
+            "height": 186,
+            "top": 1779,
+            "right": 358,
+            "bottom": 1965,
+            "left": 17
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "14px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"] > .editor-card-body",
+          "text": "EnabledCombinationSKUPrice overrideEffective priceDeliveryRowEnabledPDFSKU for PDFPrice override for PDF$24.00Base price",
+          "box": {
+            "x": 17,
+            "y": 1965,
+            "width": 341,
+            "height": 508,
+            "top": 1965,
+            "right": 358,
+            "bottom": 2473,
+            "left": 17
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": ".combination-meter",
+          "text": "2 of 30 combinations1030Generation statusReady to generate.Generate matrix",
+          "box": {
+            "x": 33,
+            "y": 1824,
+            "width": 309,
+            "height": 126,
+            "top": 1824,
+            "right": 342,
+            "bottom": 1950,
+            "left": 33
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "10px"
+        },
+        {
+          "selector": ".variant-table",
+          "text": "EnabledCombinationSKUPrice overrideEffective priceDeliveryRowEnabledPDFSKU for PDFPrice override for PDF$24.00Base price",
+          "box": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".variant-table thead tr",
+          "text": "EnabledCombinationSKUPrice overrideEffective priceDeliveryRow",
+          "box": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".variant-table tbody tr",
+          "text": "EnabledPDFSKU for PDFPrice override for PDF$24.00Base priceProduct defaultEdit",
+          "box": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        }
+      ]
+    },
+    {
+      "name": "A01-groups-375-rows",
+      "headerHeight": 0,
+      "rowHeights": [
+        0,
+        0
+      ],
+      "enabled": {
+        "cellWidth": 0,
+        "clientWidth": 0,
+        "scrollWidth": 0,
+        "height": 0,
+        "text": "Enabled"
+      },
+      "rowAction": {
+        "cellWidth": 0,
+        "buttonWidth": 0,
+        "buttonHeight": 0,
+        "lines": 0,
+        "overflowsCell": false
+      }
+    },
+    {
+      "name": "A01b-warning-1440",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440,
+        "clientWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": ".console-editor-panel",
+          "text": "Product configurationActiveUnsaved changes✕ConsoleA01b pressure ProductBack to ProductsBasicsProduct slugAssigned after ",
+          "box": {
+            "x": 80,
+            "y": 24,
+            "width": 1280,
+            "height": 852,
+            "top": 24,
+            "right": 1360,
+            "bottom": 876,
+            "left": 80
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(246, 243, 241)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".console-editor-header",
+          "text": "Product configurationActiveUnsaved changes✕",
+          "box": {
+            "x": 80,
+            "y": 24,
+            "width": 1280,
+            "height": 56,
+            "top": 24,
+            "right": 1360,
+            "bottom": 80,
+            "left": 80
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 20px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-editor-context",
+          "text": "ConsoleA01b pressure ProductBack to Products",
+          "box": {
+            "x": 80,
+            "y": 80,
+            "width": 1280,
+            "height": 45,
+            "top": 80,
+            "right": 1360,
+            "bottom": 125,
+            "left": 80
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 20px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-editor-body",
+          "text": "BasicsProduct slugAssigned after saveProduct statusDraftActiveArchivedProduct name *Customer-visible descriptionPublic d",
+          "box": {
+            "x": 80,
+            "y": 125,
+            "width": 1280,
+            "height": 1340,
+            "top": 125,
+            "right": 1360,
+            "bottom": 1465,
+            "left": 80
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "16px"
+        },
+        {
+          "selector": ".console-editor-body > section.editor-card:nth-of-type(1)",
+          "text": "BasicsProduct slugAssigned after saveProduct statusDraftActiveArchivedProduct name *Customer-visible descriptionPublic d",
+          "box": {
+            "x": 100,
+            "y": 145,
+            "width": 402.65625,
+            "height": 320,
+            "top": 145,
+            "right": 502.65625,
+            "bottom": 465,
+            "left": 100
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".console-editor-body > section.editor-card:nth-of-type(2)",
+          "text": "Pricing and deliveryBase price *CurrencyOne currency per Product. Changing currency does not convert prices.DeliveryPriv",
+          "box": {
+            "x": 518.65625,
+            "y": 145,
+            "width": 402.671875,
+            "height": 513,
+            "top": 145,
+            "right": 921.328125,
+            "bottom": 658,
+            "left": 518.65625
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".console-editor-footer",
+          "text": "No private file selectedDiscard changesSave Product",
+          "box": {
+            "x": 80,
+            "y": 815,
+            "width": 1280,
+            "height": 61,
+            "top": 815,
+            "right": 1360,
+            "bottom": 876,
+            "left": 80
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "8px 20px",
+          "gap": "14px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"]",
+          "text": "Option groups0 to 5 groups · up to 10 values each · participating groups feed the count2 of 5 option groupsAdd option gr",
+          "box": {
+            "x": 100,
+            "y": 674,
+            "width": 1239.984375,
+            "height": 549,
+            "top": 674,
+            "right": 1339.984375,
+            "bottom": 1223,
+            "left": 100
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] > .editor-card-head",
+          "text": "Option groups0 to 5 groups · up to 10 values each · participating groups feed the count2 of 5 option groupsAdd option gr",
+          "box": {
+            "x": 101,
+            "y": 675,
+            "width": 1237.984375,
+            "height": 73,
+            "top": 675,
+            "right": 1338.984375,
+            "bottom": 748,
+            "left": 101
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "14px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] > .editor-card-body",
+          "text": "participatingOption group 1Value 1×Value 2×Value 3×Add valueRemove group3 of 10 valuesparticipatingOption group 2Value 1",
+          "box": {
+            "x": 101,
+            "y": 748,
+            "width": 1237.984375,
+            "height": 474,
+            "top": 748,
+            "right": 1338.984375,
+            "bottom": 1222,
+            "left": 101
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "16px",
+          "gap": "10px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] .notice",
+          "missing": true
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] button",
+          "text": "Add option group",
+          "box": {
+            "x": 1180.75,
+            "y": 689,
+            "width": 142.234375,
+            "height": 44,
+            "top": 689,
+            "right": 1322.984375,
+            "bottom": 733,
+            "left": 1180.75
+          },
+          "fontSize": "14px",
+          "lineHeight": "21px",
+          "fontWeight": "500",
+          "background": "rgb(0, 0, 0)",
+          "color": "rgb(255, 255, 255)",
+          "padding": "8px 12px",
+          "gap": "8px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"]",
+          "text": "Variant matrix12 of 30 combinations1030Confirmation required12 combinations. Review the matrix and confirm before genera",
+          "box": {
+            "x": 100,
+            "y": 1239,
+            "width": 1239.984375,
+            "height": 206,
+            "top": 1239,
+            "right": 1339.984375,
+            "bottom": 1445,
+            "left": 100
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"] > .editor-card-head",
+          "text": "Variant matrix12 of 30 combinations1030Confirmation required12 combinations. Review the matrix and confirm before genera",
+          "box": {
+            "x": 101,
+            "y": 1240,
+            "width": 1237.984375,
+            "height": 104,
+            "top": 1240,
+            "right": 1338.984375,
+            "bottom": 1344,
+            "left": 101
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "14px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"] > .editor-card-body",
+          "text": "No combinations generated yet.Configure participating groups and use Generate matrix.",
+          "box": {
+            "x": 101,
+            "y": 1344,
+            "width": 1237.984375,
+            "height": 100,
+            "top": 1344,
+            "right": 1338.984375,
+            "bottom": 1444,
+            "left": 101
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": ".combination-meter",
+          "text": "12 of 30 combinations1030Confirmation required12 combinations. Review the matrix and confirm before generating.I reviewe",
+          "box": {
+            "x": 117,
+            "y": 1285,
+            "width": 1205.984375,
+            "height": 44,
+            "top": 1285,
+            "right": 1322.984375,
+            "bottom": 1329,
+            "left": 117
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".variant-table",
+          "missing": true
+        },
+        {
+          "selector": ".variant-table thead tr",
+          "missing": true
+        },
+        {
+          "selector": ".variant-table tbody tr",
+          "missing": true
+        }
+      ]
+    },
+    {
+      "name": "A01b-warning-1024",
+      "viewport": {
+        "width": 1024,
+        "height": 900,
+        "scrollWidth": 1024,
+        "bodyWidth": 1024,
+        "clientWidth": 1024
+      },
+      "regions": [
+        {
+          "selector": ".console-editor-panel",
+          "text": "Product configurationActiveUnsaved changes✕ConsoleA01b pressure ProductBack to ProductsBasicsProduct slugAssigned after ",
+          "box": {
+            "x": 24,
+            "y": 24,
+            "width": 976,
+            "height": 852,
+            "top": 24,
+            "right": 1000,
+            "bottom": 876,
+            "left": 24
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(246, 243, 241)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".console-editor-header",
+          "text": "Product configurationActiveUnsaved changes✕",
+          "box": {
+            "x": 24,
+            "y": 24,
+            "width": 976,
+            "height": 56,
+            "top": 24,
+            "right": 1000,
+            "bottom": 80,
+            "left": 24
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 20px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-editor-context",
+          "text": "ConsoleA01b pressure ProductBack to Products",
+          "box": {
+            "x": 24,
+            "y": 80,
+            "width": 976,
+            "height": 45,
+            "top": 80,
+            "right": 1000,
+            "bottom": 125,
+            "left": 24
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 20px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-editor-body",
+          "text": "BasicsProduct slugAssigned after saveProduct statusDraftActiveArchivedProduct name *Customer-visible descriptionPublic d",
+          "box": {
+            "x": 24,
+            "y": 125,
+            "width": 976,
+            "height": 1608,
+            "top": 125,
+            "right": 1000,
+            "bottom": 1733,
+            "left": 24
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "16px"
+        },
+        {
+          "selector": ".console-editor-body > section.editor-card:nth-of-type(1)",
+          "text": "BasicsProduct slugAssigned after saveProduct statusDraftActiveArchivedProduct name *Customer-visible descriptionPublic d",
+          "box": {
+            "x": 44,
+            "y": 145,
+            "width": 460,
+            "height": 320,
+            "top": 145,
+            "right": 504,
+            "bottom": 465,
+            "left": 44
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".console-editor-body > section.editor-card:nth-of-type(2)",
+          "text": "Pricing and deliveryBase price *CurrencyOne currency per Product. Changing currency does not convert prices.DeliveryPriv",
+          "box": {
+            "x": 520,
+            "y": 145,
+            "width": 460,
+            "height": 497,
+            "top": 145,
+            "right": 980,
+            "bottom": 642,
+            "left": 520
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".console-editor-footer",
+          "text": "No private file selectedDiscard changesSave Product",
+          "box": {
+            "x": 24,
+            "y": 815,
+            "width": 976,
+            "height": 61,
+            "top": 815,
+            "right": 1000,
+            "bottom": 876,
+            "left": 24
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "8px 20px",
+          "gap": "14px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"]",
+          "text": "Option groups0 to 5 groups · up to 10 values each · participating groups feed the count2 of 5 option groupsAdd option gr",
+          "box": {
+            "x": 44,
+            "y": 658,
+            "width": 936,
+            "height": 771,
+            "top": 658,
+            "right": 980,
+            "bottom": 1429,
+            "left": 44
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] > .editor-card-head",
+          "text": "Option groups0 to 5 groups · up to 10 values each · participating groups feed the count2 of 5 option groupsAdd option gr",
+          "box": {
+            "x": 45,
+            "y": 659,
+            "width": 934,
+            "height": 73,
+            "top": 659,
+            "right": 979,
+            "bottom": 732,
+            "left": 45
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "14px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] > .editor-card-body",
+          "text": "participatingOption group 1Value 1×Value 2×Value 3×Add valueRemove group3 of 10 valuesparticipatingOption group 2Value 1",
+          "box": {
+            "x": 45,
+            "y": 732,
+            "width": 934,
+            "height": 696,
+            "top": 732,
+            "right": 979,
+            "bottom": 1428,
+            "left": 45
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "16px",
+          "gap": "10px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] .notice",
+          "missing": true
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] button",
+          "text": "Add option group",
+          "box": {
+            "x": 820.765625,
+            "y": 673,
+            "width": 142.234375,
+            "height": 44,
+            "top": 673,
+            "right": 963,
+            "bottom": 717,
+            "left": 820.765625
+          },
+          "fontSize": "14px",
+          "lineHeight": "21px",
+          "fontWeight": "500",
+          "background": "rgb(0, 0, 0)",
+          "color": "rgb(255, 255, 255)",
+          "padding": "8px 12px",
+          "gap": "8px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"]",
+          "text": "Variant matrix12 of 30 combinations1030Confirmation required12 combinations. Review the matrix and confirm before genera",
+          "box": {
+            "x": 44,
+            "y": 1445,
+            "width": 936,
+            "height": 268,
+            "top": 1445,
+            "right": 980,
+            "bottom": 1713,
+            "left": 44
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"] > .editor-card-head",
+          "text": "Variant matrix12 of 30 combinations1030Confirmation required12 combinations. Review the matrix and confirm before genera",
+          "box": {
+            "x": 45,
+            "y": 1446,
+            "width": 934,
+            "height": 166,
+            "top": 1446,
+            "right": 979,
+            "bottom": 1612,
+            "left": 45
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "14px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"] > .editor-card-body",
+          "text": "No combinations generated yet.Configure participating groups and use Generate matrix.",
+          "box": {
+            "x": 45,
+            "y": 1612,
+            "width": 934,
+            "height": 100,
+            "top": 1612,
+            "right": 979,
+            "bottom": 1712,
+            "left": 45
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": ".combination-meter",
+          "text": "12 of 30 combinations1030Confirmation required12 combinations. Review the matrix and confirm before generating.I reviewe",
+          "box": {
+            "x": 61,
+            "y": 1491,
+            "width": 902,
+            "height": 106,
+            "top": 1491,
+            "right": 963,
+            "bottom": 1597,
+            "left": 61
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".variant-table",
+          "missing": true
+        },
+        {
+          "selector": ".variant-table thead tr",
+          "missing": true
+        },
+        {
+          "selector": ".variant-table tbody tr",
+          "missing": true
+        }
+      ]
+    },
+    {
+      "name": "A01b-warning-375",
+      "viewport": {
+        "width": 375,
+        "height": 812,
+        "scrollWidth": 375,
+        "bodyWidth": 375,
+        "clientWidth": 375
+      },
+      "regions": [
+        {
+          "selector": ".console-editor-panel",
+          "text": "Product configurationActiveUnsaved changes✕ConsoleA01b pressure ProductBack to ProductsBasicsProduct slugAssigned after ",
+          "box": {
+            "x": 0,
+            "y": 0,
+            "width": 375,
+            "height": 812,
+            "top": 0,
+            "right": 375,
+            "bottom": 812,
+            "left": 0
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(246, 243, 241)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".console-editor-header",
+          "text": "Product configurationActiveUnsaved changes✕",
+          "box": {
+            "x": 0,
+            "y": 0,
+            "width": 375,
+            "height": 81,
+            "top": 0,
+            "right": 375,
+            "bottom": 81,
+            "left": 0
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-editor-context",
+          "text": "ConsoleA01b pressure ProductBack to Products",
+          "box": {
+            "x": 0,
+            "y": 81,
+            "width": 375,
+            "height": 45,
+            "top": 81,
+            "right": 375,
+            "bottom": 126,
+            "left": 0
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-editor-body",
+          "text": "BasicsProduct slugAssigned after saveProduct statusDraftActiveArchivedProduct name *Customer-visible descriptionPublic d",
+          "box": {
+            "x": 0,
+            "y": 126,
+            "width": 375,
+            "height": 2675,
+            "top": 126,
+            "right": 375,
+            "bottom": 2801,
+            "left": 0
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "16px",
+          "gap": "16px"
+        },
+        {
+          "selector": ".console-editor-body > section.editor-card:nth-of-type(1)",
+          "text": "BasicsProduct slugAssigned after saveProduct statusDraftActiveArchivedProduct name *Customer-visible descriptionPublic d",
+          "box": {
+            "x": 16,
+            "y": 142,
+            "width": 343,
+            "height": 392,
+            "top": 142,
+            "right": 359,
+            "bottom": 534,
+            "left": 16
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "16px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".console-editor-body > section.editor-card:nth-of-type(2)",
+          "text": "Pricing and deliveryBase price *CurrencyOne currency per Product. Changing currency does not convert prices.DeliveryPriv",
+          "box": {
+            "x": 16,
+            "y": 550,
+            "width": 343,
+            "height": 616,
+            "top": 550,
+            "right": 359,
+            "bottom": 1166,
+            "left": 16
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "16px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".console-editor-footer",
+          "text": "No private file selectedDiscard changesSave Product",
+          "box": {
+            "x": 0,
+            "y": 693,
+            "width": 375,
+            "height": 119,
+            "top": 693,
+            "right": 375,
+            "bottom": 812,
+            "left": 0
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "8px 16px",
+          "gap": "14px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"]",
+          "text": "Option groups0 to 5 groups · up to 10 values each · participating groups feed the count2 of 5 option groupsAdd option gr",
+          "box": {
+            "x": 16,
+            "y": 1182,
+            "width": 343,
+            "height": 1210,
+            "top": 1182,
+            "right": 359,
+            "bottom": 2392,
+            "left": 16
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] > .editor-card-head",
+          "text": "Option groups0 to 5 groups · up to 10 values each · participating groups feed the count2 of 5 option groupsAdd option gr",
+          "box": {
+            "x": 17,
+            "y": 1183,
+            "width": 341,
+            "height": 148,
+            "top": 1183,
+            "right": 358,
+            "bottom": 1331,
+            "left": 17
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "14px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] > .editor-card-body",
+          "text": "participatingOption group 1Value 1×Value 2×Value 3×Add valueRemove group3 of 10 valuesparticipatingOption group 2Value 1",
+          "box": {
+            "x": 17,
+            "y": 1331,
+            "width": 341,
+            "height": 1060,
+            "top": 1331,
+            "right": 358,
+            "bottom": 2391,
+            "left": 17
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "16px",
+          "gap": "10px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] .notice",
+          "missing": true
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] button",
+          "text": "Add option group",
+          "box": {
+            "x": 199.765625,
+            "y": 1272,
+            "width": 142.234375,
+            "height": 44,
+            "top": 1272,
+            "right": 342,
+            "bottom": 1316,
+            "left": 199.765625
+          },
+          "fontSize": "14px",
+          "lineHeight": "21px",
+          "fontWeight": "500",
+          "background": "rgb(0, 0, 0)",
+          "color": "rgb(255, 255, 255)",
+          "padding": "8px 12px",
+          "gap": "8px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"]",
+          "text": "Variant matrix12 of 30 combinations1030Confirmation required12 combinations. Review the matrix and confirm before genera",
+          "box": {
+            "x": 16,
+            "y": 2408,
+            "width": 343,
+            "height": 377,
+            "top": 2408,
+            "right": 359,
+            "bottom": 2785,
+            "left": 16
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"] > .editor-card-head",
+          "text": "Variant matrix12 of 30 combinations1030Confirmation required12 combinations. Review the matrix and confirm before genera",
+          "box": {
+            "x": 17,
+            "y": 2409,
+            "width": 341,
+            "height": 256,
+            "top": 2409,
+            "right": 358,
+            "bottom": 2665,
+            "left": 17
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "14px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"] > .editor-card-body",
+          "text": "No combinations generated yet.Configure participating groups and use Generate matrix.",
+          "box": {
+            "x": 17,
+            "y": 2665,
+            "width": 341,
+            "height": 119,
+            "top": 2665,
+            "right": 358,
+            "bottom": 2784,
+            "left": 17
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": ".combination-meter",
+          "text": "12 of 30 combinations1030Confirmation required12 combinations. Review the matrix and confirm before generating.I reviewe",
+          "box": {
+            "x": 33,
+            "y": 2454,
+            "width": 309,
+            "height": 196,
+            "top": 2454,
+            "right": 342,
+            "bottom": 2650,
+            "left": 33
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "10px"
+        },
+        {
+          "selector": ".variant-table",
+          "missing": true
+        },
+        {
+          "selector": ".variant-table thead tr",
+          "missing": true
+        },
+        {
+          "selector": ".variant-table tbody tr",
+          "missing": true
+        }
+      ]
+    },
+    {
+      "name": "A01b-blocked-1440",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440,
+        "clientWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": ".console-editor-panel",
+          "text": "Product configurationActiveUnsaved changes✕ConsoleA01b blocked ProductBack to ProductsFix these blockers before saving35",
+          "box": {
+            "x": 80,
+            "y": 24,
+            "width": 1280,
+            "height": 852,
+            "top": 24,
+            "right": 1360,
+            "bottom": 876,
+            "left": 80
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(246, 243, 241)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".console-editor-header",
+          "text": "Product configurationActiveUnsaved changes✕",
+          "box": {
+            "x": 80,
+            "y": 24,
+            "width": 1280,
+            "height": 56,
+            "top": 24,
+            "right": 1360,
+            "bottom": 80,
+            "left": 80
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 20px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-editor-context",
+          "text": "ConsoleA01b blocked ProductBack to Products",
+          "box": {
+            "x": 80,
+            "y": 80,
+            "width": 1280,
+            "height": 45,
+            "top": 80,
+            "right": 1360,
+            "bottom": 125,
+            "left": 80
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 20px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-editor-body",
+          "text": "Fix these blockers before saving35 combinations exceeds the maximum of 30.BasicsProduct slugAssigned after saveProduct s",
+          "box": {
+            "x": 80,
+            "y": 125,
+            "width": 1280,
+            "height": 1646,
+            "top": 125,
+            "right": 1360,
+            "bottom": 1771,
+            "left": 80
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "16px"
+        },
+        {
+          "selector": ".console-editor-body > section.editor-card:nth-of-type(1)",
+          "text": "BasicsProduct slugAssigned after saveProduct statusDraftActiveArchivedProduct name *Customer-visible descriptionPublic d",
+          "box": {
+            "x": 100,
+            "y": 260,
+            "width": 402.65625,
+            "height": 320,
+            "top": 260,
+            "right": 502.65625,
+            "bottom": 580,
+            "left": 100
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".console-editor-body > section.editor-card:nth-of-type(2)",
+          "text": "Pricing and deliveryBase price *CurrencyOne currency per Product. Changing currency does not convert prices.DeliveryPriv",
+          "box": {
+            "x": 518.65625,
+            "y": 260,
+            "width": 402.671875,
+            "height": 513,
+            "top": 260,
+            "right": 921.328125,
+            "bottom": 773,
+            "left": 518.65625
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".console-editor-footer",
+          "text": "No private file selectedDiscard changesSave Product35 combinations exceeds the maximum of 30.",
+          "box": {
+            "x": 80,
+            "y": 815,
+            "width": 1280,
+            "height": 61,
+            "top": 815,
+            "right": 1360,
+            "bottom": 876,
+            "left": 80
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "8px 20px",
+          "gap": "14px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"]",
+          "text": "Option groups0 to 5 groups · up to 10 values each · participating groups feed the count2 of 5 option groupsAdd option gr",
+          "box": {
+            "x": 100,
+            "y": 789,
+            "width": 1239.984375,
+            "height": 771,
+            "top": 789,
+            "right": 1339.984375,
+            "bottom": 1560,
+            "left": 100
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] > .editor-card-head",
+          "text": "Option groups0 to 5 groups · up to 10 values each · participating groups feed the count2 of 5 option groupsAdd option gr",
+          "box": {
+            "x": 101,
+            "y": 790,
+            "width": 1237.984375,
+            "height": 73,
+            "top": 790,
+            "right": 1338.984375,
+            "bottom": 863,
+            "left": 101
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "14px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] > .editor-card-body",
+          "text": "participatingOption group 1Value 1×Value 2×Value 3×Value 4×Value 5×Add valueRemove group5 of 10 valuesparticipatingOptio",
+          "box": {
+            "x": 101,
+            "y": 863,
+            "width": 1237.984375,
+            "height": 696,
+            "top": 863,
+            "right": 1338.984375,
+            "bottom": 1559,
+            "left": 101
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "16px",
+          "gap": "10px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] .notice",
+          "missing": true
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] button",
+          "text": "Add option group",
+          "box": {
+            "x": 1180.75,
+            "y": 804,
+            "width": 142.234375,
+            "height": 44,
+            "top": 804,
+            "right": 1322.984375,
+            "bottom": 848,
+            "left": 1180.75
+          },
+          "fontSize": "14px",
+          "lineHeight": "21px",
+          "fontWeight": "500",
+          "background": "rgb(0, 0, 0)",
+          "color": "rgb(255, 255, 255)",
+          "padding": "8px 12px",
+          "gap": "8px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"]",
+          "text": "Variant matrix35 of 30 combinations1030Blocked35 combinations exceeds the 30-combination limit. Remove an option value o",
+          "box": {
+            "x": 100,
+            "y": 1576,
+            "width": 1239.984375,
+            "height": 175,
+            "top": 1576,
+            "right": 1339.984375,
+            "bottom": 1751,
+            "left": 100
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"] > .editor-card-head",
+          "text": "Variant matrix35 of 30 combinations1030Blocked35 combinations exceeds the 30-combination limit. Remove an option value o",
+          "box": {
+            "x": 101,
+            "y": 1577,
+            "width": 1237.984375,
+            "height": 73,
+            "top": 1577,
+            "right": 1338.984375,
+            "bottom": 1650,
+            "left": 101
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "14px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"] > .editor-card-body",
+          "text": "No combinations generated yet.Configure participating groups and use Generate matrix.",
+          "box": {
+            "x": 101,
+            "y": 1650,
+            "width": 1237.984375,
+            "height": 100,
+            "top": 1650,
+            "right": 1338.984375,
+            "bottom": 1750,
+            "left": 101
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": ".combination-meter",
+          "text": "35 of 30 combinations1030Blocked35 combinations exceeds the 30-combination limit. Remove an option value or participatin",
+          "box": {
+            "x": 277.921875,
+            "y": 1591,
+            "width": 1045.0625,
+            "height": 44,
+            "top": 1591,
+            "right": 1322.984375,
+            "bottom": 1635,
+            "left": 277.921875
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".variant-table",
+          "missing": true
+        },
+        {
+          "selector": ".variant-table thead tr",
+          "missing": true
+        },
+        {
+          "selector": ".variant-table tbody tr",
+          "missing": true
+        }
+      ]
+    },
+    {
+      "name": "A01b-blocked-1024",
+      "viewport": {
+        "width": 1024,
+        "height": 900,
+        "scrollWidth": 1024,
+        "bodyWidth": 1024,
+        "clientWidth": 1024
+      },
+      "regions": [
+        {
+          "selector": ".console-editor-panel",
+          "text": "Product configurationActiveUnsaved changes✕ConsoleA01b blocked ProductBack to ProductsFix these blockers before saving35",
+          "box": {
+            "x": 24,
+            "y": 24,
+            "width": 976,
+            "height": 852,
+            "top": 24,
+            "right": 1000,
+            "bottom": 876,
+            "left": 24
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(246, 243, 241)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".console-editor-header",
+          "text": "Product configurationActiveUnsaved changes✕",
+          "box": {
+            "x": 24,
+            "y": 24,
+            "width": 976,
+            "height": 56,
+            "top": 24,
+            "right": 1000,
+            "bottom": 80,
+            "left": 24
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 20px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-editor-context",
+          "text": "ConsoleA01b blocked ProductBack to Products",
+          "box": {
+            "x": 24,
+            "y": 80,
+            "width": 976,
+            "height": 45,
+            "top": 80,
+            "right": 1000,
+            "bottom": 125,
+            "left": 24
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px 20px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".console-editor-body",
+          "text": "Fix these blockers before saving35 combinations exceeds the maximum of 30.BasicsProduct slugAssigned after saveProduct s",
+          "box": {
+            "x": 24,
+            "y": 125,
+            "width": 976,
+            "height": 2037,
+            "top": 125,
+            "right": 1000,
+            "bottom": 2162,
+            "left": 24
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "16px"
+        },
+        {
+          "selector": ".console-editor-body > section.editor-card:nth-of-type(1)",
+          "text": "BasicsProduct slugAssigned after saveProduct statusDraftActiveArchivedProduct name *Customer-visible descriptionPublic d",
+          "box": {
+            "x": 44,
+            "y": 260,
+            "width": 460,
+            "height": 320,
+            "top": 260,
+            "right": 504,
+            "bottom": 580,
+            "left": 44
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".console-editor-body > section.editor-card:nth-of-type(2)",
+          "text": "Pricing and deliveryBase price *CurrencyOne currency per Product. Changing currency does not convert prices.DeliveryPriv",
+          "box": {
+            "x": 520,
+            "y": 260,
+            "width": 460,
+            "height": 497,
+            "top": 260,
+            "right": 980,
+            "bottom": 757,
+            "left": 520
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".console-editor-footer",
+          "text": "No private file selectedDiscard changesSave Product35 combinations exceeds the maximum of 30.",
+          "box": {
+            "x": 24,
+            "y": 815,
+            "width": 976,
+            "height": 61,
+            "top": 815,
+            "right": 1000,
+            "bottom": 876,
+            "left": 24
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "8px 20px",
+          "gap": "14px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"]",
+          "text": "Option groups0 to 5 groups · up to 10 values each · participating groups feed the count2 of 5 option groupsAdd option gr",
+          "box": {
+            "x": 44,
+            "y": 773,
+            "width": 936,
+            "height": 1141,
+            "top": 773,
+            "right": 980,
+            "bottom": 1914,
+            "left": 44
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] > .editor-card-head",
+          "text": "Option groups0 to 5 groups · up to 10 values each · participating groups feed the count2 of 5 option groupsAdd option gr",
+          "box": {
+            "x": 45,
+            "y": 774,
+            "width": 934,
+            "height": 73,
+            "top": 774,
+            "right": 979,
+            "bottom": 847,
+            "left": 45
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "14px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] > .editor-card-body",
+          "text": "participatingOption group 1Value 1×Value 2×Value 3×Value 4×Value 5×Add valueRemove group5 of 10 valuesparticipatingOptio",
+          "box": {
+            "x": 45,
+            "y": 847,
+            "width": 934,
+            "height": 1066,
+            "top": 847,
+            "right": 979,
+            "bottom": 1913,
+            "left": 45
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "16px",
+          "gap": "10px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] .notice",
+          "missing": true
+        },
+        {
+          "selector": "section[aria-labelledby=\"option-groups-title\"] button",
+          "text": "Add option group",
+          "box": {
+            "x": 820.765625,
+            "y": 788,
+            "width": 142.234375,
+            "height": 44,
+            "top": 788,
+            "right": 963,
+            "bottom": 832,
+            "left": 820.765625
+          },
+          "fontSize": "14px",
+          "lineHeight": "21px",
+          "fontWeight": "500",
+          "background": "rgb(0, 0, 0)",
+          "color": "rgb(255, 255, 255)",
+          "padding": "8px 12px",
+          "gap": "8px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"]",
+          "text": "Variant matrix35 of 30 combinations1030Blocked35 combinations exceeds the 30-combination limit. Remove an option value o",
+          "box": {
+            "x": 44,
+            "y": 1930,
+            "width": 936,
+            "height": 212,
+            "top": 1930,
+            "right": 980,
+            "bottom": 2142,
+            "left": 44
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"] > .editor-card-head",
+          "text": "Variant matrix35 of 30 combinations1030Blocked35 combinations exceeds the 30-combination limit. Remove an option value o",
+          "box": {
+            "x": 45,
+            "y": 1931,
+            "width": 934,
+            "height": 110,
+            "top": 1931,
+            "right": 979,
+            "bottom": 2041,
+            "left": 45
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "14px 16px",
+          "gap": "12px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"variant-matrix-title\"] > .editor-card-body",
+          "text": "No combinations generated yet.Configure participating groups and use Generate matrix.",
+          "box": {
+            "x": 45,
+            "y": 2041,
+            "width": 934,
+            "height": 100,
+            "top": 2041,
+            "right": 979,
+            "bottom": 2141,
+            "left": 45
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "0px"
+        },
+        {
+          "selector": ".combination-meter",
+          "text": "35 of 30 combinations1030Blocked35 combinations exceeds the 30-combination limit. Remove an option value or participatin",
+          "box": {
+            "x": 61,
+            "y": 1976,
+            "width": 902,
+            "height": 50,
+            "top": 1976,
+            "right": 963,
+            "bottom": 2026,
+            "left": 61
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "12px"
+        },
+        {
+          "selector": ".variant-table",
+          "missing": true
+        },
+        {
+          "selector": ".variant-table thead tr",
+          "missing": true
+        },
+        {
+          "selector": ".variant-table tbody tr",
+          "missing": true
+        }
+      ]
+    },
+    {
+      "name": "A03-metadata-blocks",
+      "metadataBlocks": {
+        "sizeLeaves": [
+          "CSV, UTF-8, up to 1 MB and 500 data rows.",
+          "0.8 KB · 3 data rows"
+        ],
+        "sourceText": "Template and file\n\nOne ordered header, one simple example, two Variant rows. There is no type column.\n\nDownload nexus-product-import-template.csv\nTemplate downloaded\nnexus-product-import-template.csv is ready.\nChoose a CSV to check\n\nCSV, UTF-8, up to 1 MB and 500 data rows.\n\nReplace CSV\nnexus-product-import-template.csv\n0.8 KB · 3 data rows\nBrowser checks completed for strict UTF-8, the ordered header, 3 of 500 data rows, and grouped Product shape. The server will repeat every check.\nImport Products"
+      }
+    },
+    {
+      "name": "A03-preview-1440",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440,
+        "clientWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": ".csv-workspace",
+          "text": "Template and fileOne ordered header, one simple example, two Variant rows. There is no type column.Download nexus-produc",
+          "box": {
+            "x": 256,
+            "y": 205,
+            "width": 1160,
+            "height": 770,
+            "top": 205,
+            "right": 1416,
+            "bottom": 975,
+            "left": 256
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "16px"
+        },
+        {
+          "selector": ".csv-source",
+          "text": "Template and fileOne ordered header, one simple example, two Variant rows. There is no type column.Download nexus-produc",
+          "box": {
+            "x": 256,
+            "y": 205,
+            "width": 572,
+            "height": 588,
+            "top": 205,
+            "right": 828,
+            "bottom": 793,
+            "left": 256
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".dropzone",
+          "text": "Choose a CSV to checkCSV, UTF-8, up to 1 MB and 500 data rows.Replace CSV",
+          "box": {
+            "x": 277,
+            "y": 434,
+            "width": 530,
+            "height": 156,
+            "top": 434,
+            "right": 807,
+            "bottom": 590,
+            "left": 277
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(251, 248, 246)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "28px 20px",
+          "gap": "8px"
+        },
+        {
+          "selector": ".dropzone h3",
+          "text": "Choose a CSV to check",
+          "box": {
+            "x": 462.9375,
+            "y": 464,
+            "width": 158.125,
+            "height": 20,
+            "top": 464,
+            "right": 621.0625,
+            "bottom": 484,
+            "left": 462.9375
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "600",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".dropzone p",
+          "text": "CSV, UTF-8, up to 1 MB and 500 data rows.",
+          "box": {
+            "x": 419.25,
+            "y": 492,
+            "width": 245.484375,
+            "height": 16,
+            "top": 492,
+            "right": 664.734375,
+            "bottom": 508,
+            "left": 419.25
+          },
+          "fontSize": "12px",
+          "lineHeight": "16px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(108, 106, 106)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".csv-import-actions",
+          "text": "Import Products",
+          "box": {
+            "x": 277,
+            "y": 728,
+            "width": 530,
+            "height": 44,
+            "top": 728,
+            "right": 807,
+            "bottom": 772,
+            "left": 277
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "8px"
+        },
+        {
+          "selector": ".csv-import-actions button",
+          "text": "Import Products",
+          "box": {
+            "x": 277,
+            "y": 728,
+            "width": 530,
+            "height": 44,
+            "top": 728,
+            "right": 807,
+            "bottom": 772,
+            "left": 277
+          },
+          "fontSize": "14px",
+          "lineHeight": "21px",
+          "fontWeight": "500",
+          "background": "rgb(0, 0, 0)",
+          "color": "rgb(255, 255, 255)",
+          "padding": "8px 12px",
+          "gap": "8px"
+        },
+        {
+          "selector": ".csv-source > .button",
+          "text": "Download nexus-product-import-template.csv",
+          "box": {
+            "x": 277,
+            "y": 294,
+            "width": 333.1875,
+            "height": 44,
+            "top": 294,
+            "right": 610.1875,
+            "bottom": 338,
+            "left": 277
+          },
+          "fontSize": "14px",
+          "lineHeight": "21px",
+          "fontWeight": "400",
+          "background": "rgb(246, 243, 241)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "8px 12px",
+          "gap": "8px"
+        },
+        {
+          "selector": "#csv-file-check",
+          "text": "nexus-product-import-template.csv0.8 KB · 3 data rowsBrowser checks completed for strict UTF-8, the ordered header, 3 of",
+          "box": {
+            "x": 277,
+            "y": 604,
+            "width": 530,
+            "height": 110,
+            "top": 604,
+            "right": 807,
+            "bottom": 714,
+            "left": 277
+          },
+          "fontSize": "13px",
+          "lineHeight": "19px",
+          "fontWeight": "400",
+          "background": "rgb(241, 242, 159)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "12px 16px",
+          "gap": "4px"
+        }
+      ]
+    },
+    {
+      "name": "A03-preview-1024",
+      "viewport": {
+        "width": 1024,
+        "height": 900,
+        "scrollWidth": 1024,
+        "bodyWidth": 1024,
+        "clientWidth": 1024
+      },
+      "regions": [
+        {
+          "selector": ".csv-workspace",
+          "text": "Template and fileOne ordered header, one simple example, two Variant rows. There is no type column.Download nexus-produc",
+          "box": {
+            "x": 256,
+            "y": 224,
+            "width": 744,
+            "height": 962,
+            "top": 224,
+            "right": 1000,
+            "bottom": 1186,
+            "left": 256
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "16px"
+        },
+        {
+          "selector": ".csv-source",
+          "text": "Template and fileOne ordered header, one simple example, two Variant rows. There is no type column.Download nexus-produc",
+          "box": {
+            "x": 256,
+            "y": 224,
+            "width": 364,
+            "height": 658,
+            "top": 224,
+            "right": 620,
+            "bottom": 882,
+            "left": 256
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".dropzone",
+          "text": "Choose a CSV to checkCSV, UTF-8, up to 1 MB and 500 data rows.Replace CSV",
+          "box": {
+            "x": 277,
+            "y": 485,
+            "width": 322,
+            "height": 156,
+            "top": 485,
+            "right": 599,
+            "bottom": 641,
+            "left": 277
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(251, 248, 246)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "28px 20px",
+          "gap": "8px"
+        },
+        {
+          "selector": ".dropzone h3",
+          "text": "Choose a CSV to check",
+          "box": {
+            "x": 358.9375,
+            "y": 515,
+            "width": 158.125,
+            "height": 20,
+            "top": 515,
+            "right": 517.0625,
+            "bottom": 535,
+            "left": 358.9375
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "600",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".dropzone p",
+          "text": "CSV, UTF-8, up to 1 MB and 500 data rows.",
+          "box": {
+            "x": 315.25,
+            "y": 543,
+            "width": 245.484375,
+            "height": 16,
+            "top": 543,
+            "right": 560.734375,
+            "bottom": 559,
+            "left": 315.25
+          },
+          "fontSize": "12px",
+          "lineHeight": "16px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(108, 106, 106)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".csv-import-actions",
+          "text": "Import Products",
+          "box": {
+            "x": 277,
+            "y": 817,
+            "width": 322,
+            "height": 44,
+            "top": 817,
+            "right": 599,
+            "bottom": 861,
+            "left": 277
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "8px"
+        },
+        {
+          "selector": ".csv-import-actions button",
+          "text": "Import Products",
+          "box": {
+            "x": 277,
+            "y": 817,
+            "width": 322,
+            "height": 44,
+            "top": 817,
+            "right": 599,
+            "bottom": 861,
+            "left": 277
+          },
+          "fontSize": "14px",
+          "lineHeight": "21px",
+          "fontWeight": "500",
+          "background": "rgb(0, 0, 0)",
+          "color": "rgb(255, 255, 255)",
+          "padding": "8px 12px",
+          "gap": "8px"
+        },
+        {
+          "selector": ".csv-source > .button",
+          "text": "Download nexus-product-import-template.csv",
+          "box": {
+            "x": 277,
+            "y": 329,
+            "width": 322,
+            "height": 60,
+            "top": 329,
+            "right": 599,
+            "bottom": 389,
+            "left": 277
+          },
+          "fontSize": "14px",
+          "lineHeight": "21px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "8px 12px",
+          "gap": "8px"
+        },
+        {
+          "selector": "#csv-file-check",
+          "text": "nexus-product-import-template.csv0.8 KB · 3 data rowsBrowser checks completed for strict UTF-8, the ordered header, 3 of",
+          "box": {
+            "x": 277,
+            "y": 655,
+            "width": 322,
+            "height": 148,
+            "top": 655,
+            "right": 599,
+            "bottom": 803,
+            "left": 277
+          },
+          "fontSize": "13px",
+          "lineHeight": "19px",
+          "fontWeight": "400",
+          "background": "rgb(241, 242, 159)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "12px 16px",
+          "gap": "4px"
+        }
+      ]
+    },
+    {
+      "name": "A03-preview-375",
+      "viewport": {
+        "width": 375,
+        "height": 812,
+        "scrollWidth": 375,
+        "bodyWidth": 375,
+        "clientWidth": 375
+      },
+      "regions": [
+        {
+          "selector": ".csv-workspace",
+          "text": "Template and fileOne ordered header, one simple example, two Variant rows. There is no type column.Download nexus-produc",
+          "box": {
+            "x": 16,
+            "y": 365,
+            "width": 343,
+            "height": 1655,
+            "top": 365,
+            "right": 359,
+            "bottom": 2020,
+            "left": 16
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "16px"
+        },
+        {
+          "selector": ".csv-source",
+          "text": "Template and fileOne ordered header, one simple example, two Variant rows. There is no type column.Download nexus-produc",
+          "box": {
+            "x": 16,
+            "y": 365,
+            "width": 343,
+            "height": 661,
+            "top": 365,
+            "right": 359,
+            "bottom": 1026,
+            "left": 16
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "16px",
+          "gap": "14px"
+        },
+        {
+          "selector": ".dropzone",
+          "text": "Choose a CSV to checkCSV, UTF-8, up to 1 MB and 500 data rows.Replace CSV",
+          "box": {
+            "x": 33,
+            "y": 641,
+            "width": 309,
+            "height": 148,
+            "top": 641,
+            "right": 342,
+            "bottom": 789,
+            "left": 33
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(251, 248, 246)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "24px 16px",
+          "gap": "8px"
+        },
+        {
+          "selector": ".dropzone h3",
+          "text": "Choose a CSV to check",
+          "box": {
+            "x": 108.4375,
+            "y": 667,
+            "width": 158.125,
+            "height": 20,
+            "top": 667,
+            "right": 266.5625,
+            "bottom": 687,
+            "left": 108.4375
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "600",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".dropzone p",
+          "text": "CSV, UTF-8, up to 1 MB and 500 data rows.",
+          "box": {
+            "x": 64.75,
+            "y": 695,
+            "width": 245.484375,
+            "height": 16,
+            "top": 695,
+            "right": 310.234375,
+            "bottom": 711,
+            "left": 64.75
+          },
+          "fontSize": "12px",
+          "lineHeight": "16px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(108, 106, 106)",
+          "padding": "0px",
+          "gap": "normal"
+        },
+        {
+          "selector": ".csv-import-actions",
+          "text": "Import Products",
+          "box": {
+            "x": 33,
+            "y": 965,
+            "width": 309,
+            "height": 44,
+            "top": 965,
+            "right": 342,
+            "bottom": 1009,
+            "left": 33
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "8px"
+        },
+        {
+          "selector": ".csv-import-actions button",
+          "text": "Import Products",
+          "box": {
+            "x": 33,
+            "y": 965,
+            "width": 309,
+            "height": 44,
+            "top": 965,
+            "right": 342,
+            "bottom": 1009,
+            "left": 33
+          },
+          "fontSize": "14px",
+          "lineHeight": "21px",
+          "fontWeight": "500",
+          "background": "rgb(0, 0, 0)",
+          "color": "rgb(255, 255, 255)",
+          "padding": "8px 12px",
+          "gap": "8px"
+        },
+        {
+          "selector": ".csv-source > .button",
+          "text": "Download nexus-product-import-template.csv",
+          "box": {
+            "x": 33,
+            "y": 466,
+            "width": 309,
+            "height": 60,
+            "top": 466,
+            "right": 342,
+            "bottom": 526,
+            "left": 33
+          },
+          "fontSize": "14px",
+          "lineHeight": "21px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "8px 12px",
+          "gap": "8px"
+        },
+        {
+          "selector": "#csv-file-check",
+          "text": "nexus-product-import-template.csv0.8 KB · 3 data rowsBrowser checks completed for strict UTF-8, the ordered header, 3 of",
+          "box": {
+            "x": 33,
+            "y": 803,
+            "width": 309,
+            "height": 148,
+            "top": 803,
+            "right": 342,
+            "bottom": 951,
+            "left": 33
+          },
+          "fontSize": "13px",
+          "lineHeight": "19px",
+          "fontWeight": "400",
+          "background": "rgb(241, 242, 159)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "12px 16px",
+          "gap": "4px"
+        }
+      ]
+    },
+    {
+      "name": "A04-pending-1440",
+      "payment": {
+        "height": 216,
+        "rows": [
+          {
+            "label": "Source",
+            "value": "No payment recorded"
+          },
+          {
+            "label": "Method",
+            "value": "—"
+          },
+          {
+            "label": "External reference",
+            "value": "—"
+          },
+          {
+            "label": "Recorded actor",
+            "value": "—"
+          },
+          {
+            "label": "Recorded time",
+            "value": "—"
+          }
+        ]
+      }
+    },
+    {
+      "name": "A04-detail-1440",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "bodyWidth": 1440,
+        "clientWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": ".order-detail-grid",
+          "text": "Order snapshotOrder referenceNX-094E658AD4164C0BPayment referenceNP32eb9179621941d483d5073e04793addCustomerA04 Pending C",
+          "box": {
+            "x": 256,
+            "y": 181,
+            "width": 1160,
+            "height": 730,
+            "top": 181,
+            "right": 1416,
+            "bottom": 911,
+            "left": 256
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "16px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"order-payment-title\"]",
+          "text": "PaymentSourceNo payment recordedMethod—External reference—Recorded actor—Recorded time—External reference is Console-onl",
+          "box": {
+            "x": 256,
+            "y": 560,
+            "width": 572,
+            "height": 216,
+            "top": 560,
+            "right": 828,
+            "bottom": 776,
+            "left": 256
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        }
+      ]
+    },
+    {
+      "name": "A04-pending-1024",
+      "payment": {
+        "height": 385,
+        "rows": [
+          {
+            "label": "Source",
+            "value": "No payment recorded"
+          },
+          {
+            "label": "Method",
+            "value": "—"
+          },
+          {
+            "label": "External reference",
+            "value": "—"
+          },
+          {
+            "label": "Recorded actor",
+            "value": "—"
+          },
+          {
+            "label": "Recorded time",
+            "value": "—"
+          }
+        ]
+      }
+    },
+    {
+      "name": "A04-detail-1024",
+      "viewport": {
+        "width": 1024,
+        "height": 900,
+        "scrollWidth": 1024,
+        "bodyWidth": 1024,
+        "clientWidth": 1024
+      },
+      "regions": [
+        {
+          "selector": ".order-detail-grid",
+          "text": "Order snapshotOrder referenceNX-094E658AD4164C0BPayment referenceNP32eb9179621941d483d5073e04793addCustomerA04 Pending C",
+          "box": {
+            "x": 256,
+            "y": 202,
+            "width": 744,
+            "height": 1136,
+            "top": 202,
+            "right": 1000,
+            "bottom": 1338,
+            "left": 256
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "16px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"order-payment-title\"]",
+          "text": "PaymentSourceNo payment recordedMethod—External reference—Recorded actor—Recorded time—External reference is Console-onl",
+          "box": {
+            "x": 256,
+            "y": 788,
+            "width": 364,
+            "height": 385,
+            "top": 788,
+            "right": 620,
+            "bottom": 1173,
+            "left": 256
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "20px",
+          "gap": "14px"
+        }
+      ]
+    },
+    {
+      "name": "A04-pending-375",
+      "payment": {
+        "height": 377,
+        "rows": [
+          {
+            "label": "Source",
+            "value": "No payment recorded"
+          },
+          {
+            "label": "Method",
+            "value": "—"
+          },
+          {
+            "label": "External reference",
+            "value": "—"
+          },
+          {
+            "label": "Recorded actor",
+            "value": "—"
+          },
+          {
+            "label": "Recorded time",
+            "value": "—"
+          }
+        ]
+      }
+    },
+    {
+      "name": "A04-detail-375",
+      "viewport": {
+        "width": 375,
+        "height": 812,
+        "scrollWidth": 375,
+        "bodyWidth": 375,
+        "clientWidth": 375
+      },
+      "regions": [
+        {
+          "selector": ".order-detail-grid",
+          "text": "Order snapshotOrder referenceNX-094E658AD4164C0BPayment referenceNP32eb9179621941d483d5073e04793addCustomerA04 Pending C",
+          "box": {
+            "x": 16,
+            "y": 319,
+            "width": 343,
+            "height": 1268,
+            "top": 319,
+            "right": 359,
+            "bottom": 1587,
+            "left": 16
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgba(0, 0, 0, 0)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "0px",
+          "gap": "16px"
+        },
+        {
+          "selector": "section[aria-labelledby=\"order-payment-title\"]",
+          "text": "PaymentSourceNo payment recordedMethod—External reference—Recorded actor—Recorded time—External reference is Console-onl",
+          "box": {
+            "x": 16,
+            "y": 841,
+            "width": 343,
+            "height": 377,
+            "top": 841,
+            "right": 359,
+            "bottom": 1218,
+            "left": 16
+          },
+          "fontSize": "14px",
+          "lineHeight": "20px",
+          "fontWeight": "400",
+          "background": "rgb(255, 255, 255)",
+          "color": "rgb(27, 28, 27)",
+          "padding": "16px",
+          "gap": "14px"
+        }
+      ]
+    },
+    {
+      "name": "A04-recorded-1440",
+      "payment": {
+        "height": 216,
+        "rows": [
+          {
+            "label": "Source",
+            "value": "manual"
+          },
+          {
+            "label": "Method",
+            "value": "Bank transfer"
+          },
+          {
+            "label": "External reference",
+            "value": "A04-RECEIPT-164C0B"
+          },
+          {
+            "label": "Recorded actor",
+            "value": "E2E Nexus Operator"
+          },
+          {
+            "label": "Recorded time",
+            "value": "9/15/2026, 8:53:57 PM"
+          }
+        ]
+      }
+    }
+  ]
+}

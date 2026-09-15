@@ -134,38 +134,39 @@ export function DeliveryEditor({
   return (
     <div className="editor-fields">
       <div className="field">
-        <label htmlFor={accessTitleId}>Private access title</label>
+        <label htmlFor={accessTitleId}>Private access title <span className="required-mark" aria-hidden="true">*</span></label>
         <input
           id={accessTitleId}
           value={delivery.accessTitle}
           disabled={disabled}
+          required
           aria-invalid={Boolean(errors.accessTitle)}
-          aria-describedby={`${accessTitleId}-help${errors.accessTitle ? ` ${accessTitleId}-error` : ''}`}
+          aria-describedby={errors.accessTitle ? `${accessTitleId}-error` : undefined}
           onChange={(event) => onChange('accessTitle', event.target.value)}
           onBlur={() => onBlur('accessTitle')}
         />
-        <span id={`${accessTitleId}-help`} className="field-help">Shown only in the private delivery configuration.</span>
         {errors.accessTitle ? <span id={`${accessTitleId}-error`} className="field-error">{errors.accessTitle}</span> : null}
       </div>
 
       <div className="field">
-        <label htmlFor={accessInstructionsId}>Private access instructions</label>
+        <label htmlFor={accessInstructionsId}>Private access instructions <span className="required-mark" aria-hidden="true">*</span></label>
         <textarea
+          className="delivery-instructions"
           id={accessInstructionsId}
           value={delivery.accessInstructions}
           disabled={disabled}
+          required
           aria-invalid={Boolean(errors.accessInstructions)}
-          aria-describedby={`${accessInstructionsId}-help${errors.accessInstructions ? ` ${accessInstructionsId}-error` : ''}`}
+          aria-describedby={errors.accessInstructions ? `${accessInstructionsId}-error` : undefined}
           onChange={(event) => onChange('accessInstructions', event.target.value)}
           onBlur={() => onBlur('accessInstructions')}
         />
-        <span id={`${accessInstructionsId}-help`} className="field-help">Explain exactly how a paying Customer opens what they purchased.</span>
         {errors.accessInstructions ? <span id={`${accessInstructionsId}-error`} className="field-error">{errors.accessInstructions}</span> : null}
       </div>
 
       <div className="field delivery-file" id="delivery-private-file">
         <span className="field-label">Optional private file</span>
-        <span id={`${inputId}-help`} className="field-help">No private file is required. If selected, use PDF or ZIP up to 25 MB. The first file bytes are checked, not only the extension.</span>
+        <span id={`${inputId}-help`} className="field-help">PDF or ZIP, up to 25 MB. File bytes are verified.</span>
 
         {removedCurrent ? (
           <div className="notice notice-warning" role="status">

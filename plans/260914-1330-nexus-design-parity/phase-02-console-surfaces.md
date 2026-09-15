@@ -1,6 +1,6 @@
 ---
 title: "Phase 2: Console Surfaces"
-status: done
+status: in_progress
 ---
 
 # Phase 2: Console Surfaces
@@ -128,14 +128,16 @@ Composition:
 - Panel: `width: 100%`, `max-width: 1280px`, `max-height: 100%`, `overflow: auto`, radius 4, background `--color-surface-muted`, internal scroll.
 - Sticky header56px, white/divider: source title **Product configuration** at18px serif, real status tag, spacer, durable dirty/saved state,44px Close control. No Save/Discard/Back button stack in this header; the reference primary actions are in the footer. Associate the dialog with the title and real Product context. Focus the name input for create or the appropriate heading/field for edit.
 - Context strip42px: noninteractive Console label plus real Product context; omit dead Storefront preview tab (E07). Put compact Back to Products navigation here if needed by the existing workflow, not another primary action. Keep name/slug context accessible without replacing the source header with an arbitrarily long Product title.
-- Body: `padding: 20px`, `display: grid`, `grid-template-columns: repeat(auto-fit, minmax(360px, 1fr))`, `gap: 16px`, `align-items: start`. Panels are white, 1 px divider, radius 4, padding 20 px, 14 px gap:
+- Body: `padding: 20px`, `display: grid`, `grid-template-columns: repeat(auto-fit, minmax(360px, 1fr))`, `gap: 16px`, `align-items: start`. All panels are white, 1 px divider, radius 4. Only Basics and Pricing/Delivery use uniform 20 px padding and 14 px gap; full-span panels use the separate header/body composition below:
   - Track1 — Basics: persisted slug/status pair, name, public description. Current `ProductEditorFixture` has no slug field: pass loaded persisted slug as display-only view metadata, not a new editable domain field. New Product uses honest “Assigned after save” context until a real slug exists; no fixture/generated placeholder slug is submitted.
   - Track 2 — Pricing + Delivery: base price/currency pair, currency helper, divider, private delivery title/instructions, private file summary + `Choose PDF or ZIP` control (keep the real `DeliveryEditor`, its byte checks, its 25 MB limit, and the pending-file state).
-  - Full-span (`grid-column: 1 / -1`) — Option groups, then the Variant matrix. Delete `.editor-form { max-width: 60rem }` and the `.editor-section` stacked layout.
+  - Full-span (`grid-column: 1 / -1`) — Option groups, then the Variant matrix. Do not inherit the top cards' uniform padding/gap. Use a compact header with 14 px vertical / 16 px horizontal padding and a bottom divider; Option groups body has 16 px padding, while the desktop matrix table reaches the inside panel edges. Resolve dimensions through existing tokens; source control heights expand locally under E02. Delete `.editor-form { max-width: 60rem }` and the `.editor-section` stacked layout.
 - Sticky footer minimum60px, white/divider: concise real state/delivery summary at left, Discard changes when dirty and ONE primary Save Product at right. Keep save/failed-save labels and handlers. Use one footer/action set across breakpoints, sticky inside the scrollable panel; remove duplicate desktop/header/mobile save hosts once migrated. At375 allow wrapping/growing and reserve content space so no field is hidden behind it. Migrate helpers that currently select `button.desktop-save`/`.mobile-save-bar`; do not duplicate controls for them.
 - Field labels stay intact (`Product name`, `Base price`, `Currency`, `Product status`, `Customer-visible description`, `Private access title`, `Private access instructions`) with their `htmlFor`/id pairs and error ids (`#delivery-access-title-error`, `#delivery-access-title`).
 
 Save lifecycle: keep production behavior — `saveProduct` persists, updates `revision`, sets `detailLifecycle: 'saved'`, leaves the overlay open and shows the durable `Product saved` notice (`role="status"`). Never adopt the prototype’s `closeEditor` noop close (E06).
+
+Clean create state is not persisted state: before the first successful save, show honest **Not saved** context, not **Saved** or **Product saved**. An untouched new form stays clean with its existing disabled-save/dismissal behavior; do not mark it dirty merely to change the label. Dirty, saving and save-error take precedence. Only loaded persisted data or a successful save may show a clean persisted state; returning to a fresh create route must reset it.
 
 Dismissal: retain a single dirty-navigation decision path, but replace synchronous `window.confirm` with the existing app-local accessible guard pattern used by the development/Variant flows. It must explicitly offer **Stay and continue editing** / **Discard changes** and sit above the owning dialog. Queue the intended Close/Back/navigation/history target without clearing dirty/files/schema state; Stay cancels the intent and restores focus, Discard commits it exactly once. Reuse the current guard/history reconciliation pattern rather than add a second router. Intercept Escape/cancel and Browser Back before destructive state clearing; prevent repeated intents while a guard is open. The footer Discard keeps its current restore-saved semantics instead of being conflated with leave-and-discard. Native browser-leave protection may complement this. Existing tests that pin `window.confirm` or its wording must migrate to the observable keep/discard behavior, not dictate presentation.
 
@@ -149,7 +151,7 @@ Owners: `products/variant-builder.tsx`, `variant-matrix.tsx`, `schema-change-pre
 
 - Meter: reference inline count,140×8 track, muted/divider frame, butter fill and ink thresholds. Use source display scale36 consistently for fill and10/30 markers; the BUSINESS limit remains30, not36. Preserve descriptive accessible count+consequence, explicit threshold labels and warning/blocked message. Confirmation label must interpolate the actual count (“I reviewed this {count}-combination matrix”), never hard-code12 from a fixture. At0 generation is disabled with the existing empty guidance;1–10 ready;11–30 confirmation required;31+ blocked.
 - Group limits stay 5 groups × 10 values. Exact 11 and 31 combination counts are not constructible from those limits; the suites already cover reachable 10/12/30/35 (`tests/e2e/console-variants.spec.ts:42–75`) and Phase 4 uses component fixtures for the 11/31 copy. Never change the limits to fabricate those labels.
-- Option groups (`.option-group`): keep the real per-group name input, the `Participating` / `Not participating` checkbox, `Add value` (disabled at 10 values), the per-value `Remove value …` control, the `N of 10 values` and `N of 5 option groups` counters, and every group/value error id and `aria-invalid` association. Restyle to the reference composition: a one-row group card with the bordered participation tag inline, value fields styled as compact rounded value chips carrying the butter emphasis (they are real inputs — keep 44 px targets, native labels, and the visible label text), a dashed `Add value` affordance, the counter at the end, and the reference’s empty-state sentence for a simple Product. Keep the `One active Variant schema` notice.
+- Option groups (`.option-group`): keep the real per-group name input, the `Participating` / `Not participating` checkbox, `Add value` (disabled at 10 values), per-value removal, group/value counters, and every error/label association. Restore the compact group-row composition while retaining 44 px targets and 16 px editable text. Use the primary fill/ink for **Add option group**. Remove the always-present `One active Variant schema` notice and duplicate explanatory blocks; retain one concise limits/participation explanation in the header/body and all conditional validation, warning and regeneration feedback. Use one simple-Product empty sentence rather than stacked informational notices. This supersedes the earlier instruction to keep the unconditional notice.
 - Matrix: reorder desktop columns to source Enabled90px / Combination20% / SKU20% / Price override14% / Effective price13% / Delivery14% / Row action remainder. Real checkbox/input/edit actions remain44px/16px where applicable. Preserve Base price/Override as an effective-price subline and Product default/Variant override in delivery; remove a redundant separate Price source column only after keeping this information visible. Keep row-associated errors and existing mobile summary/edit behavior. Class names and old column indexes are not compatibility requirements.
 - Drawer: keep the distinct 480 px nested `<dialog>` child for row/delivery override — header (combination + Close), body (SKU, price override, Enabled, delivery-source radios, Product-default summary or the Variant-override `DeliveryEditor`), footer (state text + Cancel + **Apply Variant changes**). `::backdrop` uses `--color-scrim`; panel is white/radius 4 with sticky header and footer; ≤719 px is full-width. Keep the `Discard unsaved Variant changes?`, `Use Product default instead?`, `Stay and continue editing`, `Discard Variant changes`, `Keep Variant override`, `Use Product default` guard copy, the required-field errors, and focus return to the row’s `Edit delivery for …` trigger. Nested-dialog stack order and the parent dirty guard must still hold (E06).
 - Regeneration (`schema-change-preview.tsx`): keep the `Preview regeneration` heading, `Retained` / `New` / `Will disable` tags, the duplicate/conflicting SKU blockers, and **Regenerate matrix**; restyle the block as a paper panel with a summary count row.
@@ -163,7 +165,7 @@ Owner: `imports/csv-import-screen.tsx`, `imports/csv-preview-table.tsx`, `.csv-*
 - Head row: keep `Back to Products`, make the title the 22/28 serif `Import Products from CSV`, keep `Start another import` when a durable result/failure exists, and move the “One fixed template · no field mapping” context to a quiet trailing span.
 - Keep the additive notice (`Additive exact-match`) on the info/muted surface.
 - Workspace: `grid-template-columns: repeat(auto-fit, minmax(340px, 1fr))`, `gap: 16px`, `align-items: start` (replaces `2fr / 3fr`); remove the sticky positioning of `.csv-source`; force `minmax(0,1fr)` at ≤719 px.
-- Left panel (`.csv-source`, white paper, 20 px padding, 14 px gap): `Template and file` at 18/24 serif, the real `Download <CSV_FILENAME>` control with its loading/retry labels, the byte-checked dropzone (2 px dashed `--color-border`, muted fill, centered content, real `Choose CSV`/`Replace CSV` label wrapping `#csv-file`), then the real file-check notice, selected-file summary, catalog-identity loading/error notices, the warning-confirmation list, the ≥31 blocker, and the real `Import Products` primary with its `Uploading CSV` / `Checking and importing Products` / `Retry Import` labels and disabled reason.
+- Left panel (`.csv-source`, white paper, 20 px padding, 14 px gap): `Template and file` at 18/24 serif, the real `Download <CSV_FILENAME>` control with loading/retry labels, then the byte-checked dropzone (2 px dashed `--color-border`, muted fill, centered content, real `Choose CSV`/`Replace CSV` label wrapping `#csv-file`). Dropzone heading uses the reference 14 px UI role, helper 12 px; editable controls still use 16 px and 44 px targets. Keep file-check status plus filename/size/row count in ONE compact summary; remove the duplicate selected-file summary markup, not unique validation feedback. Preserve catalog-identity loading/errors, warning confirmation, ≥31 blockers and upload/import/result recovery. **Import Products** spans the full inner track (about 530 px at 1440), with existing progress/retry labels and a separate readable disabled reason. The template-download action remains content-width.
 - Right panel (`.csv-preview`, white paper, header divider row): `Browser preview` at 18/24 serif + the provisional note + the real `N Product groups · N rows` count; then the grouped outcome rows (slug, detected type, derived combinations, outcome tag) and the source-row rows in source order. Keep the `<details open>` disclosure structure and its keyboard behavior; restyle the summary row to the reference composition (`Row N · slug · sku` + outcome tag) and the group header to slug + bordered type tag + detail + outcome tag.
 - Footer statistics row: keep the real `Ready` / `Duplicate candidate` / `Rejected` counts (browser preview) and the authoritative result counts (`Added` / `Duplicate` / `Rejected`) in the result branch.
 - Keep the durable result and failure branches (`notice-success` / `notice-error`, `#import-result-title`, `#import-result-error-title`, `#import-failure-title` and their focus moves) — E08 composition, unchanged semantics.
@@ -191,6 +193,7 @@ Keep the entire command layer as-is: `loadOrder`, `refetchAfterWrite`, `confirmA
 - Header: Back to Orders + divider + real reference h1(18/600 tabular) + status/refund tag + spacer + source-positioned permitted quick actions. Never show commands absent from `allowedActions`. Retain the current command labels/retry semantics, not fixture labels that imply another operation.
 - Two source340px-minimum tracks/gap16, safely collapsing when the actual container is too narrow:
   - Left: Order snapshot and immutable item snapshots; Payment including current none/recorded/legacy-unrecorded evidence; History with real timestamps/actors/action semantics.
+  - Payment `none`: preserve the same five-field structure as recorded payment — Source, Method, External reference, Recorded actor, Recorded time. Use truthful no-payment text and em dashes for absent values; retain the compact Console-only evidence explanation. Do not collapse the card to a lone sentence or invent actors/references/timestamps. Keep the distinct `legacy_unrecorded` warning and the instruction not to ask for payment again; real recorded evidence stays unchanged.
   - Right: current Refund request summary first when present (source title18px, Pending butter tag); manual-payment action region next; compact Assignment extension after the reference sections when `canAssign`; other existing confirming forms occupy this same action region when invoked.
 - Keep each command in ONE interactive host. Header quick actions may open their real confirming panel; do not duplicate Approve/Reject or Mark Paid submit buttons in header and sidebar just to fill the layout. Show pending payment's permitted real Record manual payment/Cancel workflow in the source right-hand paper region; inapplicable status panels are absent rather than a disabled fake form.
 - Preserve fields/acknowledgment and confirmation for payment, fulfillment, cancel, customer refund, approve/reject and assignment; source mock display-spans become real existing controls. Panel headings receive focus on open, closure restores the trigger. No assignment filter, new command, altered permission or state transition is introduced.
@@ -283,3 +286,63 @@ Collect the HTML/`support.js` hashes before capture and record measured geometry
 - Reordering the Variant columns and removing the redundant Price-source column must not remove the `Override` / `Product default` / `Variant override` / `Enabled` / `Disabled` text the suites assert inside each row.
 - Nested `<dialog>` top-layer ordering (editor → drawer) must be verified with keyboard, Esc, and focus return on both 1440 and 375.
 - Every reference control height of 28–38 px becomes 44 px under E02; do not shrink targets to win a pixel comparison.
+
+## 2026-09-15 repair review
+
+Sol repaired the Products action alignment, editor density and CSV composition; Astra integrated and reviewed
+the changes, fixed responsive CSV notice wrapping and restored the currency-conversion warning with accessible
+input associations. Independent runtime proof and green integrated builds/browser/E2E results are recorded in
+`evidence/verification.md`; fresh reviewer images are in `evidence/repair-20260915/astra-review/`.
+The subsequent self-audit confirmed four implementation defects, not just missing screenshots.
+This phase remains `in_progress` until A01–A04 below and the original C01–C08 acceptance gates pass.
+
+## Audit repair backlog — 2026-09-15
+
+Source: [fresh Astra audit](./evidence/verification.md#2026-09-15--fresh-astra-self-audit-requested-by-the-user)
+and [measured evidence](./evidence/audit-20260915-astra/measurements.json).
+These are corrections inside Phase 2, not a new phase or a wider exception register.
+One Console owner implements them; the integration owner owns verification. Reuse existing
+tokens and current lifecycle/command paths. No backend, auth, migration or Storefront redesign.
+
+ - [x] **A01 / P1 — Repair full-span editor composition (C03/C04).**
+  Files: `apps/console/src/products/variant-builder.tsx`,
+  `apps/console/src/products/variant-matrix.tsx` and Console surface CSS.
+  Separate full-span header/body spacing from the top-card rules; remove redundant always-on
+  notices; keep conditional blockers and generation/participation information compact; restore
+  primary Add option group and the matrix's edge-to-edge inner table. Keep the empty third
+  desktop track, existing nested drawer, mobile summaries and all generation gates.
+  Before: empty groups 201 px versus reference 115 px; matrix y=891 versus 783;
+  table x=121 / width=1197.984 versus x=101 / width=1237.984.
+  Pass: horizontal anchors within 2 CSS px; reference header/divider/body hierarchy restored;
+  every vertical delta attributed to a specific necessary control/state, never a blanket E02.
+  Do not force a literal 115 px panel by shrinking 44 px controls.
+
+ - [x] **A02 / P2 — Distinguish clean creation from persistence (C03).**
+  File: `apps/console/src/products/product-editor-screen.tsx`; inspect production lifecycle
+  callers before any exported interface change. Derive display state from existing create/
+  persisted lifecycle, not `dirty === false` alone; add no parallel persistence flag.
+  Pass: untouched `/console/products/new` does not claim saved; editing shows dirty;
+  failed save keeps edits and does not claim success; successful save stays open with durable
+  saved feedback; reload shows real persisted values; opening another new Product resets
+  the saved claim. Keep current save enablement and Stay/Discard behavior.
+
+ - [x] **A03 / P2 — Restore compact CSV source hierarchy (C05).**
+  Files: `apps/console/src/imports/csv-import-screen.tsx` and Console surface CSS.
+  Use 14/12 px dropzone text roles, consolidate duplicate file metadata into the existing
+  status summary, and make the import action fill the source content track. Do not widen
+  the template download action or regress the already-fixed wrapped additive notice.
+  Pass: enabled Import Products fills the inner track at 1440/1024/375 (within 2 CSS px);
+  filename/size/check results remain visible once; valid, invalid, warning, uploading and
+  authoritative result/retry states retain their real behavior and readable notices.
+
+ - [x] **A04 / P2 — Restore empty Payment field structure (C07).**
+  File: `apps/console/src/orders/order-detail-screen.tsx`; reuse existing detail-field styles.
+  Render the five-field layout for `paymentRecordState === 'none'` with honest absent values,
+  not the current 99 px single-sentence card. Keep recorded and legacy-unrecorded semantics,
+  real assignment controls, permission gates and command/retry paths untouched.
+  Pass: a Pending Order with no payment matches the reference field ordering/grouping;
+  recorded evidence still shows actual values; legacy evidence still warns against paying
+  again. No synthetic payment identity or customer-visible evidence is introduced.
+
+Execution: finish A01–A04, run the targeted runtime checks in Phase 4, then complete the
+whole-plan V02–V06 gates. Historical 79/37 test results are not post-repair verification.

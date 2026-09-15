@@ -161,6 +161,8 @@
   --layout-col-payment: 6.875rem;
   --layout-col-order-status: 8.125rem;
   --layout-col-created: 7.5rem;
+  /* Variant matrix Enabled column (source measure). */
+  --layout-col-variant-enabled: 5.625rem;
   /* Editor chrome intrinsic measures. */
   --layout-editor-context-height: 2.625rem;
   --layout-editor-footer-min: 3.75rem;

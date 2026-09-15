@@ -115,7 +115,7 @@ export function CsvPreviewTable({ validation, result, phase, failure }: CsvPrevi
         <h2 id="browser-preview-title">Browser preview</h2>
         <span className="meta-text">Provisional. Server results replace these labels.</span>
         <div className="editor-spacer" />
-        <span className="meta-text numeric">{validation.groups.length} Product groups · {rowCount} rows</span>
+        <span className="meta-text numeric">{validation.groups.length} Product {validation.groups.length === 1 ? 'group' : 'groups'} · {rowCount} rows</span>
       </div>
 
       <div className="csv-preview-body">

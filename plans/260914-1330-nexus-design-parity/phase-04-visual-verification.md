@@ -1,6 +1,6 @@
 ---
 title: "Phase 4: Measured Demo Parity and Production Verification"
-status: done
+status: in_progress
 ---
 
 # Phase 4: Measured Demo Parity and Production Verification
@@ -61,8 +61,8 @@ Record `getBoundingClientRect()` and computed styles for the following landmarks
 - Shell: 232 rail width, 56 desktop deskbar height, 24 content inset, 18 section gap; white rail/header and pale dividers. Large serif list titles and top metric tiles must be absent.
 - Lists: tab heading placement, top action alignment, source column ordering, table white paper frame, footer inline statistics, top/bottom pagination regions. Metrics must not become extra cards. At 1024 only the table's own region may scroll horizontally.
 - Sign-in: 380 maximum card width, 28 inner padding, 18 gap, Source Serif 28/34 title; no extra login methods, fake preview link or dashed G placeholder in the real UI.
-- Editor: centered 1280 cap with 24 outer inset; sticky white header/footer; internal scroll; 20 body inset and 16 gaps; source auto-fit 360 minimum yielding three tracks at 1440 with two top cards before full-span groups/matrix. Real functional fields may grow vertically under E02; that does not permit a full-page editor or 480-wide parent.
-- CSV/Order detail: 16 gap between reference split tracks, 20 section padding, compact section titles and durable result placement.
+- Editor: centered 1280 cap with 24 outer inset; sticky white header/footer; internal scroll; 20 body inset and 16 gaps; source auto-fit 360 minimum yielding three tracks at 1440 with two top cards before full-span groups/matrix. Top cards alone have uniform 20 px padding. Full-span sections have their own compact padded/divided header; groups body has 16 px padding and desktop matrix table reaches the inside panel edges. Measure empty and generated views, not just the first two cards. Real controls may grow locally under E02; redundant notices and inherited side inset are not exempt.
+- CSV/Order detail: 16 gap between reference split tracks, 20 section padding, compact section titles and durable result placement. CSV dropzone uses 14/12 px heading/helper and its Import action fills the source inner width. Empty Payment retains the same five labelled fields with honest absent values rather than collapsing the section.
 - Storefront: header 64; main cap1280; inset40/32; hero42/48 and equal hero tracks/gap32; two-row snapshot; body equal split/gap28; left card grid gap16, padding18, media96; ledger padding20. No editorial band, banner, full-width four-up grid or checkout below a full-width catalog.
 - Private Order: cap760, page40/32, article28, sectiongap24; notice before article; conditional refund before created footer.
 
@@ -78,6 +78,7 @@ Every discrepancy gets: ID, reference region, measured actual/target, severity, 
 
 - Opening from list, new route, direct edit URL, reload and Browser Back/Forward all display the same real editor overlay. Backdrop cannot take focus; closing returns to the trigger or appropriate Products heading for direct-entry cases.
 - Dirty Close/Escape/Back requests Stay/Discard. Stay retains all values; Discard exits/restores persisted state as appropriate. Save calls the existing persistence path; success stays open with durable Saved evidence. Save failure retains edits and file selection as supported.
+- Clean new Product is not Saved: verify initial create, first edit, failed save, successful save, persisted reload and a subsequent new route. Preserve existing clean/dirty enablement and dismissal behavior; do not set dirty just to hide the incorrect Saved label.
 - Nested Variant drawer traps only its own focus, returns focus into the Product editor, and its dirty confirmation is above that drawer. Escape must not close both layers; ensure dialogs are not rendered under an inert ancestor.
 - Real generated schema checks: 0, 10, 12 (3×4), 30 (5×6) and 35 (5×7), matching existing `console-variants.spec.ts`. At 12/30 confirmation is required; at 35 generation is blocked. Do NOT change max10 values/group just to create prime counts11/31 through the UI. Exact11/31 boundary copy can be checked through existing component/scenario fixtures and must be labeled scenario-only.
 - Full regeneration proof: edit saved schema, inspect Retained/New/Will disable before commit; validate editable SKU/price and complete inherited/override delivery semantics. Default/override files cover no file, selected, validating, valid, invalid bytes/type, oversize, replacement and failed save/upload.
@@ -88,6 +89,7 @@ Every discrepancy gets: ID, reference region, measured actual/target, severity, 
 - Browser groups derive Simple/Variant shape and provisional Ready/Duplicate candidate/Rejected labels; 11–30 confirmation is tied to affected groups. Real processing shows progress without erasing preview.
 - Server Added/Duplicate/Rejected outcomes replace provisional authority, not the other way round. Partial row result and complete success remain readable; row numbers/reasons stay associated.
 - Network uncertainty/committed malformed result must preserve existing recovery behavior; no new dangerous re-POST button introduced by styling. File-level failure retains choose/retry paths appropriate to the actual command state.
+- File-check feedback and filename/size/row count stay visible in one summary, without duplicate metadata cards. Capture a valid preview with enabled full-width Import Products; an empty/disabled screenshot is not sufficient to verify A03.
 
 ### Lists, Orders and role-aware operations
 
@@ -96,6 +98,7 @@ Every discrepancy gets: ID, reference region, measured actual/target, severity, 
 - At719↔720 resize, entered Product/Order search remains visible, focused when appropriate, and preserves draft/committed criteria without accidental submission or reset. Confirm it is not still portaled into a hidden deskbar.
 - Pending/Paid/Fulfilled/Canceled statuses expose only existing permitted actions. A refund request is not a refund completion; approval/rejection/history/assignment and manual-payment evidence follow existing command semantics. No customer exposure of private payment evidence.
 - Owner/Staff role guards remain effective through navigation, identity swap, stale responses and reload. CSS hidden controls do not replace authorization; no private fetch begins before authentication permits it.
+- Capture Payment `none`, `recorded` and `legacy_unrecorded`. For none, show Source/Method/External reference/Recorded actor/Recorded time with truthful empty values; recorded shows real evidence, legacy retains its missing-record/no-repayment warning. Styling must not invent actors or payment records.
 
 ### Storefront and private Order
 
@@ -113,6 +116,45 @@ Every discrepancy gets: ID, reference region, measured actual/target, severity, 
 - Measure `document.documentElement.scrollWidth <= clientWidth` and `document.body.scrollWidth <= clientWidth`; inspect descendant/control geometry too. No `overflow-x:hidden`, clipping, ellipsis or removed data may be used to hide a failure.
 - Check long Unicode names, slugs, currency strings, option labels, payment references, refund reasons and file names across all surfaces. Keep complete text.
 - Computed primary fill/text must resolve to `color-accent`/`color-accent-ink` across Console and Storefront, including loading and disabled variants as specified by canonical primitives.
+
+## Audit repair gate — A01–A04
+
+The [fresh audit](./evidence/verification.md#2026-09-15--fresh-astra-self-audit-requested-by-the-user)
+is the failing baseline, not post-fix evidence. A01–A04 are owned by
+[Phase 2](./phase-02-console-surfaces.md#audit-repair-backlog--2026-09-15).
+Use a new dated evidence subdirectory; keep the audit and earlier Sol/Astra proof intact.
+
+1. **A01:** pair reference/current empty groups and generated matrix at 1440, with
+   matching scroll offsets and fonts loaded. Measure each header/body/notice and the
+   table rectangle; expect x≈101 and width≈1237.984 inside the 1280 px overlay.
+   Record each necessary E02/E05 vertical delta separately instead of forcing the
+   115 px source group height or accepting the old 201 px height. Verify enabled
+   Add option group is accent/ink, targets remain ≥44 px, and 1024/375 retain all
+   editable controls, warnings, local matrix scrolling/mobile summaries and guards.
+2. **A02:** run the real create → edit → failed save → successful save → reload →
+   new Product lifecycle. A fresh form must not claim persistence, failure must not
+   claim success, success must retain saved values/feedback in the open editor,
+   and the next create must not inherit that claim. Use existing harness support
+   for failure injection and label it; keep one focused regression case for the
+   clean-create versus persisted-state bug if existing coverage does not defend it.
+   Assert the observable lifecycle, not CSS classes or incidental exact wording.
+3. **A03:** download and preview the real CSV template or a legitimate isolated
+   fixture; inspect the enabled Import action at 1440/1024/375. Its width must match
+   the source content track within 2 CSS px, without widening Download. Confirm
+   computed 14/12 px noneditable text and one metadata summary. Exercise invalid
+   file, warning/confirmation, real import/result and existing uncertain retry
+   scenarios; do not erase feedback to shorten the panel.
+4. **A04:** compare two Pending/no-payment Orders with honest fixture differences.
+   Capture the restored five-field grouping at 1440/1024/375; separately exercise
+   recorded and legacy-unrecorded evidence, retaining permission/assignment and
+   no-repayment semantics. Scenario-only legacy setup is labelled as such.
+5. Give each A-ID a post-fix result, image paths, measurements and any exact E-ID
+   explanation in `evidence/verification.md`. Then finish all still-missing V02/V03
+   coverage, including private Order/refund/fulfilled and responsive boundaries.
+   Run V05 once after source changes settle; perform V06 only after runtime proof.
+
+These targeted checks are necessary, not a replacement for the whole-plan matrix.
+No new permanent screenshot suite or broad exact-copy assertions are required.
 
 ## V05 — Existing regression commands
 
@@ -149,10 +191,20 @@ Only after runtime parity and behavior pass:
 ## Completion gate
 
 - [x] V01 isolated real runtime and stable reference established.
-- [x] V02 all R/C/S screenshot/state coverage complete.
-- [x] V03 measured anchor parity and regional visual review pass.
-- [x] V04 applicable production interaction/accessibility/privacy checks pass.
-- [x] V05 actual build/browser/E2E results are recorded and green.
-- [x] V06 clean implementation and retained evidence handed off.
+- [ ] V02 all R/C/S screenshot/state coverage complete.
+- [ ] V03 measured anchor parity and regional visual review pass.
+- [ ] V04 applicable production interaction/accessibility/privacy checks pass after A01–A04, including the corrected create/save lifecycle.
+- [ ] V05 post-repair build/browser/E2E results are recorded and green.
+- [ ] V06 post-repair clean implementation and retained evidence handed off after runtime proof.
+
+- [x] Independent repair review completed by Astra; mobile CSV wrapping and currency-warning regressions fixed and verified.
 
 Required final statement names: implemented screens, remaining E-ID deviations, evidence location, commands actually run, and any runtime limitation. Never conclude only “looks consistent” or “same Nexus visual language.” The acceptance question is: **does the real app now reproduce the demo's composition, except for the explicitly necessary and measured adaptations?**
+
+The earlier integrated repair had green builds, 79 browser tests and 37 E2E tests;
+retain those dated results in `evidence/verification.md` and
+`evidence/repair-20260915/astra-review/` as historical proof.
+The subsequent self-audit reopened implementation through A01–A04. V02/V03 remain
+incomplete, and V04–V06 are reopened for post-change verification and cleanup.
+The checked independent-review item above records the earlier repair review only,
+not approval of these newly identified defects or of whole-plan parity.

@@ -1,7 +1,7 @@
 ---
 title: "Nexus HTML demo visual parity"
 description: "Reproduce the HTML demo's desktop composition in the real Console and Storefront, with explicit accessibility, mobile and production-behavior exceptions."
-status: done
+status: in_progress
 priority: P1
 effort: "not-estimated"
 issue: null
@@ -59,13 +59,13 @@ Phase 2 and Phase 3 may run concurrently only after Phase 1 hands off tokens. Co
 ## Completion checklist
 
 - [x] P01–P04 Phase 1 tasks pass and there is only one active token/guideline system.
-- [x] C01–C08 Console evidence covers sign-in, lists, editor, Variant drawer, CSV, Orders, detail and role/mobile lifecycle.
-- [x] S01–S04 Storefront evidence covers chrome/catalog, cart/checkout, private Order/refund and responsive/privacy states.
-- [x] R01–R09 paired desktop captures visibly match the demo and critical geometry is within 2 CSS px outside registered exceptions.
-- [x] 1024 and 375 production captures preserve all essential sections/actions with no page-level horizontal overflow; boundary checks pass.
-- [x] Every remaining visual difference has an exact region, E-ID, reason and evidence. No unsupported difference remains.
-- [x] Actual production entrypoints and authenticated/local API flows are verified; development scenarios alone do not count.
-- [x] Build and existing relevant browser/E2E contracts pass. Visual evidence and review notes are retained; disposable tools are removed only after proof.
+- [ ] C01–C08 Console evidence covers sign-in, lists, editor, Variant drawer, CSV, Orders, detail and role/mobile lifecycle.
+- [ ] S01–S04 Storefront evidence covers chrome/catalog, cart/checkout, private Order/refund and responsive/privacy states.
+- [ ] R01–R09 paired desktop captures visibly match the demo and critical geometry is within 2 CSS px outside registered exceptions.
+- [ ] 1024 and 375 production captures preserve all essential sections/actions with no page-level horizontal overflow; boundary checks pass.
+- [ ] Every remaining visual difference has an exact region, E-ID, reason and evidence. No unsupported difference remains.
+- [ ] Actual production entrypoints and authenticated/local API flows are reverified after A01–A04; development scenarios alone do not count.
+- [ ] Post-repair builds and existing relevant browser/E2E contracts pass; visual evidence is retained and disposable tools removed after proof. Prior green runs remain historical evidence.
 
 No percentage score substitutes for these checks. Missing editor overlay, wrong metric placement, wrong Storefront split, or dropped state is a blocking failure even if tokens and builds pass.
 
@@ -77,7 +77,7 @@ No percentage score substitutes for these checks. Missing editor overlay, wrong 
 - Previous “24/24 verified” wording was not backed by a claim/evidence list and is removed. It must not be interpreted as visual acceptance.
 - The preceding audit opened the original demo over local HTTP and visually inspected Products, Product editor and Storefront. Measured Products rail 232 px and Add Product height 34 px; source confirms 56 px deskbar. At 375 px the Products document measured 623 px wide. E02/E04 intentionally retain production accessibility/responsiveness rather than these defects.
 - Source reads cover original sign-in/Console/CSV/Orders/editor/Storefront/private Order markup and state, current canonical guideline/tokens, production route and component inventory, root package scripts, Vitest browser config and Playwright fixture configuration.
-- Planned build/test commands are execution gates, not claims they have run during this documentation revision. All implementation phases remain pending.
+- At the original planning revision, build/test commands were execution gates, not results. Current implementation progress is recorded in the dated repair sections below; do not interpret this historical log as the current task status.
 
 ### Key risk decisions already resolved
 
@@ -98,12 +98,55 @@ No percentage score substitutes for these checks. Missing editor overlay, wrong 
 
 ## Cook handoff
 
-Execute all four phases, including the final comparison gate:
+Resume the existing plan at Phase 2 A01–A04, then complete Phase 4, including unresolved whole-plan coverage. Do not restart completed Phase 1 work or redesign Phase 3 surfaces without an observed defect.
 
 ```text
-/ak:cook /Users/plateau/Project/nexus-handson/plans/260914-1330-nexus-design-parity/plan.md
+/ak:cook plans/260914-1330-nexus-design-parity/plan.md
 ```
 
 Planning does not authorize deployment. Stop only when the complete UI and evidence meet this plan, or when a specifically identified external prerequisite cannot be obtained. Do not finish at a token-only or “same visual language” milestone.
+
+
+## Repair round — 2026-09-15
+
+Direct original-scale inspection reopened the plan after the prior 50%-scale comparisons concealed action alignment,
+editor-density, CSV-layout and Storefront toolbar/selection differences. Repairs and native-scale before/after
+artifacts are recorded in `evidence/verification.md` under “2026-09-15 — original-scale Sol parity repair” and in
+`evidence/repair-20260915/`.
+
+Sol's repair and Astra's independent review are complete and integrated into the current worktree; Astra also
+fixed the mobile CSV notice and restored the currency-conversion warning. Console/Storefront builds, 79 browser
+tests and 37 E2E tests pass. See the dated Astra review in `evidence/verification.md` and
+`evidence/repair-20260915/astra-review/` for fresh runtime proof.
+
+The subsequent fresh Astra self-audit found four remaining implementation defects. The plan is
+open for **repairs and whole-plan visual acceptance**, not merely screenshot completion.
+The preceding green results apply to the already-integrated repair, not the next changes.
+
+## Current next work — audit corrections
+
+User requested this plan update after the fresh 2026-09-15 audit. The original outcome,
+reference authority, closed E01–E09 exceptions and backend/deployment non-goals are unchanged.
+Full implementation and pass criteria live in
+[Phase 2 audit repair backlog](./phase-02-console-surfaces.md#audit-repair-backlog--2026-09-15):
+
+- [x] **A01 / P1:** restore Option groups/Variant matrix header/body composition, remove
+  redundant notices and matrix side inset, and restore primary Add option group.
+- [x] **A02 / P2:** stop a clean, never-saved new Product from claiming Saved; preserve
+  real dirty/saving/error/persisted lifecycle and dismissal behavior.
+- [x] **A03 / P2:** restore CSV 14/12 px dropzone typography, one file metadata summary
+  and a full-width Import Products action without losing validation/retry feedback.
+- [x] **A04 / P2:** restore the five-field Payment layout for no recorded payment,
+  using honest absent values and retaining recorded/legacy evidence semantics.
+
+Proof source: [fresh audit report](./evidence/verification.md#2026-09-15--fresh-astra-self-audit-requested-by-the-user)
+and [30-capture measurements](./evidence/audit-20260915-astra/measurements.json).
+Run [Phase 4 audit repair gate](./phase-04-visual-verification.md#audit-repair-gate--a01a04)
+after implementation. Each A-ID needs its own post-fix evidence before checking it off
+here and in Phase 2. V02–V06 remain open; no inherited green checkbox substitutes for
+post-change proof or the missing private Order/refund/fulfilled and responsive coverage.
+
+This revision changes planning documents only. No application fixes, new test results,
+commit, push or deployment are claimed.
 
 <!-- slug: nexus-design-parity -->
