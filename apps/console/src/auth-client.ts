@@ -1,5 +1,7 @@
 import { ConsoleApiError } from './api-client';
 
+const OWNER_INVITATION_TOKEN_FIELD = 'invitationToken';
+
 export type ConsoleRole = 'owner' | 'staff';
 
 export interface ConsoleSessionView {
@@ -41,7 +43,25 @@ export async function fetchConsoleSession(signal?: AbortSignal): Promise<Console
   }));
 }
 
-export async function startGoogleSignIn(callbackURL: string, signal?: AbortSignal): Promise<string> {
+export function consumeOwnerInvitationFragment(): string | null {
+  const { pathname, search, hash } = window.location;
+  if (pathname !== '/console/login' || !hash.startsWith('#invite=')) return null;
+  window.history.replaceState(window.history.state, '', `${pathname}${search}`);
+  const match = /^#invite=([^&?#=]+)$/.exec(hash);
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]) || null;
+  } catch {
+    return null;
+  }
+}
+
+interface GoogleSignInOptions {
+  signal?: AbortSignal;
+  invitationToken?: string;
+}
+
+export async function startGoogleSignIn(callbackURL: string, options: GoogleSignInOptions = {}): Promise<string> {
   const result = await decodeAuthResponse<{ url: string }>(await fetch('/api/auth/sign-in/social', {
     method: 'POST',
     credentials: 'same-origin',
@@ -50,8 +70,11 @@ export async function startGoogleSignIn(callbackURL: string, signal?: AbortSigna
       provider: 'google',
       callbackURL,
       errorCallbackURL: '/console/login?error=google_sign_in_failed',
+      ...(options.invitationToken === undefined ? {} : {
+        additionalData: { [OWNER_INVITATION_TOKEN_FIELD]: options.invitationToken },
+      }),
     }),
-    signal,
+    signal: options.signal,
   }));
   const authorizationURL = new URL(result.url);
   if (authorizationURL.protocol !== 'https:' || authorizationURL.hostname !== 'accounts.google.com') {

@@ -2,10 +2,11 @@ import { useState } from 'react';
 
 interface SignInScreenProps {
   expired: boolean;
+  invitationPresent: boolean;
   onSignIn: () => Promise<void>;
 }
 
-export function SignInScreen({ expired, onSignIn }: SignInScreenProps) {
+export function SignInScreen({ expired, invitationPresent, onSignIn }: SignInScreenProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(() =>
     new URLSearchParams(window.location.search).has('error')
@@ -14,6 +15,7 @@ export function SignInScreen({ expired, onSignIn }: SignInScreenProps) {
   );
 
   const submit = async () => {
+    if (submitting) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -29,7 +31,9 @@ export function SignInScreen({ expired, onSignIn }: SignInScreenProps) {
       <section className="console-auth-card" aria-labelledby="console-sign-in-title">
         <p className="page-kicker">Nexus · Operations Console</p>
         <h1 id="console-sign-in-title">Sign in</h1>
-        <p>Continue with the Google account provisioned for your Store.</p>
+        <p>{invitationPresent
+          ? 'An Owner invitation is ready. Continue with the Google account it was sent to.'
+          : 'Continue with your authorized Google account. New Owners need an invitation.'}</p>
         {expired ? <div className="notice notice-error" role="alert">Your session ended. Sign in again.</div> : null}
         {error ? <div className="notice notice-error" role="alert">{error}</div> : null}
         <button className="button button-primary" type="button" disabled={submitting} onClick={() => void submit()}>

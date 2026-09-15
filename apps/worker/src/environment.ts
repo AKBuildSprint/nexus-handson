@@ -4,4 +4,5 @@ export type Env = Cloudflare.Env & {
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   STOREFRONT_ORIGIN: string;
+  INITIAL_OWNER_EMAIL: string;
 };

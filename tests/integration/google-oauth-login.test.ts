@@ -3,9 +3,12 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   GoogleProvisioningError,
   provisionGoogleAccount,
+  type NexusAuth,
 } from '../../apps/worker/src/auth';
-import { resetCatalog, workerRequest } from '../support/catalog-test-env';
-import { createTestAuth, TEST_CONSOLE_ORIGIN } from '../support/identity-test-env';
+import { digestInvitationToken, invitationContextHmac } from '@nexus/identity/invitations';
+import { OWNER_INVITATION_CONTEXT_FIELD } from '@nexus/identity/identity-types';
+import { consoleRequest, resetCatalog, workerRequest } from '../support/catalog-test-env';
+import { createTestAuth, TEST_BETTER_AUTH_SECRET, TEST_CONSOLE_ORIGIN } from '../support/identity-test-env';
 
 const GOOGLE_IDENTITY = {
   email: 'google-owner@example.test',
@@ -15,18 +18,40 @@ const GOOGLE_IDENTITY = {
 
 beforeEach(resetCatalog);
 
-async function completeGoogleCallback(
-  auth: ReturnType<typeof createTestAuth>,
+function encodeJwtSection(value: object): string {
+  const json = JSON.stringify(value);
+  const bytes = new TextEncoder().encode(json);
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+}
+
+function googleIdToken(profile: { email: string; emailVerified: boolean; name: string; sub: string }): string {
+  return `${encodeJwtSection({ alg: 'none', typ: 'JWT' })}.${encodeJwtSection({
+    sub: profile.sub,
+    email: profile.email,
+    email_verified: profile.emailVerified,
+    name: profile.name,
+  })}.`;
+}
+
+async function stubGoogleAuthorization(
+  auth: NexusAuth,
   profile: { email: string; emailVerified: boolean; name: string; sub: string },
-): Promise<Response> {
+): Promise<void> {
   const context = await auth.$context;
   const google = context.socialProviders.find((provider) => provider.id === 'google');
   if (!google) throw new Error('Expected the Google provider.');
-  google.validateAuthorizationCode = async () => ({ accessToken: 'test-google-access-token' });
-  google.getUserInfo = async () => ({
-    user: { email: profile.email, emailVerified: profile.emailVerified, name: profile.name },
-    data: { sub: profile.sub },
+  google.validateAuthorizationCode = async () => ({
+    accessToken: 'test-google-access-token',
+    idToken: googleIdToken(profile),
   });
+}
+
+async function startGoogleSignIn(
+  auth: NexusAuth,
+  invitationAdditionalData?: Record<string, unknown>,
+): Promise<{ authorizationURL: URL; state: string | null; cookies: string }> {
   const started = await auth.handler(new Request(`${TEST_CONSOLE_ORIGIN}/api/auth/sign-in/social`, {
     method: 'POST',
     headers: { Origin: TEST_CONSOLE_ORIGIN, 'Content-Type': 'application/json' },
@@ -34,13 +59,31 @@ async function completeGoogleCallback(
       provider: 'google',
       callbackURL: '/console/products',
       errorCallbackURL: '/console/login?error=google_sign_in_failed',
+      ...(invitationAdditionalData === undefined ? {} : { additionalData: invitationAdditionalData }),
     }),
   }));
-  const state = new URL((await started.json() as { url: string }).url).searchParams.get('state');
-  const stateCookies = started.headers.getSetCookie().map((value) => value.split(';', 1)[0]).join('; ');
+  const authorizationURL = new URL((await started.json() as { url: string }).url);
+  return {
+    authorizationURL,
+    state: authorizationURL.searchParams.get('state'),
+    cookies: started.headers.getSetCookie().map((value) => value.split(';', 1)[0]).join('; '),
+  };
+}
+
+async function completeGoogleCallback(
+  auth: NexusAuth,
+  profile: { email: string; emailVerified: boolean; name: string; sub: string },
+  invitationToken?: string,
+): Promise<Response> {
+  await stubGoogleAuthorization(auth, profile);
+  const started = await startGoogleSignIn(
+    auth,
+    invitationToken === undefined ? undefined : { invitationToken },
+  );
+  if (invitationToken !== undefined) expect(started.authorizationURL.href).not.toContain(invitationToken);
   return auth.handler(new Request(
-    `${TEST_CONSOLE_ORIGIN}/api/auth/callback/google?code=test-code&state=${encodeURIComponent(state ?? '')}`,
-    { headers: { Cookie: stateCookies } },
+    `${TEST_CONSOLE_ORIGIN}/api/auth/callback/google?code=test-code&state=${encodeURIComponent(started.state ?? '')}`,
+    { headers: { Cookie: started.cookies } },
   ));
 }
 
@@ -179,5 +222,98 @@ describe('Google-only Console authentication', () => {
       expect(location.searchParams.get('error')).toBeTruthy();
       expect(await env.DB.prepare('SELECT count(*) AS count FROM session').first<number>('count')).toBe(0);
     }
+  });
+
+  it('carries an issued fragment invitation through Google OAuth to an active Owner session', async () => {
+    const issued = await consoleRequest('/api/console/owner-invitations', {
+      method: 'POST',
+      body: JSON.stringify({ targetEmail: 'invited-google-owner@example.test' }),
+    });
+    expect(issued.status).toBe(201);
+    const invitation = await issued.json() as { id: string; invitationUrl: string };
+    const token = new URLSearchParams(new URL(invitation.invitationUrl).hash.slice(1)).get('invite');
+    if (!token) throw new Error('Expected the issued invitation fragment.');
+    const callback = await completeGoogleCallback(createTestAuth(), {
+      email: 'invited-google-owner@example.test',
+      emailVerified: true,
+      name: 'Invited Google Owner',
+      sub: 'google-subject-invited-owner',
+    }, token);
+    expect(callback.status).toBe(302);
+    expect(new URL(callback.headers.get('Location') ?? '', TEST_CONSOLE_ORIGIN).pathname).toBe('/console/products');
+    const cookie = callback.headers.getSetCookie().map((value) => value.split(';', 1)[0])
+      .find((value) => value.includes('session_token='));
+    expect(cookie).toBeTruthy();
+    const session = await workerRequest('/api/console/session', { headers: { Cookie: cookie ?? '' } });
+    expect(session.status).toBe(200);
+    const body = await session.json() as { user: { id: string } };
+    expect(body).toMatchObject({
+      user: { name: 'Invited Google Owner' },
+      store: { id: 'store_nexus', name: 'Nexus' },
+      role: 'owner',
+    });
+    expect(await env.DB.prepare('SELECT consumed_user_id, consumed_at FROM owner_invitations WHERE id=?')
+      .bind(invitation.id).first()).toMatchObject({ consumed_user_id: body.user.id, consumed_at: expect.any(String) });
+  });
+
+  it('persists only a server-derived invitation context after OAuth initiation', async () => {
+    const issued = await consoleRequest('/api/console/owner-invitations', {
+      method: 'POST',
+      body: JSON.stringify({ targetEmail: 'context-owner@example.test' }),
+    });
+    expect(issued.status).toBe(201);
+    const invitation = await issued.json() as { invitationUrl: string };
+    const token = new URLSearchParams(new URL(invitation.invitationUrl).hash.slice(1)).get('invite');
+    if (!token) throw new Error('Expected the issued invitation fragment.');
+    const stolenContext = await invitationContextHmac(TEST_BETTER_AUTH_SECRET, token);
+    const auth = createTestAuth();
+    await startGoogleSignIn(auth, { invitationToken: token, invitationContext: stolenContext });
+    const rows = await env.DB.prepare('SELECT value FROM verification').all<{ value: string }>();
+    expect(rows.results).toHaveLength(1);
+    const serialized = rows.results[0]?.value ?? '';
+    expect(serialized).not.toContain(token);
+    expect(serialized).not.toContain('invitationToken');
+    const stored = JSON.parse(serialized) as {
+      invitationToken?: unknown;
+      invitationContext?: unknown;
+      serverContext?: Record<string, unknown>;
+    };
+    expect(stored.invitationToken).toBeUndefined();
+    expect(stored.invitationContext).toBeUndefined();
+    expect(stored.serverContext?.[OWNER_INVITATION_CONTEXT_FIELD]).toBe(stolenContext);
+    expect(stored.serverContext?.[OWNER_INVITATION_CONTEXT_FIELD]).not.toBe(await digestInvitationToken(token));
+  });
+
+  it('does not accept a client-supplied invitation context as an OAuth credential', async () => {
+    const issued = await consoleRequest('/api/console/owner-invitations', {
+      method: 'POST',
+      body: JSON.stringify({ targetEmail: 'context-replay@example.test' }),
+    });
+    const invitation = await issued.json() as { invitationUrl: string };
+    const token = new URLSearchParams(new URL(invitation.invitationUrl).hash.slice(1)).get('invite');
+    if (!token) throw new Error('Expected the issued invitation fragment.');
+    const stolenContext = await invitationContextHmac(TEST_BETTER_AUTH_SECRET, token);
+    const auth = createTestAuth();
+    await stubGoogleAuthorization(auth, {
+      email: 'context-replay@example.test',
+      emailVerified: true,
+      name: 'Context Replay',
+      sub: 'google-subject-context-replay',
+    });
+    const started = await startGoogleSignIn(auth, { invitationContext: stolenContext });
+    const stored = JSON.parse(
+      (await env.DB.prepare('SELECT value FROM verification').first<string>('value')) ?? '{}',
+    ) as { serverContext?: Record<string, unknown> };
+    expect(stored.serverContext).toBeUndefined();
+    const callback = await auth.handler(new Request(
+      `${TEST_CONSOLE_ORIGIN}/api/auth/callback/google?code=test-code&state=${encodeURIComponent(started.state ?? '')}`,
+      { headers: { Cookie: started.cookies } },
+    ));
+    expect(callback.status).toBe(302);
+    expect(new URL(callback.headers.get('Location') ?? '', TEST_CONSOLE_ORIGIN).pathname).toBe('/console/login');
+    expect(await env.DB.prepare('SELECT consumed_at FROM owner_invitations').first()).toMatchObject({ consumed_at: null });
+    expect(await env.DB.prepare(
+      "SELECT count(*) AS count FROM \"user\" WHERE email='context-replay@example.test'",
+    ).first<number>('count')).toBe(0);
   });
 });

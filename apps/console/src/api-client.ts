@@ -100,6 +100,23 @@ function jsonHeaders(revision?: number): HeadersInit {
   };
 }
 
+export interface OwnerInvitationView {
+  id: string;
+  invitationUrl: string;
+  expiresAt: string;
+  targetEmail: string;
+}
+
+export async function createConsoleOwnerInvitation(targetEmail: string, signal?: AbortSignal): Promise<OwnerInvitationView> {
+  return decode(await fetch('/api/console/owner-invitations', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: jsonHeaders(),
+    body: JSON.stringify({ targetEmail }),
+    signal,
+  }), signal);
+}
+
 export async function fetchProducts(
   query = '',
   status: 'all' | ProductStatus = 'all',

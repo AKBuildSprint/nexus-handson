@@ -7,9 +7,10 @@ Nexus uses Better Auth with Google as the only Console sign-in method. Google au
 Create a Google OAuth client of type **Web application**. Register the exact Console origin and callback URL:
 
 ```text
-Local origin:       http://127.0.0.1:5173
-Local callback:     http://127.0.0.1:5173/api/auth/callback/google
-Production callback: https://<console-origin>/api/auth/callback/google
+Local origin:        http://127.0.0.1:5173
+Local callback:      http://127.0.0.1:5173/api/auth/callback/google
+Production origin:   https://nexus-handson-console.cppai.workers.dev
+Production callback: https://nexus-handson-console.cppai.workers.dev/api/auth/callback/google
 ```
 
 Provide these server-side values without committing them:
@@ -18,11 +19,22 @@ Provide these server-side values without committing them:
 BETTER_AUTH_SECRET=<at-least-32-random-characters>
 GOOGLE_CLIENT_ID=<google-oauth-client-id>
 GOOGLE_CLIENT_SECRET=<google-oauth-client-secret>
+INITIAL_OWNER_EMAIL=<verified-google-email-for-first-owner>
 ```
 
-`CONSOLE_ORIGIN` in `wrangler.jsonc`, the browser origin, and the registered callback must match exactly. Do not expose the client secret through a `VITE_*` variable.
+`CONSOLE_ORIGIN` in `wrangler.jsonc`, the browser origin, and the registered callback must match exactly. Do not expose the client secret through a `VITE_*` variable. Production Google OAuth must use the `cppai.workers.dev` Console origin above before any deployment; the Worker does not deploy as part of this document.
+
+## First owner bootstrap and invitations
+
+After an empty production migration, the first Console owner is the verified Google identity whose email equals `INITIAL_OWNER_EMAIL`. That bootstrap can succeed only once for `store_nexus`. Later owners are admitted only through a one-time invitation created by an active Owner.
+
+An Owner issues an invitation for one normalized Google email. The raw token appears only in the create response fragment (`/console/login#invite=…`) and in the recipient's same-origin `POST /api/auth/sign-in/social` body. The Worker validates that raw token, then stores a server-keyed HMAC context in Better Auth OAuth state. Better Auth verification storage must not contain the raw token. Admission consumes the stored HMAC context, not a client-supplied token or digest. Existing bound, Staff, or revoked identities cannot be invited, promoted, or revived.
+
+Migration [`0012-store-bootstrap-and-owner-invitations.sql`](../migrations/0012-store-bootstrap-and-owner-invitations.sql) holds the one-time bootstrap claim and hashed invitation rows. Do not rewrite applied migrations.
 
 ## Provision access
+
+The S4 identity provisioner remains available for local dry-run validation of already-bound Google subjects. It is not required for first-owner bootstrap or Owner invitations, and remote apply remains blocked.
 
 Provision each identity with its exact Google email, stable Google subject (`sub`), Store, and role:
 
@@ -46,7 +58,7 @@ Local provisioning remains dry-run-first and remote apply remains blocked. Suppl
 
 ## Runtime behavior
 
-The Console exposes only Google sign-in, the Google callback, and sign-out under `/api/auth`. Email/password signup and sign-in are unavailable. The callback must match a prebound Google subject, verified provider email, stored user email, and active membership. Every later Console request resolves the membership again, so revoking it removes access without changing the Google account.
+The Console exposes only Google sign-in, the Google callback, and sign-out under `/api/auth`. Email/password signup and sign-in are unavailable. Unknown Google accounts are denied unless they complete the one-time `INITIAL_OWNER_EMAIL` bootstrap or redeem a valid invitation. A provisioned or previously admitted callback must still match a bound Google subject, verified provider email, stored user email, and active membership. Every later Console request resolves the membership again, so revoking it removes access without changing the Google account.
 
 On visibility, back-forward restoration, or a sibling-tab auth change, the Console hides and disables private content while checking the session. If the user, Store, role, and allowed actions are unchanged, Product drafts, selected delivery files, and CSV work remain mounted. A changed identity or access scope discards that state. Product save continuations wait for the session check before applying an acknowledgement or sending the next step.
 

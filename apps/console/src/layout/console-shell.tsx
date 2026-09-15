@@ -9,6 +9,7 @@ interface ConsoleShellProps {
   onOpenOrders?: (trigger: HTMLElement) => boolean;
   identity?: { userName: string; storeName: string; role: 'owner' | 'staff' };
   onSignOut?: () => void;
+  onOpenOwnerInvitation?: (trigger: HTMLElement) => void;
 }
 
 export function ConsoleShell({
@@ -20,6 +21,7 @@ export function ConsoleShell({
   onOpenOrders,
   identity,
   onSignOut,
+  onOpenOwnerInvitation,
 }: ConsoleShellProps) {
   const sessionIdentity = identity ?? { userName: 'Nexus', storeName: 'Store', role: 'owner' as const };
   const [menuOpen, setMenuOpen] = useState(false);
@@ -93,6 +95,11 @@ export function ConsoleShell({
               <div className="console-account-meta">{sessionIdentity.storeName} · {sessionIdentity.role === 'owner' ? 'Owner' : 'Staff'}</div>
             </div>
           </div>
+          {identity?.role === 'owner' && onOpenOwnerInvitation ? (
+            <button className="button" type="button" aria-haspopup="dialog" onClick={(event) => onOpenOwnerInvitation(event.currentTarget)}>
+              Invite owner
+            </button>
+          ) : null}
           {onSignOut ? <button className="button" type="button" onClick={onSignOut}>Sign out</button> : null}
           {railNote ? <p className="console-rail-note">{railNote}</p> : null}
         </div>
@@ -154,6 +161,20 @@ export function ConsoleShell({
               }}
             >
               Orders
+            </button>
+          ) : null}
+          {identity?.role === 'owner' && onOpenOwnerInvitation ? (
+            <button
+              className="button"
+              type="button"
+              aria-haspopup="dialog"
+              onClick={(event) => {
+                const trigger = menuButtonRef.current ?? event.currentTarget;
+                closeMenu();
+                onOpenOwnerInvitation(trigger);
+              }}
+            >
+              Invite owner
             </button>
           ) : null}
           <button className="button" type="button" onClick={closeMenu}>

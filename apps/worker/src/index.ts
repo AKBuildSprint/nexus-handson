@@ -1,6 +1,7 @@
 import type { Env } from './environment';
 import { createAuth, resolveConsoleRequestContext, type AuthEnv } from './auth';
 import { routeConsoleSessionRequest } from './console-session-routes';
+import { routeConsoleOwnerInvitationRequest } from './console-owner-invitation-routes';
 import { isKnownConsoleRequest } from './console-route-match';
 import { routeConsoleOrderRequest } from './console-order-routes';
 import { routeConsoleFileRequest } from './console-file-routes';
@@ -100,6 +101,7 @@ export default {
         }
         const response =
           routeConsoleSessionRequest(request, resolution.context) ??
+          await routeConsoleOwnerInvitationRequest(request, env.DB, env.CONSOLE_ORIGIN, env.BETTER_AUTH_SECRET, resolution.context) ??
           await routeConsoleImportRequest(request, env, resolution.context) ??
           await routeConsoleFileRequest(request, env, resolution.context) ??
           await routeConsoleProductRequest(request, env.DB, resolution.context) ??

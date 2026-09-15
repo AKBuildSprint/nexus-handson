@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type {
   ProductCoreFields,
   ProductDetailResponse,
@@ -35,8 +35,9 @@ import type {
   OrderStatusFilter,
 } from './orders/order-ui-types';
 import { ProductListScreen } from './products/product-list-screen';
-import { fetchConsoleSession, signOutConsole, startGoogleSignIn, type ConsoleSessionView } from './auth-client';
+import { consumeOwnerInvitationFragment, fetchConsoleSession, signOutConsole, startGoogleSignIn, type ConsoleSessionView } from './auth-client';
 import { SignInScreen } from './sign-in-screen';
+import { OwnerInvitationDialog } from './owner-invitation-dialog';
 import type {
   ProductEditorFixture,
   ProductEditorScenario,
@@ -256,6 +257,12 @@ export function ProductionConsoleApp() {
   const sessionRequestRef = useRef<AbortController | null>(null);
   const sessionCheckRef = useRef<Promise<void> | null>(null);
   const privateAbortRef = useRef(new AbortController());
+  const invitationTokenRef = useRef<string | null>(null);
+  const [invitationPresent, setInvitationPresent] = useState(false);
+  const [ownerInvitation, setOwnerInvitation] = useState<{ controller: AbortController; generation: number } | null>(null);
+  const ownerInvitationAbortRef = useRef<AbortController | null>(null);
+  const ownerInvitationTriggerRef = useRef<HTMLElement | null>(null);
+  const ownerInvitationDialogRef = useRef<HTMLDialogElement>(null);
   const [route, setRoute] = useState<ConsoleRoute>(() => parseRoute(window.location.pathname));
   const dirtyRef = useRef(false);
   const routeRef = useRef(route);
@@ -287,7 +294,44 @@ export function ProductionConsoleApp() {
   const detailRequestRef = useRef(0);
   const createdDetailRef = useRef<ProductDetailResponse | null>(null);
 
+  useLayoutEffect(() => {
+    const token = consumeOwnerInvitationFragment();
+    if (token !== null) {
+      invitationTokenRef.current = token;
+      setInvitationPresent(true);
+    }
+  }, []);
+
+  const clearOwnerInvitation = useCallback((restoreFocus = false) => {
+    const trigger = ownerInvitationTriggerRef.current;
+    const generation = identityGenerationRef.current;
+    ownerInvitationAbortRef.current?.abort();
+    ownerInvitationAbortRef.current = null;
+    ownerInvitationTriggerRef.current = null;
+    setOwnerInvitation(null);
+    if (restoreFocus) requestAnimationFrame(() => {
+      if (
+        trigger?.isConnected
+        && identityGenerationRef.current === generation
+        && sessionRef.current?.role === 'owner'
+        && !sessionCheckRef.current
+        && !logoutInProgressRef.current
+        && ownerInvitationAbortRef.current === null
+      ) trigger.focus();
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    const dialog = ownerInvitationDialogRef.current;
+    if (!ownerInvitation || !dialog || sessionRevalidating) return;
+    if (!dialog.open) dialog.showModal();
+    return () => { if (dialog.open) dialog.close(); };
+  }, [ownerInvitation, sessionRevalidating]);
+
+  useEffect(() => () => ownerInvitationAbortRef.current?.abort(), []);
+
   const clearPrivateState = useCallback(() => {
+    clearOwnerInvitation();
     privateAbortRef.current.abort();
     privateAbortRef.current = new AbortController();
     identityGenerationRef.current += 1;
@@ -316,7 +360,7 @@ export function ProductionConsoleApp() {
     orderRouteGenerationRef.current += 1;
     setOrderRouteGeneration(orderRouteGenerationRef.current);
     setOrdersRequest((current) => current + 1);
-  }, []);
+  }, [clearOwnerInvitation]);
 
   const endSession = useCallback((expired: boolean) => {
     if (expired) clearPendingRoleCommands();
@@ -331,6 +375,8 @@ export function ProductionConsoleApp() {
   }, [clearPrivateState]);
 
   const activateSession = useCallback((nextSession: ConsoleSessionView) => {
+    invitationTokenRef.current = null;
+    setInvitationPresent(false);
     clearPendingRoleCommands(roleCommandScope(nextSession));
     const current = sessionRef.current;
     const sameAccess = current !== null
@@ -357,6 +403,7 @@ export function ProductionConsoleApp() {
     publishOnSuccess?: boolean;
   }) => {
     if (logoutInProgressRef.current) return;
+    clearOwnerInvitation();
     const operation = authOperationRef.current + 1;
     authOperationRef.current = operation;
     sessionRequestRef.current?.abort();
@@ -381,7 +428,22 @@ export function ProductionConsoleApp() {
     });
     sessionCheckRef.current = check;
     await check;
-  }, [activateSession, endSession]);
+  }, [activateSession, clearOwnerInvitation, endSession]);
+
+  const openOwnerInvitation = useCallback((trigger: HTMLElement) => {
+    if (sessionRef.current?.role !== 'owner' || sessionCheckRef.current || logoutInProgressRef.current) return;
+    clearOwnerInvitation();
+    const controller = new AbortController();
+    ownerInvitationAbortRef.current = controller;
+    ownerInvitationTriggerRef.current = trigger;
+    setOwnerInvitation({ controller, generation: identityGenerationRef.current });
+  }, [clearOwnerInvitation]);
+
+  const handleInvitationAuthorizationLost = useCallback((error: ConsoleApiError) => {
+    clearOwnerInvitation();
+    if (error.status === 401 || error.code === 'store_access_denied') endSession(true);
+    else void resolveSession({ quarantine: true, expiredOnDenial: true });
+  }, [clearOwnerInvitation, endSession, resolveSession]);
 
   useEffect(() => {
     void resolveSession({ quarantine: false, expiredOnDenial: false, publishOnSuccess: true });
@@ -766,8 +828,13 @@ export function ProductionConsoleApp() {
     const pathname = window.location.pathname.startsWith('/console/')
       ? `${window.location.pathname}${window.location.search}`
       : '/console/products';
-    const authorizationURL = await startGoogleSignIn(pathname, controller.signal);
+    const authorizationURL = await startGoogleSignIn(pathname, {
+      signal: controller.signal,
+      invitationToken: invitationTokenRef.current ?? undefined,
+    });
     if (authOperationRef.current !== operation || logoutInProgressRef.current) return;
+    invitationTokenRef.current = null;
+    setInvitationPresent(false);
     window.location.assign(authorizationURL);
   }, []);
 
@@ -807,7 +874,7 @@ export function ProductionConsoleApp() {
     return <main className="console-auth-page"><p role="status">Checking Console session…</p></main>;
   }
   if (authState === 'signed-out' || session === null) {
-    return <SignInScreen expired={sessionExpired} onSignIn={handleSignIn} />;
+    return <SignInScreen expired={sessionExpired} invitationPresent={invitationPresent} onSignIn={handleSignIn} />;
   }
 
   let content;
@@ -917,7 +984,17 @@ export function ProductionConsoleApp() {
     onOpenOrders={() => navigate({ kind: 'orders' })}
     identity={{ userName: session.user.name, storeName: session.store.name, role: session.role }}
     onSignOut={handleSignOut}
+    onOpenOwnerInvitation={openOwnerInvitation}
       >{content}</ConsoleShell>
     </div>
+    {ownerInvitation && !sessionRevalidating && session.role === 'owner' && ownerInvitation.generation === identityGenerationRef.current ? (
+      <OwnerInvitationDialog
+        dialogRef={ownerInvitationDialogRef}
+        storeName={session.store.name}
+        signal={ownerInvitation.controller.signal}
+        onDismiss={() => clearOwnerInvitation(true)}
+        onAuthorizationLost={handleInvitationAuthorizationLost}
+      />
+    ) : null}
   </>;
 }

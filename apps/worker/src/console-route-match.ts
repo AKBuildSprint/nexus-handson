@@ -6,6 +6,7 @@ export function isKnownConsoleRequest(request: Request): boolean {
   const pathname = new URL(request.url).pathname;
   const method = request.method;
   if (matches(method, 'GET', /^\/api\/console\/session$/, pathname)) return true;
+  if (matches(method, 'POST', /^\/api\/console\/owner-invitations$/, pathname)) return true;
   if (matches(method, 'GET', /^\/api\/console\/staff$/, pathname)) return true;
   if (matches(method, 'GET', /^\/api\/console\/imports\/template$/, pathname)) return true;
   if (matches(method, 'POST', /^\/api\/console\/imports$/, pathname)) return true;

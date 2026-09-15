@@ -1524,7 +1524,7 @@ legend {
 }
 
 .guard-dialog {
-  width: min(calc(100% - var(--space-8)), 30rem);
+  width: min(calc(100% - var(--space-8)), var(--layout-drawer-width));
   padding: var(--space-6);
   border: var(--border-hairline) solid var(--color-border-strong);
   border-radius: var(--radius-surface);
@@ -1535,6 +1535,27 @@ legend {
 .guard-content {
   display: grid;
   gap: var(--space-4);
+}
+
+.owner-invitation-dialog {
+  max-height: calc(100dvh - var(--space-8));
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+
+.owner-invitation-dialog .guard-content {
+  min-width: 0;
+}
+
+.owner-invitation-dialog textarea {
+  overflow-wrap: anywhere;
+}
+
+.owner-invitation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
 }
 
 .csv-workspace {

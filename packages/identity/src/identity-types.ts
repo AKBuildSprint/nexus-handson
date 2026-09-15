@@ -57,3 +57,35 @@ export type ActiveMembershipResolution =
   | { kind: 'resolved'; membership: ActiveMembership }
   | { kind: 'absent' }
   | { kind: 'ambiguous' };
+
+export const NEXUS_STORE_ID = 'store_nexus';
+export const OWNER_INVITATION_TOKEN_FIELD = 'invitationToken';
+export const OWNER_INVITATION_CONTEXT_FIELD = 'invitationContext';
+export const OWNER_INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+export interface GoogleOwnerProfile {
+  email: string;
+  name: string;
+  googleSubject: string;
+}
+
+export type OwnerAdmissionResult =
+  | { kind: 'admitted'; userId: string; membershipId: string; created: boolean }
+  | { kind: 'denied' };
+
+export type ParsedInvitationToken =
+  | { kind: 'absent' }
+  | { kind: 'invalid' }
+  | { kind: 'present'; token: string };
+
+export type ParsedInvitationContext =
+  | { kind: 'absent' }
+  | { kind: 'invalid' }
+  | { kind: 'present'; context: string };
+
+export interface CreatedOwnerInvitation {
+  id: string;
+  token: string;
+  expiresAt: string;
+  targetEmail: string;
+}

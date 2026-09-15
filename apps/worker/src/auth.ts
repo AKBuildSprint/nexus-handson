@@ -1,10 +1,97 @@
-import { betterAuth, type Account, type User } from 'better-auth';
-import { resolveActiveMembership } from '@nexus/identity/membership-store';
+import { betterAuth, type Account, type BetterAuthPlugin, type User } from 'better-auth';
+import { addOAuthServerContext, createAuthMiddleware, getOAuthState } from 'better-auth/api';
+import { google } from 'better-auth/social-providers';
+import { admitGoogleOwner } from '@nexus/identity/admission';
+import {
+  OWNER_INVITATION_CONTEXT_FIELD,
+  OWNER_INVITATION_TOKEN_FIELD,
+} from '@nexus/identity/identity-types';
 import type { ConsoleIdentityContext } from '@nexus/identity/identity-types';
+import { parseUntrustedInvitationToken, resolveInvitationOAuthContext } from '@nexus/identity/invitations';
+import { resolveActiveMembership } from '@nexus/identity/membership-store';
 import type { Env } from './environment';
 
 export type AuthEnv = Pick<Env, 'DB' | 'CONSOLE_ORIGIN' | 'BETTER_AUTH_SECRET'> &
-  Partial<Pick<Env, 'GOOGLE_CLIENT_ID' | 'GOOGLE_CLIENT_SECRET'>>;
+  Partial<Pick<Env, 'GOOGLE_CLIENT_ID' | 'GOOGLE_CLIENT_SECRET' | 'INITIAL_OWNER_EMAIL'>>;
+
+function ownerInvitationOAuthPlugin(env: AuthEnv): BetterAuthPlugin {
+  return {
+    id: 'nexus-owner-invitation-oauth',
+    hooks: {
+      before: [{
+        matcher: (ctx) => ctx.path === '/sign-in/social',
+        handler: createAuthMiddleware(async (ctx) => {
+          const body = ctx.body;
+          if (body === null || typeof body !== 'object' || Array.isArray(body)) return;
+          const record = body as Record<string, unknown>;
+          const additionalData = record.additionalData;
+          delete record.additionalData;
+
+          if (additionalData === undefined || additionalData === null) return;
+          if (typeof additionalData !== 'object' || Array.isArray(additionalData)) return;
+
+          const parsed = parseUntrustedInvitationToken(
+            (additionalData as Record<string, unknown>)[OWNER_INVITATION_TOKEN_FIELD],
+          );
+          if (parsed.kind !== 'present') return;
+
+          const invitationContext = await resolveInvitationOAuthContext({
+            database: env.DB,
+            secret: env.BETTER_AUTH_SECRET,
+            token: parsed.token,
+          });
+          if (invitationContext === null) return;
+          await addOAuthServerContext({ [OWNER_INVITATION_CONTEXT_FIELD]: invitationContext });
+        }),
+      }],
+    },
+  };
+}
+
+function wrappedGoogleProvider(env: AuthEnv, clientId: string, clientSecret: string) {
+  const googleOptions = {
+    clientId,
+    clientSecret,
+    prompt: 'select_account' as const,
+    disableSignUp: true,
+    disableIdTokenSignIn: true,
+  };
+  const nativeGoogle = google(googleOptions);
+  return {
+    ...googleOptions,
+    getUserInfo: async (token: Parameters<typeof nativeGoogle.getUserInfo>[0]) => {
+      const result = await nativeGoogle.getUserInfo(token);
+      if (!result?.user) return result;
+      const profileData = result.data;
+      const googleSubject = profileData !== null && typeof profileData === 'object' && 'sub' in profileData
+        ? profileData.sub
+        : undefined;
+      let invitationContext: unknown;
+      try {
+        const state = await getOAuthState();
+        invitationContext = state?.serverContext?.[OWNER_INVITATION_CONTEXT_FIELD];
+      } catch {
+        invitationContext = undefined;
+      }
+      try {
+        await admitGoogleOwner({
+          database: env.DB,
+          profile: {
+            email: result.user.email,
+            name: result.user.name,
+            googleSubject,
+            emailVerified: result.user.emailVerified,
+          },
+          initialOwnerEmail: env.INITIAL_OWNER_EMAIL,
+          invitationContext,
+        });
+      } catch {
+        return result;
+      }
+      return result;
+    },
+  };
+}
 
 export function createAuth(env: AuthEnv) {
   const googleClientId = env.GOOGLE_CLIENT_ID?.trim();
@@ -13,14 +100,9 @@ export function createAuth(env: AuthEnv) {
     database: env.DB,
     baseURL: env.CONSOLE_ORIGIN,
     secret: env.BETTER_AUTH_SECRET,
+    plugins: [ownerInvitationOAuthPlugin(env)],
     socialProviders: googleClientId && googleClientSecret ? {
-      google: {
-        clientId: googleClientId,
-        clientSecret: googleClientSecret,
-        prompt: 'select_account',
-        disableSignUp: true,
-        disableIdTokenSignIn: true,
-      },
+      google: wrappedGoogleProvider(env, googleClientId, googleClientSecret),
     } : {},
     user: {
       validateUserInfo: async ({ user, source }) => {

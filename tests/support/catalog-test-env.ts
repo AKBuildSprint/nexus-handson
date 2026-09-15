@@ -15,6 +15,7 @@ import migrationEight from '../../migrations/0008-better-auth.sql?raw';
 import migrationNine from '../../migrations/0009-store-memberships.sql?raw';
 import migrationTen from '../../migrations/0010-refund-decisions.sql?raw';
 import migrationEleven from '../../migrations/0011-google-account-binding-uniqueness.sql?raw';
+import migrationTwelve from '../../migrations/0012-store-bootstrap-and-owner-invitations.sql?raw';
 import worker from '../../apps/worker/src';
 import type { ConsoleIdentityContext } from '@nexus/identity/identity-types';
 
@@ -93,16 +94,19 @@ export const catalogMigrations: D1Migration[] = [
   { name: '0009-store-memberships.sql', queries: splitMigrationSql(migrationNine) },
   { name: '0010-refund-decisions.sql', queries: splitMigrationSql(migrationTen) },
   { name: '0011-google-account-binding-uniqueness.sql', queries: splitMigrationSql(migrationEleven) },
+  { name: '0012-store-bootstrap-and-owner-invitations.sql', queries: splitMigrationSql(migrationTwelve) },
 ];
 
-export type CatalogMigrationThrough = 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
+export type CatalogMigrationThrough = 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
-export function applyCatalogMigrations(through: CatalogMigrationThrough = 11): Promise<void> {
+export function applyCatalogMigrations(through: CatalogMigrationThrough = 12): Promise<void> {
   return applyD1Migrations(env.DB, catalogMigrations.slice(0, through));
 }
 
 export async function resetCatalogThrough(through: CatalogMigrationThrough): Promise<void> {
   const tables = [
+    'owner_invitations',
+    'store_bootstrap_claims',
     'order_assignments',
     'order_commands',
     'payments',
@@ -133,7 +137,7 @@ export async function resetCatalogThrough(through: CatalogMigrationThrough): Pro
 }
 
 export async function resetCatalog(): Promise<void> {
-  return resetCatalogThrough(11);
+  return resetCatalogThrough(12);
 }
 
 export const TEST_STOREFRONT_ORIGIN = 'https://storefront.test';

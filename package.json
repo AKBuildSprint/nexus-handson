@@ -11,7 +11,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "vite --config apps/console/vite.config.ts",
+    "dev": "vite --config apps/storefront/vite.config.ts",
     "dev:console": "vite --config apps/console/vite.config.ts",
     "dev:storefront": "vite --config apps/storefront/vite.config.ts",
     "typecheck": "tsc --noEmit",
@@ -23,7 +23,7 @@
     "build": "npm run typecheck && vite build --config apps/console/vite.config.ts && npm run assert:production-import-graph",
     "build:console": "npm run build",
     "build:storefront": "vite build --config apps/storefront/vite.config.ts",
-    "build:storefront:production": "VITE_STOREFRONT_API_BASE_URL=https://nexus-handson-console.cpp-software-solutions.workers.dev npm run build:storefront",
+    "build:storefront:production": "VITE_STOREFRONT_API_BASE_URL=https://nexus-handson-console.cppai.workers.dev npm run build:storefront",
     "assert:production-import-graph": "tsx scripts/assert-production-import-graph.ts",
     "preview": "vite preview --config apps/console/vite.config.ts",
     "preview:console": "vite preview --config apps/console/vite.config.ts",
