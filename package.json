@@ -27,7 +27,7 @@
     "preview": "vite preview --config apps/console/vite.config.ts",
     "preview:console": "vite preview --config apps/console/vite.config.ts",
     "preview:storefront": "vite preview --config apps/storefront/vite.config.ts",
-    "migrate:production": "wrangler d1 migrations apply nexus-s1-468cba-db --remote --env production",
+    "migrate:production": "wrangler d1 migrations apply nexus-handson-akbuild-db --remote --env production",
     "deploy:console": "CLOUDFLARE_ENV=production npm run build:console && wrangler deploy --config apps/console/dist/nexus_s1_468cba/wrangler.json",
     "deploy:storefront": "npm run build:storefront && wrangler deploy --config apps/storefront/wrangler.jsonc --name",
     "test:e2e": "playwright test",

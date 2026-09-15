@@ -41,14 +41,14 @@
 			"r2_buckets": [
 				{
 					"binding": "FILES",
-					"bucket_name": "nexus-s1-468cba-private"
+					"bucket_name": "nexus-handson-akbuild-private"
 				}
 			],
 			"d1_databases": [
 				{
 					"binding": "DB",
-					"database_name": "nexus-s1-468cba-db",
-					"database_id": "7424d853-fa0b-4e6c-b341-eca85b82e4bd"
+					"database_name": "nexus-handson-akbuild-db",
+					"database_id": "b5a48743-ed25-41e4-9ed8-4f48b619b9b5"
 				}
 			]
 		},
