@@ -89,7 +89,7 @@ VITE_STOREFRONT_API_BASE_URL=http://127.0.0.1:5173 npm run build:storefront
 
 The two production builds are independent. `npm run build` remains the API/Console default; `build:console` is its explicit alias, while `build:storefront` uses [`apps/storefront/vite.config.ts`](./apps/storefront/vite.config.ts). The corresponding artifacts can be inspected independently with `npm run preview:console` and `npm run preview:storefront`; all command ownership remains in [`package.json`](./package.json).
 
-Console deployment builds with the `production` environment and deploys the generated `apps/console/dist/nexus_s1_468cba/wrangler.json` artifact to `https://nexus-handson-akbuild.workers.dev`. Root Wrangler remains the source configuration and migration entrypoint. Do not deploy the relocated Console using a bare root `wrangler deploy`: an old root `.wrangler/deploy` redirect can select a stale bundle. Use `npm run deploy:console` so the production build and selected artifact stay paired.
+Console deployment builds with the `production` environment and deploys the generated `apps/console/dist/nexus_s1_468cba/wrangler.json` artifact to `https://nexus-handson-akbuild.cpp-software-solutions.workers.dev`. Root Wrangler remains the source configuration and migration entrypoint. Do not deploy the relocated Console using a bare root `wrangler deploy`: an old root `.wrangler/deploy` redirect can select a stale bundle. Use `npm run deploy:console` so the production build and selected artifact stay paired.
 
 `npm test` runs the workerd and browser Vitest suites. The Console build type-checks, builds the Worker/client bundle, and rejects a production import graph that reaches prototype scenario data.
 

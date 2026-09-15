@@ -35,8 +35,8 @@
 		"production": {
 			"name": "nexus-handson-akbuild",
 			"vars": {
-				"CONSOLE_ORIGIN": "https://nexus-handson-akbuild.workers.dev",
-				"STOREFRONT_ORIGIN": "https://nexus-handson-akbuild.workers.dev"
+				"CONSOLE_ORIGIN": "https://nexus-handson-akbuild.cpp-software-solutions.workers.dev",
+				"STOREFRONT_ORIGIN": "https://nexus-handson-akbuild.cpp-software-solutions.workers.dev"
 			},
 			"r2_buckets": [
 				{
