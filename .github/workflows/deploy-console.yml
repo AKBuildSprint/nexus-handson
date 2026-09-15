@@ -1,4 +1,4 @@
-name: Verify and deploy Console
+name: Verify and deploy Nexus
 
 on:
   pull_request:
@@ -26,6 +26,7 @@ jobs:
       - run: npm ci
       - run: npm run test:workerd
       - run: npm run build:console
+      - run: npm run build:storefront:production
 
   deploy:
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
@@ -43,3 +44,4 @@ jobs:
       - run: npm ci
       - run: npm run migrate:production
       - run: npm run deploy:console
+      - run: npm run deploy:storefront
