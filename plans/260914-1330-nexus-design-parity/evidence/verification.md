@@ -616,6 +616,212 @@ isolated loopback fixture stack (`PLAYWRIGHT_API_CONSOLE_BASE_URL` 127.0.0.1:539
 The disposable capture specs and the reference measurement helper are excluded
 from these counts and are removed before delivery.
 
+
+## 2026-09-15 — Phase 4 V02/V03 Storefront state matrix
+
+Bundle: `evidence/parity-20260915-s/` — 135 viewport captures at 1440x900,
+1024x900 and 375x812 plus `measurements.json` (135 capture entries and 8
+behaviour notes). Command, run on its own isolated stack (ports 5413/5414,
+dedicated persistence root) with the real public Storefront and real HTTP flows:
+
+```sh
+PLAYWRIGHT_API_CONSOLE_BASE_URL=http://127.0.0.1:5413 \
+PLAYWRIGHT_STOREFRONT_BASE_URL=http://127.0.0.1:5414 \
+NEXUS_TEST_PERSIST_ROOT=<abs>/.wrangler/parity-s \
+npm run test:e2e -- tests/e2e/storefront-parity-matrix-capture.spec.ts --project=storefront
+# 4 passed (1.3m)
+```
+
+### Measured anchors at 1440
+
+| Anchor | Required | Measured |
+| --- | --- | --- |
+| Header | 64 px, 32 px inline inset, white, normal flow | 1440x64, padding 0/32 |
+| Content cap | 1280 px including inset, 40/32 padding, 28 gap | 1280, padding 40/32, gap 28 |
+| Hero | equal auto-fit tracks, 32 gap, 24 bottom padding | 1216 wide, gap 32, padding-bottom 24, tracks 592/592 |
+| Hero heading | 42/48 serif | 42 px / 48 px |
+| Snapshot | white bordered panel, 16 padding, two rows | 592x100, padding 16 |
+| Workspace | equal tracks, 28 gap | 594/594, gap 28 |
+| Card grid | 240 minimum, 16 gap | gap 16, card 289 wide |
+| Card | 18 padding, 10 gap, 96 media well | padding 18, gap 10, media 96 |
+| Ledger | 20 padding, 14 gap | padding 20, gap 14 |
+| Totals box | 12 padding, 8 gap | padding 12, gap 8 |
+| Place Order | full ledger width, 44 minimum | 552x44 |
+| Private Order page | 760 cap including inset, 40/32 padding, 20 gap | 760, padding 40/32, gap 20 |
+| Private Order article | 28 padding, 24 gap | padding 28, gap 24 |
+| Order title / status tag | 32/38 serif, 26 px non-interactive tag | 32/38, tag 26 |
+| Created footer | divider + 16 top padding | padding-top 16 |
+
+At 1024 the measured content column is 960 with 32 px inset and hero tracks
+464|464; the catalog toolbar legitimately wraps to two 44 px rows (96 px) — the
+registered E05 real search/filter/pager block. At 375 the inset is 16 px, the
+page is one column of 343 px, ledger and article padding drop to 16 px, and every
+primary action stays 44 px tall inside the viewport.
+
+### State coverage
+
+- **S01** — loading skeleton (scenario: in-flight hold), populated, filtered
+  search, no results, true empty catalog (scenario: unreachable through the real
+  API because the fixture always publishes a sentinel), catalog 500 with retry
+  (scenario) and recovery, and a 24-row page with both pagers; all at three
+  widths.
+- **S02** — Simple selection, Variant options on a price override and on the base
+  price, multi-line cart with totals, invalid customer fields, mixed-currency
+  rejection with the total withheld and Place Order disabled, submitting
+  (scenario hold), and a lost-response frozen retry that reused the same
+  idempotency key and created exactly one Order (recorded).
+- **S03** — private Order pending, paid with refund form, refund submitting,
+  pending, approved and rejected through the real Console owner commands, refund
+  failure with frozen retry, fulfilled, canceled, multi-item, and a 406-code-point
+  unicode refund reason.
+- **S04** — 375 and 1024 catalog and private Order, long unicode names and
+  reasons, missing and invalid private links, a forced read error with recovery,
+  and pagination continuity where the selected Product, options, customer fields,
+  cart and total were byte-identical before and after paging.
+
+### Overflow and accessibility checks
+
+Zero page-level horizontal overflow across all 135 captures: documentElement
+scrollWidth equals clientWidth, body scrollWidth equals clientWidth, and no
+descendant crosses the viewport box at 1440, 1024 or 375 — with no `overflow-x`
+clipping used to reach that result. Primary actions measure 44 px and stay inside
+the visual viewport at 375; nothing is obscured by a sticky element; long unicode
+content wraps without ellipsis or truncation.
+
+### Registered differences
+
+| Region | Difference | Exception |
+| --- | --- | --- |
+| Hero copy | production states the concrete private-Order contract instead of the demo's immediate-file-delivery promise; geometry identical | E08 |
+| Header | real Store name plus one real Catalog destination; no My Order or Back to Console prototype links | E01/E05 |
+| Catalog toolbar | real search, type filters and top/bottom pagers the reference lacks | E05 |
+| Ledger copy | real published-price note and `Quantity 1-99 · at most 10 Product lines per Order.` helper | E08/E09 |
+| Private link notice | safe prose only; never renders the capability the reference masks | E09 (privacy) |
+| Private Order payment next step | real server copy (`Payment instructions will be provided separately.`) instead of the fixture's bank-transfer instructions | E08/E09 |
+| Order footer | real created timestamp and a 44 px Back to catalog; no synthetic fulfilled-example toggle | E01/E02/E08 |
+| 44 px controls | the source's 28-38 px controls become 44 px targets | E02 |
+
+### Limits
+
+- 375 evidence is desktop-viewport emulation at device scale factor 1; it does
+  not prove native mobile keyboard or visualViewport behaviour with an input
+  focused.
+- Scenario-labelled states are in-flight holds or forced error envelopes, not
+  faked data: S01 loading/empty/error, S02 submitting/frozen retry, S03 refund
+  submitting/failure, S04 order load error.
+
+
+## 2026-09-15 — Phase 4 V02/V03 Console state matrix
+
+Bundle: `evidence/parity-20260915-c/` — 119 viewport captures covering 39 states
+at 1440x900, 1024x900, 375x812 plus the 719/720/1023/1024 boundaries, with
+`measurements.json` per capture. Command, on its own isolated stack (ports
+5423/5424, dedicated persistence root):
+
+```sh
+PLAYWRIGHT_API_CONSOLE_BASE_URL=http://127.0.0.1:5423 \
+PLAYWRIGHT_STOREFRONT_BASE_URL=http://127.0.0.1:5424 \
+NEXUS_TEST_PERSIST_ROOT=<abs>/.wrangler/parity-c \
+npm run test:e2e -- tests/e2e/console-parity-state-capture.spec.ts --project=console
+# 6 passed (46.2s)
+```
+
+### State coverage beyond the earlier bundles
+
+- **C02** — products-empty (scenario), products-loading (scenario, in-flight
+  hold), products-error (scenario) with recovery, filtered-empty, and page 2 top
+  and bottom with both pagers.
+- **C03** — editor deep link, deep-link reload, editor scrolled to its sticky
+  footer, and a blocker/validation state.
+- **C05** — CSV warning (11–30), blocked (31+), in-progress, authoritative result,
+  request failure and result-decode failure.
+- **C06** — orders-empty (real empty root), no-results, load error, contract
+  outdated, the pending-refund filter, and a later cursor page.
+- **C07** — pending, paid, fulfilled and canceled; refund pending, approved and
+  rejected through the real Console commands; the assignment region; an open
+  confirming action panel; and the unknown, idempotency-conflict and
+  contract-outdated notice compositions produced by the Worker's own responses.
+- **C08** — 719/720/1023/1024 boundaries for the Products list and the Order
+  detail, plus session expiration and recovery.
+
+Scenario tagging: 33 captures are labelled `scenario` in both the file name and
+the measurements entry. Every non-scenario state ran through the real Worker
+HTTP contracts (order payment, fulfill, cancel, refund request, approve, reject)
+issued same-origin from the page.
+
+### Overflow and interaction results
+
+No page-level horizontal overflow in any of the 119 captures
+(documentElement/body scrollWidth equal clientWidth throughout, and no element
+crosses the viewport outside a scrollable ancestor). The only local scrolling is
+the permitted E04 table region at 1023/1024 px (Products 900 px table in a 742 px
+region, Orders 1040 in 742) and 720 px (900 in 438); no interactive control
+inside those regions has a box outside it, so no primary action is clipped.
+
+### Closing proofs added on the same bundle
+
+`evidence/parity-20260915-c/measurements-extra.json`:
+
+- **C07 legacy unrecorded payment** — `C07-order-payment-legacy-scenario-*` at
+  1440/1024/375. Arranged by paying a real Order through the Console command and
+  then removing the ledger row the command created, which is the shape of an Order
+  migrated before payment records existed. The Payment card shows the distinct
+  `Original payment-record information is missing … Do not ask the Customer to pay
+  again` warning with the Console-only evidence sentence, and no invented
+  reference, actor or timestamp. Labelled scenario.
+- **200 % reflow-equivalent emulation** — `C08-products-zoom200-720x450` and
+  `C08-storefront-zoom200-720x450`, captured at a 720x450 CSS px viewport with
+  device scale factor 2. This is a reflow-equivalent emulation of a 200 % zoomed
+  1440 px window, not an exercised browser-zoom interaction: DPR alone does not
+  prove the browser's own zoom control, and no real zoom input was performed.
+  Both surfaces keep `documentElement.scrollWidth === clientWidth` and
+  `body.scrollWidth === clientWidth`; the Products table stays inside its own
+  scroll region, which is the permitted E04 intermediate-width behaviour.
+
+### Defect found and fixed during this pass
+
+**Orders list refund tag overflowed its Status cell.** The Status column is the
+source 130 px, but the list rendered the 22-character `Refund request pending`
+label, measuring 149.83 px and crossing into the neighbouring Created cell
+(1177 → 1326.83 against a cell right edge of 1295).
+
+The reference answers this directly: in the demo's own Orders list the Status
+cell is 130 px with a 106 px content box and the tag copy is **`Refund pending`**
+(HTML486), measured at 104.39 px, stacked under the status tag. Production now
+uses that copy for the list tag while the detail header and refund panel keep the
+longer `Refund request pending` label (also matching their reference copy):
+
+| Measurement | Before | After | Reference |
+| --- | --- | --- | --- |
+| `.refund-tag-outline` width | 149.83 | 106.39 | 104.39 |
+| Tag right edge vs Status cell right edge (1295) | 1326.83 (outside) | 1283.39 (inside) | inside |
+| `.order-status-cluster` width | 106 | 106 | 106 |
+
+The +2 px on the tag is the canonical `space-2-5` inline padding against the
+source's 9 px; it stays inside the cell and does not overlap the Created column.
+
+### Recorded content-dependent wraps (E05/E09)
+
+- **Products `Variants` cell** — the real string `Not applicable` wraps to two
+  lines inside the 100 px source column (the demo renders `—` there), so rows
+  measure ~67 px against the reference's ~46 px. Nothing is clipped.
+- **Order reference cells** — real references are 19 characters
+  (`NX-` + 16 hex) against the demo fixture's short `NX-4821`, so the value wraps
+  inside the 96 px Order column in the list and to two lines in the detail
+  heading. Character wrap, no ellipsis, no clipping.
+
+Both are real data under the fixed source column measures; V03 requires these to
+be recorded rather than absorbed into a pixel tolerance, which is what this
+section does.
+
+### Limits
+
+- The Console matrix ran on one persistence root; a re-run against a reused root
+  changes absolute order counts. The capture spec asserts state shape rather than
+  fixture totals, except where a state's identity depends on its own created
+  records.
+- 375 px evidence is viewport emulation, not a physical device.
+
 ### Limits of this evidence
 
 - One Console viewport per width per A-ID, plus the scrolled matrix views; the
@@ -623,3 +829,75 @@ from these counts and are removed before delivery.
 - The `A02` failure is injected at the network boundary with the real Worker error
   envelope; it is labelled as injection, not a server fault.
 - No deployment, remote migration or provisioning is claimed.
+
+## 2026-09-15 — Final state pass, cleanup and acceptance statement
+
+### Closing state captures
+
+`evidence/parity-20260915-c/` also holds the states not covered elsewhere, from a
+final disposable pass (`measurements-final.json`):
+
+| Capture | State |
+| --- | --- |
+| `C01-signin-failure-{1440x900,1024x900,375x812}-production.png` | real `?error=google_sign_in_failed` card; 380 px measure centred at every width, no overflow |
+| `C01-signin-submitting-scenario-1440x900-production.png` | scenario: auth hand-off held so the disabled **Connecting to Google…** state renders |
+| `C03-editor-dirty-guard-1440x900-production.png` | dirty dismissal guard (480x190) stacked above the owning editor dialog |
+| `C03-editor-saving-scenario-1440x900-production.png` | scenario: create request held so the durable **Saving Product** state renders |
+
+### V06 cleanup
+
+Retained: the frozen reference under `design/UI-UX/` (hashes unchanged), all
+evidence bundles (`reference/`, `production/`, `comparisons/`,
+`audit-20260915-astra/`, `repair-20260915/`, `repair-20260915-a01a04/`,
+`parity-20260915-c/`, `parity-20260915-s/`) and this ledger. The canonical
+guideline and token comments were reconciled with the delivered result, including
+the full-span section composition, the matrix Enabled column measure, the compact
+row action, the dropzone text roles, and the payment field rule.
+
+Removed after their proof was retained: the four disposable Playwright capture
+specs, the two throwaway reference-measurement scripts, and the downloaded
+template copy that the CSV capture used as input.
+
+### Final regression on the delivered source
+
+Command (isolated stack, dedicated persistence root, repository's own suites only):
+
+```sh
+npm run build:console && npm run build:storefront && npm run test:browser && npm run test:e2e
+```
+
+| Suite | Result |
+| --- | --- |
+| `build:console` | passed — typecheck, Worker and client builds, 30-module production import graph |
+| `build:storefront` | passed |
+| `test:browser` | 79 passed (6 files) |
+| `test:e2e` | 38 passed (7 files, including the new clean-create lifecycle regression) |
+
+### Acceptance statement
+
+**Implemented screens:** Console sign-in, Products list and Product configuration
+overlay (with the focused Variant drawer), CSV import workspace, Orders list,
+Order detail with payment/refund/assignment commands, and the Storefront catalog,
+purchase ledger and private Order — all reproducing the demo's desktop
+composition.
+
+**Remaining registered deviations:** only E01–E09, enumerated per surface in the
+V02/V03 sections above: E01/E05 real destinations, identity, search, filters and
+pagers; E02 44 px targets and 16 px editable text with their local height
+effects; E03 4 px tag corners and the ink primary action; E04 compact and
+intermediate-width adaptations; E05/E09 real catalog, Order, payment and
+reference data (including the recorded content-dependent wraps); E06 the real
+save/dirty lifecycle; E07 removed prototype-only controls; E08 real state copy
+and compositions; E09 privacy-safe private-link presentation.
+
+**Evidence location:** `plans/260914-1330-nexus-design-parity/evidence/`.
+
+**Commands actually run:** the reference was served with
+`python3 -m http.server 8766 --bind 127.0.0.1 --directory design/UI-UX`; Console
+and Storefront were exercised through Playwright against the real Worker over
+isolated loopback origins; the regression commands are listed above.
+
+**Runtime limitations:** 375 px evidence is viewport emulation at device scale
+factor 1 and does not prove native mobile keyboard behaviour; the matrix ran on
+isolated local stacks with local fixtures; nothing here claims deployment, remote
+migration, provisioning or remote smoke evidence.

@@ -107,7 +107,8 @@ function OrderStatusBadge({ order }: { order: ConsoleOrderView }) {
   return (
     <span className="order-status-cluster">
       <span className={status.className}>{status.label}</span>
-      {order.refundRequestStatus === 'pending' ? <span className="refund-tag-outline">Refund request pending</span> : null}
+      {/* Reference list copy (HTML486); the longer detail label stays in the detail header. */}
+      {order.refundRequestStatus === 'pending' ? <span className="refund-tag-outline">Refund pending</span> : null}
     </span>
   );
 }

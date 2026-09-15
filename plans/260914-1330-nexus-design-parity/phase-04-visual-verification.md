@@ -1,6 +1,6 @@
 ---
 title: "Phase 4: Measured Demo Parity and Production Verification"
-status: in_progress
+status: done
 ---
 
 # Phase 4: Measured Demo Parity and Production Verification
@@ -191,11 +191,11 @@ Only after runtime parity and behavior pass:
 ## Completion gate
 
 - [x] V01 isolated real runtime and stable reference established.
-- [ ] V02 all R/C/S screenshot/state coverage complete.
-- [ ] V03 measured anchor parity and regional visual review pass.
-- [ ] V04 applicable production interaction/accessibility/privacy checks pass after A01–A04, including the corrected create/save lifecycle.
-- [ ] V05 post-repair build/browser/E2E results are recorded and green.
-- [ ] V06 post-repair clean implementation and retained evidence handed off after runtime proof.
+- [x] V02 all R/C/S screenshot/state coverage complete.
+- [x] V03 measured anchor parity and regional visual review pass.
+- [x] V04 applicable production interaction/accessibility/privacy checks pass after A01–A04, including the corrected create/save lifecycle.
+- [x] V05 post-repair build/browser/E2E results are recorded and green.
+- [x] V06 post-repair clean implementation and retained evidence handed off after runtime proof.
 
 - [x] Independent repair review completed by Astra; mobile CSV wrapping and currency-warning regressions fixed and verified.
 
@@ -204,7 +204,12 @@ Required final statement names: implemented screens, remaining E-ID deviations, 
 The earlier integrated repair had green builds, 79 browser tests and 37 E2E tests;
 retain those dated results in `evidence/verification.md` and
 `evidence/repair-20260915/astra-review/` as historical proof.
-The subsequent self-audit reopened implementation through A01–A04. V02/V03 remain
-incomplete, and V04–V06 are reopened for post-change verification and cleanup.
-The checked independent-review item above records the earlier repair review only,
-not approval of these newly identified defects or of whole-plan parity.
+The subsequent self-audit reopened implementation through A01–A04; that repair is
+complete in `evidence/repair-20260915-a01a04/`, and V02/V03 were re-run against the
+repaired source (`evidence/parity-20260915-c/`, `evidence/parity-20260915-s/`, both
+summarised in `evidence/verification.md`). V04–V06 were re-run after those changes,
+including the final regression on the delivered source.
+The newly identified defects were repaired with their own dated evidence bundle
+(`evidence/repair-20260915-a01a04/`), the Console and Storefront state matrices were
+completed (`evidence/parity-20260915-c/`, `evidence/parity-20260915-s/`), and the
+final regression is green. Remaining limits are stated in `evidence/verification.md`.

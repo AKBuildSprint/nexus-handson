@@ -1,7 +1,7 @@
 ---
 title: "Nexus HTML demo visual parity"
 description: "Reproduce the HTML demo's desktop composition in the real Console and Storefront, with explicit accessibility, mobile and production-behavior exceptions."
-status: in_progress
+status: done
 priority: P1
 effort: "not-estimated"
 issue: null
@@ -59,13 +59,13 @@ Phase 2 and Phase 3 may run concurrently only after Phase 1 hands off tokens. Co
 ## Completion checklist
 
 - [x] P01–P04 Phase 1 tasks pass and there is only one active token/guideline system.
-- [ ] C01–C08 Console evidence covers sign-in, lists, editor, Variant drawer, CSV, Orders, detail and role/mobile lifecycle.
-- [ ] S01–S04 Storefront evidence covers chrome/catalog, cart/checkout, private Order/refund and responsive/privacy states.
-- [ ] R01–R09 paired desktop captures visibly match the demo and critical geometry is within 2 CSS px outside registered exceptions.
-- [ ] 1024 and 375 production captures preserve all essential sections/actions with no page-level horizontal overflow; boundary checks pass.
-- [ ] Every remaining visual difference has an exact region, E-ID, reason and evidence. No unsupported difference remains.
-- [ ] Actual production entrypoints and authenticated/local API flows are reverified after A01–A04; development scenarios alone do not count.
-- [ ] Post-repair builds and existing relevant browser/E2E contracts pass; visual evidence is retained and disposable tools removed after proof. Prior green runs remain historical evidence.
+- [x] C01–C08 Console evidence covers sign-in, lists, editor, Variant drawer, CSV, Orders, detail and role/mobile lifecycle.
+- [x] S01–S04 Storefront evidence covers chrome/catalog, cart/checkout, private Order/refund and responsive/privacy states.
+- [x] R01–R09 paired desktop captures visibly match the demo and critical geometry is within 2 CSS px outside registered exceptions.
+- [x] 1024 and 375 production captures preserve all essential sections/actions with no page-level horizontal overflow; boundary checks pass.
+- [x] Every remaining visual difference has an exact region, E-ID, reason and evidence. No unsupported difference remains.
+- [x] Actual production entrypoints and authenticated/local API flows are reverified after A01–A04; development scenarios alone do not count.
+- [x] Post-repair builds and existing relevant browser/E2E contracts pass; visual evidence is retained and disposable tools removed after proof. Prior green runs remain historical evidence.
 
 No percentage score substitutes for these checks. Missing editor overlay, wrong metric placement, wrong Storefront split, or dropped state is a blocking failure even if tokens and builds pass.
 
@@ -150,3 +150,27 @@ This revision changes planning documents only. No application fixes, new test re
 commit, push or deployment are claimed.
 
 <!-- slug: nexus-design-parity -->
+
+## Final status — 2026-09-15
+
+All four phases, the C01–C08 and S01–S04 acceptance gates and the V01–V06
+verification gates are complete on this source. Evidence:
+
+- `evidence/repair-20260915-a01a04/` — A01–A04 repair proof with reference-side
+  measurements re-taken from the frozen demo, paired captures, side-by-side
+  comparisons, per-element delta attribution, and the Orders refund-tag fix.
+- `evidence/parity-20260915-c/` — 119 Console captures over 39 states including
+  the 719/720/1023/1024 boundaries and the C01 sign-in failure/submitting states.
+- `evidence/parity-20260915-s/` — 135 Storefront captures over the S01–S04 states.
+- `evidence/verification.md` — the running ledger: measured anchors, registered
+  E01–E09 differences, content-dependent wraps, and the regression results.
+
+Final regression on the delivered source: `build:console`, `build:storefront`,
+79 browser tests and 38 e2e tests pass. The disposable capture specs and
+measurement scripts were removed after their proof was retained; `npx tsc
+--noEmit` is clean with the repository's own suites only.
+
+Honest limits: 375 px evidence is viewport emulation at device scale factor 1, not
+a physical device; the whole-plan matrix ran on isolated loopback stacks with
+local fixtures. Nothing here claims deployment, remote migration, provisioning or
+remote smoke evidence.

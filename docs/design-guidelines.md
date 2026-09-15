@@ -546,7 +546,7 @@ The prototype is ready for design review only when:
 - Product list loading, catalog empty, filtered empty, populated, and request-error states are visible.
 - Create and edit Product flows show default, dirty, validation, saving, save-error, and saved states.
 - Product delivery and complete Variant delivery override include all named private-file states.
-- Option groups, 10 values per group, participating-group selection, and one active schema are visible.
+- Option groups, 10 values per group, participating-group selection, and the single active Variant schema are visible through the group list and the generated matrix.
 - Combination counts 10, 11, 30, and 31 are each demonstrable with their required consequence.
 - Structural regeneration shows Retained, New, and Will disable rows before confirmation.
 - CSV default, limit error, parsing, simple/Variant detection, warning, blocked, uploading, file-level failure, partial row result, and complete success states are visible.

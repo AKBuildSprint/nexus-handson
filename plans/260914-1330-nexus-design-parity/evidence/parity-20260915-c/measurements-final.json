@@ -1,0 +1,314 @@
+{
+  "measurements": [
+    {
+      "id": "C01",
+      "state": "C01-signin-failure-1440x900",
+      "scenario": false,
+      "file": "C01-signin-failure-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "overflow": {
+        "clientWidth": 1440,
+        "documentScrollWidth": 1440,
+        "bodyScrollWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": ".console-auth-card",
+          "text": "NNexus · Operations ConsoleSign inContinue with the Google account provisioned f",
+          "box": {
+            "x": 530,
+            "y": 179,
+            "width": 380,
+            "height": 542,
+            "right": 910,
+            "bottom": 721
+          }
+        },
+        {
+          "selector": ".console-auth-card button",
+          "text": "Continue with Google",
+          "box": {
+            "x": 559,
+            "y": 491,
+            "width": 322,
+            "height": 44,
+            "right": 881,
+            "bottom": 535
+          }
+        },
+        {
+          "selector": ".console-auth-card .notice",
+          "missing": true
+        }
+      ]
+    },
+    {
+      "id": "C01",
+      "state": "C01-signin-failure-1024x900",
+      "scenario": false,
+      "file": "C01-signin-failure-1024x900.png",
+      "viewport": {
+        "width": 1024,
+        "height": 900
+      },
+      "overflow": {
+        "clientWidth": 1024,
+        "documentScrollWidth": 1024,
+        "bodyScrollWidth": 1024
+      },
+      "regions": [
+        {
+          "selector": ".console-auth-card",
+          "text": "NNexus · Operations ConsoleSign inContinue with the Google account provisioned f",
+          "box": {
+            "x": 322,
+            "y": 179,
+            "width": 380,
+            "height": 542,
+            "right": 702,
+            "bottom": 721
+          }
+        },
+        {
+          "selector": ".console-auth-card button",
+          "text": "Continue with Google",
+          "box": {
+            "x": 351,
+            "y": 491,
+            "width": 322,
+            "height": 44,
+            "right": 673,
+            "bottom": 535
+          }
+        },
+        {
+          "selector": ".console-auth-card .notice",
+          "missing": true
+        }
+      ]
+    },
+    {
+      "id": "C01",
+      "state": "C01-signin-failure-375x812",
+      "scenario": false,
+      "file": "C01-signin-failure-375x812.png",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "overflow": {
+        "clientWidth": 375,
+        "documentScrollWidth": 375,
+        "bodyScrollWidth": 375
+      },
+      "regions": [
+        {
+          "selector": ".console-auth-card",
+          "text": "NNexus · Operations ConsoleSign inContinue with the Google account provisioned f",
+          "box": {
+            "x": 16,
+            "y": 135,
+            "width": 343,
+            "height": 542,
+            "right": 359,
+            "bottom": 677
+          }
+        },
+        {
+          "selector": ".console-auth-card button",
+          "text": "Continue with Google",
+          "box": {
+            "x": 45,
+            "y": 447,
+            "width": 285,
+            "height": 44,
+            "right": 330,
+            "bottom": 491
+          }
+        },
+        {
+          "selector": ".console-auth-card .notice",
+          "missing": true
+        }
+      ]
+    },
+    {
+      "id": "C01",
+      "state": "C01-signin-submitting-scenario-1440x900",
+      "scenario": true,
+      "file": "C01-signin-submitting-scenario-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "overflow": {
+        "clientWidth": 1440,
+        "documentScrollWidth": 1440,
+        "bodyScrollWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": ".console-auth-card",
+          "text": "NNexus · Operations ConsoleSign inContinue with the Google account provisioned f",
+          "box": {
+            "x": 530,
+            "y": 232.5,
+            "width": 380,
+            "height": 435,
+            "right": 910,
+            "bottom": 667.5
+          }
+        },
+        {
+          "selector": ".console-auth-card button",
+          "text": "Connecting to Google…",
+          "box": {
+            "x": 559,
+            "y": 437.5,
+            "width": 322,
+            "height": 44,
+            "right": 881,
+            "bottom": 481.5
+          }
+        },
+        {
+          "selector": ".console-auth-card .notice",
+          "missing": true
+        }
+      ]
+    },
+    {
+      "id": "C03",
+      "state": "C03-editor-dirty-guard-1440x900",
+      "scenario": false,
+      "file": "C03-editor-dirty-guard-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "overflow": {
+        "clientWidth": 1440,
+        "documentScrollWidth": 1440,
+        "bodyScrollWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": ".guard-dialog",
+          "text": "Discard unsaved Product changes?Unsaved field, delivery, option, Variant, and fi",
+          "box": {
+            "x": 480,
+            "y": 355,
+            "width": 480,
+            "height": 190,
+            "right": 960,
+            "bottom": 545
+          }
+        },
+        {
+          "selector": ".console-editor-dialog[open]",
+          "text": "Product configurationDraftUnsaved changes✕ConsoleC03 saving capture ProductBack ",
+          "box": {
+            "x": 0,
+            "y": 0,
+            "width": 1440,
+            "height": 900,
+            "right": 1440,
+            "bottom": 900
+          }
+        },
+        {
+          "selector": ".guard-dialog .inline-actions",
+          "text": "Stay and continue editingDiscard changes",
+          "box": {
+            "x": 505,
+            "y": 476,
+            "width": 430,
+            "height": 44,
+            "right": 935,
+            "bottom": 520
+          }
+        }
+      ]
+    },
+    {
+      "id": "C03",
+      "state": "C03-editor-saving-scenario-1440x900",
+      "scenario": true,
+      "file": "C03-editor-saving-scenario-1440x900.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "overflow": {
+        "clientWidth": 1440,
+        "documentScrollWidth": 1440,
+        "bodyScrollWidth": 1440
+      },
+      "regions": [
+        {
+          "selector": ".console-editor-panel",
+          "text": "Product configurationDraftSaving Product✕ConsoleC03 saving capture ProductBack t",
+          "box": {
+            "x": 80,
+            "y": 24,
+            "width": 1280,
+            "height": 852,
+            "right": 1360,
+            "bottom": 876
+          }
+        },
+        {
+          "selector": ".console-editor-state",
+          "text": "Saving Product",
+          "box": {
+            "x": 1195.828125,
+            "y": 43.5,
+            "width": 88.171875,
+            "height": 16,
+            "right": 1284,
+            "bottom": 59.5
+          }
+        },
+        {
+          "selector": ".console-editor-body > section.editor-card:nth-of-type(1)",
+          "text": "BasicsProduct slugAssigned after saveProduct statusDraftActiveArchivedProduct na",
+          "box": {
+            "x": 100,
+            "y": 145,
+            "width": 402.65625,
+            "height": 320,
+            "right": 502.65625,
+            "bottom": 465
+          }
+        },
+        {
+          "selector": ".console-editor-footer",
+          "text": "No private file selectedDiscard changesSaving Product",
+          "box": {
+            "x": 80,
+            "y": 815,
+            "width": 1280,
+            "height": 61,
+            "right": 1360,
+            "bottom": 876
+          }
+        },
+        {
+          "selector": "button.console-editor-save",
+          "text": "Saving Product",
+          "box": {
+            "x": 1212.3125,
+            "y": 824,
+            "width": 127.6875,
+            "height": 44,
+            "right": 1340,
+            "bottom": 868
+          }
+        }
+      ]
+    }
+  ]
+}

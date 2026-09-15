@@ -1,6 +1,6 @@
 ---
 title: "Phase 2: Console Surfaces"
-status: in_progress
+status: done
 ---
 
 # Phase 2: Console Surfaces
@@ -294,7 +294,9 @@ the changes, fixed responsive CSV notice wrapping and restored the currency-conv
 input associations. Independent runtime proof and green integrated builds/browser/E2E results are recorded in
 `evidence/verification.md`; fresh reviewer images are in `evidence/repair-20260915/astra-review/`.
 The subsequent self-audit confirmed four implementation defects, not just missing screenshots.
-This phase remains `in_progress` until A01–A04 below and the original C01–C08 acceptance gates pass.
+A01–A04 and the C01–C08 acceptance gates now pass on this source; their proof is in
+`evidence/repair-20260915-a01a04/` and `evidence/parity-20260915-c/`, with measured
+anchors and registered exceptions in `evidence/verification.md`.
 
 ## Audit repair backlog — 2026-09-15
 
