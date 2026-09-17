@@ -1209,6 +1209,58 @@ legend {
   overflow-wrap: anywhere;
 }
 
+.provider-events-table th:last-child,
+.provider-events-table td:last-child {
+  width: 32%;
+}
+
+.provider-event-mobile {
+  display: none;
+  min-width: 0;
+}
+
+.provider-event-list li > header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.provider-event-list li > header span {
+  color: var(--color-ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.provider-event-fields {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.provider-event-fields div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--space-3);
+}
+
+.provider-event-fields dt {
+  color: var(--color-ink-muted);
+  font-size: var(--type-meta-size);
+  font-weight: var(--weight-semibold);
+  line-height: var(--type-meta-line);
+}
+
+.provider-event-fields dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.provider-event-skeleton-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .orders-table td .refund-badge,
 .orders-table td .status-tag {
   display: flex;
@@ -1828,6 +1880,9 @@ legend {
 
   .order-list-mobile,
   .order-items-mobile {
+    display: grid;
+  }
+  .provider-event-mobile {
     display: grid;
   }
 

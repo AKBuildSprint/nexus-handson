@@ -187,10 +187,10 @@ Long names, references, descriptions, and Refund reasons wrap within their conte
 
 ### 4.1 Console shell and navigation
 
-- Desktop rail: **Nexus** / Operations Console, optional "Viewing as Store operator" chip (not a role switcher), destinations **Products** and **Orders** only.
+- Desktop rail: **Nexus** / Operations Console, optional "Viewing as Store operator" chip (not a role switcher), destinations **Products**, **Orders**, and owner-only **Third-party logs**.
 - Active destination: ink fill, `color-accent-ink` text. Hover uses `color-surface-strong`.
 - Account chip uses the bootstrap Store name **Nexus**. No Faire, North Studio, or fake tenant switcher.
-- Deskbar kicker: `Nexus Operations Console · {Products\|Orders}`.
+- Deskbar kicker: `Nexus Operations Console · {Products\|Orders\|Third-party logs}`.
 - Compact: skip link, `Nexus · {destination}`, Menu returns focus to its trigger.
 - Do not add Inventory, Analytics, Retailers, signup, Store switching, or custom-domain controls.
 

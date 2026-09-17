@@ -4,6 +4,7 @@ import { routeConsoleSessionRequest } from './console-session-routes';
 import { routeConsoleOwnerInvitationRequest } from './console-owner-invitation-routes';
 import { isKnownConsoleRequest } from './console-route-match';
 import { routeConsoleOrderRequest } from './console-order-routes';
+import { routeConsoleProviderEventRequest } from './console-provider-event-routes';
 import { routeConsoleFileRequest } from './console-file-routes';
 import { routeConsoleProductImageRequest } from './console-product-image-routes';
 
@@ -119,6 +120,7 @@ export default {
           await routeConsoleProductImageRequest(request, env, resolution.context) ??
 
           await routeConsoleProductRequest(request, env.DB, resolution.context) ??
+          await routeConsoleProviderEventRequest(request, env.DB, resolution.context) ??
           await routeConsoleOrderRequest(request, env.DB, resolution.context) ??
           routeNotFound();
         return withConsoleAuthHeaders(response, resolution.authHeaders);

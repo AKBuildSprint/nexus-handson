@@ -11,7 +11,7 @@ Run npm, Wrangler, Vite, and tests from the repository root. Root [`wrangler.jso
 - Brand chrome **Nexus** (Operations Console / STOREFRONT).
 - New color, type, space, radius, shadow: add a token first, then use `var(--…)`.
 - Metric / snapshot numbers: Products and catalog snapshots from loaded catalog rows; Order inbox metrics from ConsoleOrderSummary for current server filters, never the current page of Orders.
-- Console destinations: **Products** and **Orders** only.
+- Console destinations: **Products**, **Orders**, and owner-only **Third-party logs**.
 - `npm ci`; Node 22. Local D1: `npx wrangler d1 migrations apply nexus-s1-468cba-db --local`.
 - Worker composes `@nexus/catalog/*` and `@nexus/orders/*`. Console consumes catalog only; keep Order UI types in the Console app. Storefront stays HTTP-only. Orders may depend on catalog. Catalog and packages never depend on apps. Catalog never depends on orders.
 - Worker stays HTTP adapters and platform composition. Domain writes, SQL batches, and transition rules stay in packages.

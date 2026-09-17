@@ -11,6 +11,7 @@ const OWNER_ACTIONS = new Set<PermissionAction>([
   'order:process',
   'order:assign',
   'staff:list',
+  'provider-events:read',
   'refund:request',
   'refund:decide',
 ]);
