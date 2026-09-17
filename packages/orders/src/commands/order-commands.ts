@@ -1,16 +1,21 @@
 import { stableId } from '@nexus/catalog/slug';
+import { PUBLIC_STORE_ID } from '@nexus/catalog/public-store';
 import {
+  OrderPersistenceError,
   OrderValidationError,
   type OrderActor,
   type OrderCommandAction,
   type OrderCommandResult,
   type OrderContext,
   type OrderStatus,
+  type PayfsCreditConfirmation,
+  type PayfsCreditInput,
 } from '../order-types';
 import {
   parseCancelOrderInput,
   parseFulfillOrderInput,
   parseManualPaymentInput,
+  parsePayfsCreditInput,
   parseRefundDecisionInput,
   parseRefundRequestInput,
 } from '../order-validation';
@@ -346,6 +351,293 @@ export async function markPaid(input: {
         historyId,
       ),
     ],
+  });
+}
+
+type PayfsIgnoredReason =
+  | 'not_credit'
+  | 'recipient_mismatch'
+  | 'reference_missing'
+  | 'reference_ambiguous'
+  | 'order_not_eligible';
+
+interface PayfsReceiptRow {
+  facts_fingerprint: string;
+  outcome: 'confirmed' | 'ignored';
+  ignored_reason: PayfsIgnoredReason | null;
+}
+
+interface PayfsSettlementTarget {
+  id: string;
+}
+
+const PAYFS_REFERENCE_TOKEN = /(?<![A-Za-z0-9])NP[0-9a-f]{18}(?![A-Za-z0-9])/giu;
+const payfsEncoder = new TextEncoder();
+
+function payfsTransactionConflict(): never {
+  throw new OrderValidationError('payfs_transaction_conflict', 'The PayFS payload is invalid.', [], 400);
+}
+
+async function payfsFingerprint(input: PayfsCreditInput): Promise<string> {
+  const canonical = JSON.stringify([
+    input.accountId,
+    input.amount,
+    input.bank,
+    input.bankAccountNumber,
+    input.content.normalize('NFKC'),
+    input.transactionDate,
+    input.transactionId,
+    input.transferType,
+  ]);
+  const digest = await crypto.subtle.digest('SHA-256', payfsEncoder.encode(canonical));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function existingPayfsReceipt(
+  database: D1Database,
+  transactionId: string,
+  fingerprint: string,
+): Promise<PayfsReceiptRow | null> {
+  const receipt = await database.prepare(
+    `SELECT facts_fingerprint, outcome, ignored_reason
+       FROM payfs_payment_receipts
+      WHERE transaction_id = ?`,
+  ).bind(transactionId).first<PayfsReceiptRow>();
+  if (receipt === null) return null;
+  if (receipt.facts_fingerprint !== fingerprint) payfsTransactionConflict();
+  return receipt;
+}
+
+async function existingPayfsOutcome(
+  database: D1Database,
+  transactionId: string,
+  fingerprint: string,
+): Promise<PayfsCreditConfirmation | null> {
+  return (await existingPayfsReceipt(database, transactionId, fingerprint)) === null
+    ? null
+    : 'already_processed';
+}
+
+async function persistIgnoredPayfsReceipt(input: {
+  database: D1Database;
+  transactionId: string;
+  fingerprint: string;
+  reason: PayfsIgnoredReason;
+}): Promise<PayfsCreditConfirmation> {
+  try {
+    await input.database.prepare(
+      `INSERT INTO payfs_payment_receipts (
+         id, transaction_id, facts_fingerprint, outcome, ignored_reason
+       ) VALUES (?, ?, ?, 'ignored', ?)`,
+    ).bind(
+      `pfs_${crypto.randomUUID().replaceAll('-', '')}`,
+      input.transactionId,
+      input.fingerprint,
+      input.reason,
+    ).run();
+  } catch (error) {
+    const existing = await existingPayfsOutcome(input.database, input.transactionId, input.fingerprint);
+    if (existing !== null) return existing;
+    throw new OrderPersistenceError(error);
+  }
+  return 'ignored';
+}
+
+function matchedPayfsPaymentReference(content: string): { reference: string | null; reason: PayfsIgnoredReason | null } {
+  const references = new Set<string>();
+  for (const match of content.matchAll(PAYFS_REFERENCE_TOKEN)) {
+    references.add(`NP${match[0].slice(2).toLowerCase()}`);
+  }
+  if (references.size === 0) return { reference: null, reason: 'reference_missing' };
+  if (references.size > 1) return { reference: null, reason: 'reference_ambiguous' };
+  return { reference: [...references][0]!, reason: null };
+}
+
+function payfsIgnoredReason(
+  credit: PayfsCreditInput,
+  merchant: { bank: string; accountNumber: string },
+): { reference: string | null; reason: PayfsIgnoredReason | null } {
+  if (credit.transferType !== 'credit') return { reference: null, reason: 'not_credit' };
+  if (credit.bank !== merchant.bank || credit.bankAccountNumber !== merchant.accountNumber) {
+    return { reference: null, reason: 'recipient_mismatch' };
+  }
+  return matchedPayfsPaymentReference(credit.content);
+}
+
+async function readPayfsSettlementTarget(
+  database: D1Database,
+  paymentReference: string,
+  amount: number,
+): Promise<PayfsSettlementTarget | null> {
+  return database.prepare(
+    `SELECT id
+       FROM orders
+      WHERE store_id = ?
+        AND payment_reference = ?
+        AND status = 'pending'
+        AND currency = 'VND'
+        AND total_minor = ?`,
+  ).bind(PUBLIC_STORE_ID, paymentReference, amount).first<PayfsSettlementTarget>();
+}
+
+export async function confirmPayfsCredit(input: {
+  database: D1Database;
+  body: unknown;
+  merchantBank: string;
+  merchantAccount: string;
+}): Promise<PayfsCreditConfirmation> {
+  const credit = parsePayfsCreditInput(input.body);
+  const fingerprint = await payfsFingerprint(credit);
+  const existing = await existingPayfsReceipt(input.database, credit.transactionId, fingerprint);
+  const disposition = payfsIgnoredReason(credit, {
+    bank: input.merchantBank,
+    accountNumber: input.merchantAccount,
+  });
+  const reconcilingRecipientMismatch = existing?.outcome === 'ignored'
+    && existing.ignored_reason === 'recipient_mismatch'
+    && disposition.reason === null;
+  if (existing !== null && !reconcilingRecipientMismatch) return 'already_processed';
+  if (disposition.reason !== null) {
+    return persistIgnoredPayfsReceipt({
+      database: input.database,
+      transactionId: credit.transactionId,
+      fingerprint,
+      reason: disposition.reason,
+    });
+  }
+
+  const target = await readPayfsSettlementTarget(input.database, disposition.reference!, credit.amount);
+  if (target === null) {
+    return persistIgnoredPayfsReceipt({
+      database: input.database,
+      transactionId: credit.transactionId,
+      fingerprint,
+      reason: 'order_not_eligible',
+    });
+  }
+
+  const historyId = stableId('hist');
+  const receiptStatement = reconcilingRecipientMismatch
+    ? input.database.prepare(
+      `UPDATE payfs_payment_receipts
+          SET outcome = 'confirmed',
+              ignored_reason = NULL,
+              store_id = ?,
+              order_id = ?,
+              history_id = ?,
+              recorded_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        WHERE transaction_id = ?
+          AND facts_fingerprint = ?
+          AND outcome = 'ignored'
+          AND ignored_reason = 'recipient_mismatch'
+          AND EXISTS (
+            SELECT 1
+              FROM orders
+              JOIN order_history history
+                ON history.id = ? AND history.store_id = orders.store_id AND history.order_id = orders.id
+             WHERE orders.store_id = ? AND orders.id = ? AND orders.status = 'pending'
+               AND orders.currency = 'VND' AND orders.total_minor = ? AND orders.payment_reference = ?
+          )`,
+    ).bind(
+      PUBLIC_STORE_ID,
+      target.id,
+      historyId,
+      credit.transactionId,
+      fingerprint,
+      historyId,
+      PUBLIC_STORE_ID,
+      target.id,
+      credit.amount,
+      disposition.reference,
+    )
+    : input.database.prepare(
+      `INSERT INTO payfs_payment_receipts (
+         id, transaction_id, facts_fingerprint, outcome, store_id, order_id, history_id
+       )
+       SELECT ?, ?, ?, 'confirmed', orders.store_id, orders.id, ?
+         FROM orders
+         JOIN order_history history
+           ON history.id = ? AND history.store_id = orders.store_id AND history.order_id = orders.id
+        WHERE orders.store_id = ? AND orders.id = ? AND orders.status = 'pending'
+          AND orders.currency = 'VND' AND orders.total_minor = ? AND orders.payment_reference = ?`,
+    ).bind(
+      `pfs_${crypto.randomUUID().replaceAll('-', '')}`,
+      credit.transactionId,
+      fingerprint,
+      historyId,
+      historyId,
+      PUBLIC_STORE_ID,
+      target.id,
+      credit.amount,
+      disposition.reference,
+    );
+  try {
+    const results = await input.database.batch([
+      input.database.prepare(
+        `INSERT INTO order_history (
+           id, store_id, order_id, status, action, source, from_status, actor_id, contract_version
+         )
+         SELECT ?, ?, ?, 'paid', 'order_paid', 'system', 'pending', NULL, 2
+           FROM orders
+          WHERE store_id = ? AND id = ? AND status = 'pending'
+            AND currency = 'VND' AND total_minor = ? AND payment_reference = ?`,
+      ).bind(
+        historyId,
+        PUBLIC_STORE_ID,
+        target.id,
+        PUBLIC_STORE_ID,
+        target.id,
+        credit.amount,
+        disposition.reference,
+      ),
+      receiptStatement,
+      input.database.prepare(
+        `INSERT INTO order_email_jobs (id, store_id, order_id, kind)
+         SELECT ?, orders.store_id, orders.id, 'payment_confirmed'
+           FROM orders
+           JOIN payfs_payment_receipts receipt
+             ON receipt.store_id = orders.store_id AND receipt.order_id = orders.id
+          WHERE orders.store_id = ? AND orders.id = ?
+            AND receipt.transaction_id = ? AND receipt.history_id = ?`,
+      ).bind(
+        stableId('mail'),
+        PUBLIC_STORE_ID,
+        target.id,
+        credit.transactionId,
+        historyId,
+      ),
+      input.database.prepare(
+        `UPDATE orders
+            SET status = 'paid'
+          WHERE store_id = ? AND id = ? AND status = 'pending'
+            AND EXISTS (
+              SELECT 1
+                FROM payfs_payment_receipts
+               WHERE transaction_id = ? AND store_id = ? AND order_id = ? AND history_id = ?
+            )`,
+      ).bind(PUBLIC_STORE_ID, target.id, credit.transactionId, PUBLIC_STORE_ID, target.id, historyId),
+    ]);
+    if (results[1]?.meta.changes === 1) return 'confirmed';
+  } catch (error) {
+    const existing = await existingPayfsOutcome(input.database, credit.transactionId, fingerprint);
+    if (existing !== null) return existing;
+    const current = await readPayfsSettlementTarget(input.database, disposition.reference!, credit.amount);
+    if (current === null) {
+      return persistIgnoredPayfsReceipt({
+        database: input.database,
+        transactionId: credit.transactionId,
+        fingerprint,
+        reason: 'order_not_eligible',
+      });
+    }
+    throw new OrderPersistenceError(error);
+  }
+
+  return persistIgnoredPayfsReceipt({
+    database: input.database,
+    transactionId: credit.transactionId,
+    fingerprint,
+    reason: 'order_not_eligible',
   });
 }
 

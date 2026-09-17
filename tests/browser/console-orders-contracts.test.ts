@@ -117,6 +117,30 @@ const paidDetail: ConsoleOrderDetailView = {
   ],
 };
 
+const payfsDetail: ConsoleOrderDetailView = {
+  ...paidDetail,
+  payment: {
+    source: 'payfs',
+    amountMinor: 4701,
+    currency: 'USD',
+    status: 'succeeded',
+    recordedAt: '2026-08-27T12:05:00.000Z',
+  },
+  history: [
+    createdHistory,
+    {
+      action: 'order_paid',
+      source: 'system',
+      actorId: null,
+      actorLabel: '',
+      contractVersion: 2,
+      fromStatus: 'pending',
+      toStatus: 'paid',
+      createdAt: '2026-08-27T12:05:00.000Z',
+    },
+  ],
+};
+
 const screenDefaults: Omit<OrdersScreenProps, 'state' | 'orders'> = {
   summary: emptySummary,
   searchDraft: '',
@@ -558,6 +582,38 @@ describe('Console Order contracts', () => {
     await renderApp();
     await waitUntil(() => Boolean(buttonByName('Record manual payment')));
     expect(container.textContent).toContain('Record a manual payment or Cancel only while the Order is still pending.');
+  });
+
+  it('renders a PayFS payment without provider or manual-payment evidence', async () => {
+    const unsafeProviderDetail = {
+      ...payfsDetail,
+      payment: {
+        ...payfsDetail.payment,
+        transactionId: 'payfs-tx-DO-NOT-RENDER',
+        externalReference: 'payfs-ref-DO-NOT-RENDER',
+      },
+    };
+    stubConsoleFetch(async (url) => {
+      if (url.pathname === `/api/console/orders/${pendingDetail.reference}`) {
+        return response({ order: unsafeProviderDetail });
+      }
+      if (url.pathname === '/api/console/orders') return response(listResponse([]));
+      throw new Error(`Unexpected request ${url.pathname}`);
+    });
+    window.history.replaceState({}, '', `/console/orders/${pendingDetail.reference}`);
+    await renderApp();
+    await waitUntil(() => Boolean(buttonByName('Fulfill')));
+    const paymentSection = container.querySelector<HTMLElement>('section[aria-labelledby=\"order-payment-title\"]');
+    expect(paymentSection?.textContent).toContain('PayFS');
+    expect(paymentSection?.textContent).toContain('$47.01 USD');
+    expect(paymentSection?.textContent).toContain('Confirmed');
+    expect(paymentSection?.textContent).not.toContain('Method');
+    expect(paymentSection?.textContent).not.toContain('External reference');
+    expect(paymentSection?.textContent).not.toContain('Recorded actor');
+    expect(paymentSection?.textContent).not.toContain('Bootstrap Owner (demo)');
+    expect(paymentSection?.innerHTML).not.toContain('payfs-tx-DO-NOT-RENDER');
+    expect(paymentSection?.innerHTML).not.toContain('payfs-ref-DO-NOT-RENDER');
+    expect(buttonByName('Record manual payment')).toBeUndefined();
   });
 
   it('refreshes a hidden Console detail and drops stale payment actions', async () => {

@@ -78,16 +78,24 @@ export interface ConsoleOrderHistoryView {
   createdAt: string;
 }
 
-export interface PaymentLedgerView {
-  id: string;
-  source: 'manual';
-  method: string;
-  externalReference: string;
-  amountMinor: number;
-  currency: string;
-  status: 'succeeded';
-  recordedAt: string;
-}
+export type PaymentLedgerView =
+  | {
+    id: string;
+    source: 'manual';
+    method: string;
+    externalReference: string;
+    amountMinor: number;
+    currency: string;
+    status: 'succeeded';
+    recordedAt: string;
+  }
+  | {
+    source: 'payfs';
+    amountMinor: number;
+    currency: string;
+    status: 'succeeded';
+    recordedAt: string;
+  };
 
 export interface ConsoleOrderDetailView extends ConsoleOrderView {
   assignment?: { assigneeUserId: string } | null;

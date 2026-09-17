@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { VietQR } from '@viet-qr/react';
 import {
   createOrderAttemptIdentity,
   createStorefrontOrder,
@@ -17,7 +18,10 @@ import type {
 import { formatMoney } from './format-money';
 
 type CatalogState = 'loading' | 'ready' | 'empty' | 'error';
-type OrderRoute = { kind: 'catalog' } | { kind: 'order'; reference: string; capability: string | null };
+type OrderRoute =
+  | { kind: 'catalog' }
+  | { kind: 'order'; reference: string; capability: string | null }
+  | { kind: 'thanks'; reference: string; capability: string | null };
 type FieldErrors = Partial<Record<'variant' | 'quantity' | 'name' | 'email' | 'cart', string>>;
 type CatalogFilter = 'all' | 'simple' | 'variant';
 
@@ -33,12 +37,16 @@ interface CartLine {
 }
 
 function parseRoute(): OrderRoute {
-  const match = /^\/orders\/([^/]+)\/?$/.exec(window.location.pathname);
+  const match = /^\/orders\/([^/]+)(\/thanks)?\/?$/.exec(window.location.pathname);
   if (!match) return { kind: 'catalog' };
   let reference: string;
   try { reference = decodeURIComponent(match[1]); } catch { return { kind: 'catalog' }; }
   const fragment = new URLSearchParams(window.location.hash.slice(1));
-  return { kind: 'order', reference, capability: fragment.get('capability') };
+  return {
+    kind: match[2] === '/thanks' ? 'thanks' : 'order',
+    reference,
+    capability: fragment.get('capability'),
+  };
 }
 
 function readCatalogCriteria(): { query: string; filter: CatalogFilter } {
@@ -187,10 +195,12 @@ function PrivateOrderPage({
   route,
   generation,
   onBack,
+  onPaid,
 }: {
   route: Extract<OrderRoute, { kind: 'order' }>;
   generation: number;
   onBack: () => void;
+  onPaid: () => void;
 }) {
   const [order, setOrder] = useState<CustomerOrderView | null>(null);
   const [loadedGeneration, setLoadedGeneration] = useState<number | null>(null);
@@ -205,6 +215,7 @@ function PrivateOrderPage({
   const readAbortRef = useRef<AbortController | null>(null);
   const readEpochRef = useRef(0);
   const pageAbortRef = useRef<AbortController | null>(null);
+  const priorOrderStatusRef = useRef<CustomerOrderView['status'] | null>(null);
   const submitStateRef = useRef(submitState);
   submitStateRef.current = submitState;
   const errorSummaryRef = useRef<HTMLDivElement>(null);
@@ -232,6 +243,8 @@ function PrivateOrderPage({
         setState('ready');
         setRefreshFailed(false);
         setContractOutdated(false);
+        if (priorOrderStatusRef.current === 'pending' && (result.status === 'paid' || result.status === 'fulfilled')) onPaid();
+        priorOrderStatusRef.current = result.status;
       })
       .catch((error) => {
         if (error instanceof DOMException && error.name === 'AbortError') return;
@@ -252,13 +265,14 @@ function PrivateOrderPage({
         if (mode === 'refresh') return;
         setState('error');
       });
-  }, [generation, route.capability, route.reference]);
+  }, [generation, onPaid, route.capability, route.reference]);
 
   useEffect(() => {
     const controller = new AbortController();
     pageAbortRef.current = controller;
     attemptRef.current = null;
     setReason('');
+    priorOrderStatusRef.current = null;
     setReasonError(null);
     setSubmitState('idle');
     setSubmitMessage(null);
@@ -282,6 +296,12 @@ function PrivateOrderPage({
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [load]);
+
+  useEffect(() => {
+    if (state !== 'ready' || order?.status !== 'pending') return;
+    const interval = window.setInterval(() => load('refresh'), 5_000);
+    return () => window.clearInterval(interval);
+  }, [load, order?.status, state]);
 
   const refundEligible = (candidate: CustomerOrderView) => (
     (candidate.status === 'paid' || candidate.status === 'fulfilled') && candidate.refundRequest == null
@@ -409,7 +429,7 @@ function PrivateOrderPage({
           </section>
           <section className="amount-ledger">
             <dl>
-              <div><dt>Payment reference</dt><dd>{visibleOrder.paymentReference}</dd></div>
+              <div className="payment-reference-line"><dt>Payment reference</dt><dd>{visibleOrder.paymentReference}</dd></div>
               <div className="total-line"><dt>Total</dt><dd className="numeric">{formatMoney(visibleOrder.totalMinor, visibleOrder.currency)} {visibleOrder.currency}</dd></div>
             </dl>
           </section>
@@ -431,10 +451,27 @@ function PrivateOrderPage({
               <p>This Order has been canceled.</p>
             </section>
           ) : null}
-          {visibleOrder.paymentNextStep !== null && visibleOrder.status === 'pending' ? (
-            <section>
-              <h2>Payment next step</h2>
-              <p>{visibleOrder.paymentNextStep}</p>
+          {visibleOrder.paymentInstructions !== null && visibleOrder.status === 'pending' ? (
+            <section className="payment-instructions">
+              <div>
+                <h2>Pay by bank transfer</h2>
+                <p>Scan the QR code or transfer the exact total using the details below. Include the payment reference exactly as shown.</p>
+                <dl>
+                  <div><dt>Bank</dt><dd>{visibleOrder.paymentInstructions.bank}</dd></div>
+                  <div><dt>Account number</dt><dd className="numeric">{visibleOrder.paymentInstructions.accountNumber}</dd></div>
+                  <div><dt>Transfer content</dt><dd className="payment-reference">{visibleOrder.paymentReference}</dd></div>
+                </dl>
+              </div>
+              <div className="payment-qr">
+                <VietQR
+                  bankId={visibleOrder.paymentInstructions.bank}
+                  accountNo={visibleOrder.paymentInstructions.accountNumber}
+                  amount={visibleOrder.totalMinor}
+                  content={visibleOrder.paymentReference}
+                  renderAs="svg"
+                  size={192}
+                />
+              </div>
             </section>
           ) : null}
           {refundEligible(visibleOrder) ? (
@@ -496,6 +533,29 @@ function PrivateOrderPage({
   );
 }
 
+function ThankYouPage({
+  route,
+  onBack,
+  onViewOrder,
+}: {
+  route: Extract<OrderRoute, { kind: 'thanks' }>;
+  onBack: () => void;
+  onViewOrder: () => void;
+}) {
+  return (
+    <main id="storefront-content" className="order-page" tabIndex={-1}>
+      <section className="storefront-notice">
+        <h1>Thank you</h1>
+        <p>Your payment for Order {route.reference} was received. We will send your delivery details to the email address used at checkout.</p>
+        <div className="inline-actions">
+          <button className="primary-action" type="button" onClick={onBack}>Back to home</button>
+          <button className="secondary-action" type="button" onClick={onViewOrder}>View Order</button>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 export function StorefrontApp() {
   const [route, setRoute] = useState<OrderRoute>(parseRoute);
   const [capabilityGeneration, setCapabilityGeneration] = useState(0);
@@ -515,6 +575,7 @@ export function StorefrontApp() {
   const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'retry'>('idle');
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [contractOutdated, setContractOutdated] = useState(false);
+  const [checkoutOverview, setCheckoutOverview] = useState(false);
   const attemptRef = useRef<FrozenCreateAttempt | null>(null);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const catalogRequestRef = useRef<AbortController | null>(null);
@@ -634,6 +695,7 @@ export function StorefrontApp() {
     if (checkoutLocked) return;
     attemptRef.current = null;
     setSubmitState('idle');
+    setCheckoutOverview(false);
   };
 
   const addCurrentSelection = () => {
@@ -701,6 +763,10 @@ export function StorefrontApp() {
         requestAnimationFrame(() => errorSummaryRef.current?.focus());
         return;
       }
+      if (!checkoutOverview) {
+        setCheckoutOverview(true);
+        return;
+      }
     }
     const nextAttempt = frozen ?? {
       identity: createOrderAttemptIdentity(),
@@ -757,10 +823,20 @@ export function StorefrontApp() {
     }
   };
 
-  const navigateCatalog = () => {
+  const navigateCatalog = useCallback(() => {
     window.history.pushState({}, '', '/');
     setRoute({ kind: 'catalog' });
-  };
+  }, []);
+
+  const navigateOrder = useCallback((reference: string, capability: string | null) => {
+    window.history.pushState({}, '', `/orders/${encodeURIComponent(reference)}#capability=${encodeURIComponent(capability ?? '')}`);
+    setRoute(parseRoute());
+  }, []);
+
+  const navigateThanks = useCallback((reference: string, capability: string | null) => {
+    window.history.pushState({}, '', `/orders/${encodeURIComponent(reference)}/thanks#capability=${encodeURIComponent(capability ?? '')}`);
+    setRoute(parseRoute());
+  }, []);
 
   if (route.kind === 'order') {
     return (
@@ -770,6 +846,19 @@ export function StorefrontApp() {
           route={route}
           generation={capabilityGeneration}
           onBack={navigateCatalog}
+          onPaid={() => navigateThanks(route.reference, route.capability)}
+        />
+      </StorefrontFrame>
+    );
+  }
+
+  if (route.kind === 'thanks') {
+    return (
+      <StorefrontFrame>
+        <ThankYouPage
+          route={route}
+          onBack={navigateCatalog}
+          onViewOrder={() => navigateOrder(route.reference, route.capability)}
         />
       </StorefrontFrame>
     );
@@ -994,13 +1083,21 @@ export function StorefrontApp() {
                   {mixedCurrency ? <p className="field-error" role="alert">{MIXED_CURRENCY}</p> : null}
                   {fieldErrors.cart ? <p id="cart-error" className="field-error">{fieldErrors.cart}</p> : null}
                 </section>
+                {checkoutOverview ? (
+                  <section className="checkout-overview" aria-labelledby="checkout-overview-title">
+                    <h3 id="checkout-overview-title">Confirm your Order</h3>
+                    <p>{name.trim()} · {email.trim()}</p>
+                    <p>Review the Products, total, and email address above. Selecting payment will create a pending Order and open the secure payment screen.</p>
+                    <button className="text-action" type="button" onClick={() => setCheckoutOverview(false)}>Back to edit</button>
+                  </section>
+                ) : null}
                 <div className="purchase-total">
                   <span>Order total</span>
                   <strong className="numeric">{cartCurrency ? formatMoney(cartTotalMinor, cartCurrency) : '—'}</strong>
                 </div>
                 {submitMessage ? <p className="submit-message" role="alert">{submitMessage}</p> : null}
                 {contractOutdated ? <button className="secondary-action" type="button" onClick={() => { window.location.reload(); }}>Reload Storefront</button> : null}
-                <button className="primary-action" type="submit" disabled={placeLocked || cart.length === 0 || mixedCurrency}>{submitState === 'submitting' ? 'Placing Order' : submitState === 'retry' ? 'Retry checkout' : 'Place Order'}</button>
+                <button className="primary-action" type="submit" disabled={placeLocked || cart.length === 0 || mixedCurrency}>{submitState === 'submitting' ? 'Creating Order' : submitState === 'retry' ? 'Retry checkout' : checkoutOverview ? 'Continue to payment' : 'Review Order'}</button>
               </form> : null}
             </div>
             <section className="editorial-band">

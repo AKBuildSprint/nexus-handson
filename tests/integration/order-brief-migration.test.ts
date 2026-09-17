@@ -510,6 +510,46 @@ describe('order brief contract migration', () => {
     expect(await env.DB.prepare('SELECT count(*) AS count FROM orders').first<number>('count')).toBe(0);
   });
 
+
+  it('adds the PayFS receipt ledger without changing populated manual payment, history, command, or refund records', async () => {
+    await resetCatalogThrough(5);
+    const seeded = await seedSchema5Graph();
+    await applyCatalogMigrations(12);
+    await env.DB.prepare(
+      `INSERT INTO payments (
+         id, store_id, order_id, source, method, external_reference, amount_minor, currency, status,
+         history_id, recorded_actor_source, recorded_actor_id
+       ) VALUES ('pay_payfs_preserve', ?, ?, 'manual', 'bank transfer', 'PAYFS-PRESERVE', ?, 'USD',
+         'succeeded', ?, 'bootstrap_owner', NULL)`,
+    ).bind(STORE, seeded.completedId, seeded.totalMinor, seeded.completedHistoryId).run();
+    const snapshot = async () => {
+      const [orders, payments, history, refunds, commands] = await Promise.all([
+        env.DB.prepare(
+          'SELECT id, status, total_minor, currency, payment_reference FROM orders ORDER BY id',
+        ).all(),
+        env.DB.prepare(
+          'SELECT id, order_id, source, external_reference, amount_minor, currency, status, history_id FROM payments ORDER BY id',
+        ).all(),
+        env.DB.prepare(
+          'SELECT id, order_id, action, source, from_status, status, contract_version FROM order_history ORDER BY id',
+        ).all(),
+        env.DB.prepare(
+          'SELECT id, order_id, status, reason, actor_source, actor_id FROM order_refund_requests ORDER BY id',
+        ).all(),
+        env.DB.prepare(
+          'SELECT id, order_id, action, request_key, result_history_id, contract_version FROM order_commands ORDER BY id',
+        ).all(),
+      ]);
+      return [orders.results, payments.results, history.results, refunds.results, commands.results];
+    };
+    const before = await snapshot();
+
+    await applyCatalogMigrations(13);
+
+    expect(await snapshot()).toEqual(before);
+    expect(await appliedMigrationNames()).toContain('0013-payfs-webhook-payments.sql');
+    expect(await env.DB.prepare('PRAGMA foreign_key_check').all()).toMatchObject({ results: [] });
+  });
   it('enforces 1-10 line aggregate, freeze, and currency parent rules on schema7', async () => {
     await resetCatalog();
     await insertCustomer();

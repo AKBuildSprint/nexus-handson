@@ -38,22 +38,43 @@ export interface OrderContext {
   identity: IdentityContext | null;
 }
 
-export type PaymentSource = 'manual';
+export interface ManualPaymentLedgerProjection {
+  id: string;
+  source: 'manual';
+  method: string;
+  externalReference: string;
+  amountMinor: number;
+  currency: string;
+  status: 'succeeded';
+  recordedAt: string;
+}
+
+export interface PayfsPaymentLedgerProjection {
+  source: 'payfs';
+  amountMinor: number;
+  currency: string;
+  status: 'succeeded';
+  recordedAt: string;
+}
 
 export type PaymentLedgerStatus = 'succeeded';
 
 export type PaymentRecordState = 'none' | 'recorded' | 'legacy_unrecorded';
 
-export interface PaymentLedgerProjection {
-  id: string;
-  source: PaymentSource;
-  method: string;
-  externalReference: string;
-  amountMinor: number;
-  currency: string;
-  status: PaymentLedgerStatus;
-  recordedAt: string;
+export type PaymentLedgerProjection = ManualPaymentLedgerProjection | PayfsPaymentLedgerProjection;
+
+export interface PayfsCreditInput {
+  accountId: string;
+  amount: number;
+  bank: string;
+  bankAccountNumber: string;
+  content: string;
+  transactionDate: string;
+  transactionId: string;
+  transferType: 'credit' | 'debit';
 }
+
+export type PayfsCreditConfirmation = 'confirmed' | 'already_processed' | 'ignored';
 
 export interface ConsoleOrderSummary {
   totalOrders: number;

@@ -86,7 +86,7 @@ describe('Console Orders route', () => {
       createdAt: created.createdAt,
       refundRequestStatus: null,
     });
-    expect(body.orders[0]).not.toHaveProperty('paymentNextStep');
+    expect(body.orders[0]).not.toHaveProperty('paymentInstructions');
     expect(body.orders[0]).not.toHaveProperty('refundRequest');
     expect(body.orders[0]).not.toHaveProperty('product');
     expect(body.orders[0]).not.toHaveProperty('quantity');

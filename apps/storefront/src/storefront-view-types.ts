@@ -60,7 +60,10 @@ export interface CustomerOrderView {
   totalMinor: number;
   currency: string;
   createdAt: string;
-  paymentNextStep: string | null;
+  paymentInstructions: {
+    bank: string;
+    accountNumber: string;
+  } | null;
   refundRequest: {
     id: string;
     status: 'pending' | 'approved' | 'rejected';

@@ -2,7 +2,7 @@ import { PUBLIC_STORE_ID } from '@nexus/catalog/public-store';
 import { createRefundRequest } from '@nexus/orders/commands/order-commands';
 import { readCustomerOrderById } from '@nexus/orders/queries/order-read';
 import { createOrder } from '@nexus/orders/commands/order-write';
-import { findOrderIdByCapability } from '@nexus/orders/private-access';
+import { findOrderIdByCapability, findOrderIdByReference } from '@nexus/orders/private-access';
 import {
   OrderPersistenceError,
   OrderValidationError,
@@ -10,6 +10,8 @@ import {
   type OrderCommandResult,
   type OrderContext,
 } from '@nexus/orders/order-types';
+import type { Env } from './environment';
+import { emailTokenMatches } from './order-email-service';
 import {
   jsonError,
   jsonResponse,
@@ -18,10 +20,13 @@ import {
 } from './http-response';
 import { withStorefrontCors } from './storefront-cors';
 
-export const PAYMENT_NEXT_STEP = 'Payment instructions will be provided separately.';
+type BankTransferInstructions = {
+  bank: string;
+  accountNumber: string;
+};
 
 type CustomerOrderResponse = CustomerOrderProjection & {
-  paymentNextStep: string | null;
+  paymentInstructions: BankTransferInstructions | null;
 };
 
 function storefrontContext(customerId: string | null = null): OrderContext {
@@ -34,10 +39,30 @@ function storefrontContext(customerId: string | null = null): OrderContext {
   };
 }
 
-function customerResponse(order: CustomerOrderProjection): CustomerOrderResponse {
+function bankTransferInstructions(
+  order: CustomerOrderProjection,
+  payment: Pick<Env, 'PAYFS_MERCHANT_BANK' | 'PAYFS_MERCHANT_ACCOUNT'> | undefined,
+): BankTransferInstructions | null {
+  const bank = payment?.PAYFS_MERCHANT_BANK;
+  const accountNumber = payment?.PAYFS_MERCHANT_ACCOUNT;
+  if (
+    order.status !== 'pending'
+    || order.currency !== 'VND'
+    || typeof bank !== 'string'
+    || !/^[A-Za-z0-9]{2,16}$/u.test(bank)
+    || typeof accountNumber !== 'string'
+    || !/^[A-Za-z0-9-]{1,80}$/u.test(accountNumber)
+  ) return null;
+  return { bank: bank.toUpperCase(), accountNumber };
+}
+
+function customerResponse(
+  order: CustomerOrderProjection,
+  payment?: Pick<Env, 'PAYFS_MERCHANT_BANK' | 'PAYFS_MERCHANT_ACCOUNT'>,
+): CustomerOrderResponse {
   return {
     ...order,
-    paymentNextStep: order.status === 'pending' ? PAYMENT_NEXT_STEP : null,
+    paymentInstructions: bankTransferInstructions(order, payment),
   };
 }
 
@@ -88,10 +113,34 @@ function decodeReference(encoded: string): string | null {
   }
 }
 
+async function findOrderIdByPrivateLink(input: {
+  database: D1Database;
+  reference: string;
+  capability: string | null;
+  emailSecret: string | undefined;
+}): Promise<string | null> {
+  if (input.capability === null) return null;
+  const direct = await findOrderIdByCapability({
+    database: input.database,
+    storeId: PUBLIC_STORE_ID,
+    reference: input.reference,
+    capability: input.capability,
+  });
+  if (direct !== null) return direct;
+  const orderId = await findOrderIdByReference({
+    database: input.database,
+    storeId: PUBLIC_STORE_ID,
+    reference: input.reference,
+  });
+  if (orderId === null) return null;
+  return await emailTokenMatches(input.emailSecret, PUBLIC_STORE_ID, orderId, input.capability) ? orderId : null;
+}
+
 export async function routeStorefrontOrderRequest(
   request: Request,
   database: D1Database,
   storefrontOrigin: string | undefined,
+  payment?: Pick<Env, 'PAYFS_MERCHANT_BANK' | 'PAYFS_MERCHANT_ACCOUNT' | 'RESEND_API_KEY'>,
 ): Promise<Response | null> {
   const pathname = new URL(request.url).pathname;
   let response: Response | null = null;
@@ -108,7 +157,7 @@ export async function routeStorefrontOrderRequest(
         idempotencyKey: request.headers.get('Idempotency-Key'),
         capability: request.headers.get('X-Nexus-Order-Capability'),
       });
-      response = jsonResponse(customerResponse(order), { status: 201 });
+      response = jsonResponse(customerResponse(order, payment), { status: 201 });
     } catch (error) {
       response = error instanceof OrderValidationError
         ? jsonError(error.status, error.code, error.message, error.fields)
@@ -126,11 +175,11 @@ export async function routeStorefrontOrderRequest(
     }
     let orderId: string | null;
     try {
-      orderId = await findOrderIdByCapability({
+      orderId = await findOrderIdByPrivateLink({
         database,
-        storeId: PUBLIC_STORE_ID,
         reference,
         capability: request.headers.get('X-Nexus-Order-Capability'),
+        emailSecret: payment?.RESEND_API_KEY,
       });
     } catch (error) {
       return withStorefrontCors(
@@ -177,11 +226,11 @@ export async function routeStorefrontOrderRequest(
     response = privateNotFound();
   } else {
     try {
-      const orderId = await findOrderIdByCapability({
+      const orderId = await findOrderIdByPrivateLink({
         database,
-        storeId: PUBLIC_STORE_ID,
         reference,
         capability: request.headers.get('X-Nexus-Order-Capability'),
+        emailSecret: payment?.RESEND_API_KEY,
       });
       if (orderId === null) {
         response = privateNotFound();
@@ -195,7 +244,7 @@ export async function routeStorefrontOrderRequest(
         });
         response = order === null
           ? privateNotFound()
-          : jsonResponse(customerResponse(order));
+          : jsonResponse(customerResponse(order, payment));
       }
     } catch (error) {
       response = error instanceof OrderValidationError

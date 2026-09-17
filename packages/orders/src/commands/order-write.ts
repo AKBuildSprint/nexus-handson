@@ -27,8 +27,18 @@ function orderReference(): string {
 }
 
 function paymentReference(): string {
-  return `NP${crypto.randomUUID().replaceAll('-', '')}`;
+  return `NP${crypto.randomUUID().replaceAll('-', '').slice(0, 18)}`;
 }
+
+const EMAIL_JOB_SCHEDULE = [
+  { kind: 'order_created', reminderSequence: null, modifier: '+0 seconds' },
+  { kind: 'payment_reminder', reminderSequence: 1, modifier: '+1 hour' },
+  { kind: 'payment_reminder', reminderSequence: 2, modifier: '+6 hours' },
+  { kind: 'payment_reminder', reminderSequence: 3, modifier: '+12 hours' },
+  { kind: 'payment_reminder', reminderSequence: 4, modifier: '+1 day' },
+  { kind: 'payment_reminder', reminderSequence: 5, modifier: '+2 days' },
+  { kind: 'payment_reminder', reminderSequence: 6, modifier: '+3 days' },
+] as const;
 
 async function readIdempotency(
   database: D1Database,
@@ -264,6 +274,18 @@ export async function createOrder(input: {
       context.storeId,
       request.customerEmailNormalized,
     ),
+    ...EMAIL_JOB_SCHEDULE.map((job) => input.database.prepare(
+      `INSERT INTO order_email_jobs
+         (id, store_id, order_id, kind, reminder_sequence, available_at)
+       VALUES (?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now', ?))`,
+    ).bind(
+      stableId('mail'),
+      context.storeId,
+      orderId,
+      job.kind,
+      job.reminderSequence,
+      job.modifier,
+    )),
   ];
 
   try {

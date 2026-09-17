@@ -68,7 +68,7 @@ function customerOrder(overrides: Record<string, unknown> = {}) {
     totalMinor: 2400,
     currency: 'USD',
     createdAt: '2026-08-27T12:00:00.000Z',
-    paymentNextStep: 'Payment instructions will be provided separately.',
+    paymentInstructions: { bank: 'MB', accountNumber: '558555858888' },
     refundRequest: null,
     ...overrides,
   };
@@ -104,7 +104,7 @@ describe('Storefront Order contracts', () => {
     await act(async () => root.render(createElement(StorefrontApp)));
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
     const add = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Add to Order');
-    const place = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Place Order');
+    const place = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Review Order');
     expect(add?.disabled).toBe(true);
     expect(place?.disabled).toBe(true);
     const select = container.querySelector('select');
@@ -146,8 +146,10 @@ describe('Storefront Order contracts', () => {
     await act(async () => { add?.click(); await Promise.resolve(); });
     expect(container.textContent).toContain('Field Notes');
     expect(container.textContent).toContain('Signal Kit');
-    const place = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Place Order');
-    await act(async () => { place?.click(); await Promise.resolve(); await Promise.resolve(); });
+    const place = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Review Order');
+    await act(async () => { place?.click(); await Promise.resolve(); });
+    const continueToPayment = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Continue to payment');
+    await act(async () => { continueToPayment?.click(); await Promise.resolve(); await Promise.resolve(); });
     expect(container.textContent).toContain('Retry to safely continue');
     expect(container.querySelector<HTMLInputElement>('#checkout-name')?.disabled).toBe(true);
     expect(container.querySelector<HTMLInputElement>('#checkout-email')?.disabled).toBe(true);
@@ -198,10 +200,12 @@ describe('Storefront Order contracts', () => {
     await act(async () => { if (name) setInput(name, 'Ada Rivera'); if (email) setInput(email, 'ada@example.com'); });
     const add = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Add to Order');
     await act(async () => { add?.click(); await Promise.resolve(); });
-    const place = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Place Order');
-    await act(async () => { place?.click(); await Promise.resolve(); await Promise.resolve(); });
+    const place = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Review Order');
+    await act(async () => { place?.click(); await Promise.resolve(); });
+    const continueToPayment = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Continue to payment');
+    await act(async () => { continueToPayment?.click(); await Promise.resolve(); await Promise.resolve(); });
     expect(container.textContent).toContain('This Storefront is out of date');
-    const retry = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Retry checkout' || button.textContent === 'Place Order');
+    const retry = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Retry checkout' || button.textContent === 'Continue to payment' || button.textContent === 'Review Order');
     expect(retry?.disabled).toBe(true);
     await act(async () => { retry?.click(); await Promise.resolve(); await Promise.resolve(); });
     expect(posts).toHaveLength(1);
@@ -227,45 +231,63 @@ describe('Storefront Order contracts', () => {
     await act(async () => root.render(createElement(StorefrontApp)));
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
     expect(container.textContent).toContain('$47.01');
-    expect(container.textContent).toContain('Payment instructions will be provided separately.');
+    expect(container.textContent).toContain('Pay by bank transfer');
     expect(container.textContent).not.toContain('private');
     expect(container.textContent).not.toContain('secret-key');
     expect(container.textContent).not.toContain('opaque_capability');
   });
 
-  it('shows payment next step only while pending and hides the refund form', async () => {
+  it('shows VietQR bank transfer details only while pending and hides the refund form', async () => {
     window.history.replaceState({}, '', '/orders/NX-260827-ABCD#capability=opaque_capability_value_1234567890');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(customerOrder())));
     await renderApp();
     expect(container.textContent).toContain('Pending');
-    expect(container.textContent).toContain('Payment instructions will be provided separately.');
+    expect(container.textContent).toContain('Account number');
+    expect(container.textContent).toContain('558555858888');
+    expect(container.querySelector('.payment-qr svg')).not.toBeNull();
     expect(container.querySelector('#refund-reason')).toBeNull();
     expect(container.textContent).not.toContain('Send refund request');
   });
 
-  it('refreshes a hidden private Order and offers a refund after Paid', async () => {
+  it('moves a pending private Order to the Thank You screen after a paid status refresh', async () => {
     let gets = 0;
     window.history.replaceState({}, '', '/orders/NX-260827-ABCD#capability=opaque_capability_value_1234567890');
     vi.stubGlobal('fetch', vi.fn(async () => {
       gets += 1;
-      return response(customerOrder(gets === 1 ? {} : { status: 'paid', paymentNextStep: null }));
+      return response(customerOrder(gets === 1 ? {} : { status: 'paid', paymentInstructions: null }));
     }));
     await renderApp();
-    expect(container.querySelector('#refund-reason')).toBeNull();
     await act(async () => {
       document.dispatchEvent(new Event('visibilitychange'));
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(container.querySelector('#refund-reason')).not.toBeNull();
-    expect(container.textContent).toContain('This page does not deliver files or pay out a refund.');
+    expect(window.location.pathname).toBe('/orders/NX-260827-ABCD/thanks');
+    expect(container.textContent).toContain('Thank you');
+    expect(container.textContent).toContain('Back to home');
+    expect(container.textContent).toContain('View Order');
+  });
+
+  it('polls a pending private Order every five seconds and then shows Thank You', async () => {
+    vi.useFakeTimers();
+    let gets = 0;
+    window.history.replaceState({}, '', '/orders/NX-260827-ABCD#capability=opaque_capability_value_1234567890');
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      gets += 1;
+      return response(customerOrder(gets === 1 ? {} : { status: 'paid', paymentInstructions: null }));
+    }));
+    await renderApp();
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_000); });
+    expect(gets).toBe(2);
+    expect(window.location.pathname).toBe('/orders/NX-260827-ABCD/thanks');
+    vi.useRealTimers();
   });
 
   it('ignores a deferred pre-write GET that resolves after refund', async () => {
     let gets = 0;
     let releaseStale: (() => void) | undefined;
     const staleGate = new Promise<void>((resolve) => { releaseStale = resolve; });
-    const completed = customerOrder({ status: 'paid', paymentNextStep: null });
+    const completed = customerOrder({ status: 'paid', paymentInstructions: null });
     const pendingRefund = {
       id: 'rr_ack',
       status: 'pending' as const,
@@ -348,7 +370,7 @@ describe('Storefront Order contracts', () => {
         currency: 'USD',
       }],
       totalMinor: 0,
-      paymentNextStep: null,
+      paymentInstructions: null,
     }))));
     await renderApp();
     expect(container.textContent).toContain('This Order is paid. This page does not deliver files or pay out a refund.');
@@ -362,7 +384,7 @@ describe('Storefront Order contracts', () => {
     window.history.replaceState({}, '', '/orders/NX-260827-ABCD#capability=opaque_capability_value_1234567890');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(customerOrder({
       status: 'canceled',
-      paymentNextStep: null,
+      paymentInstructions: null,
     }))));
     await renderApp();
     expect(container.textContent).toContain('This Order has been canceled.');
@@ -373,7 +395,7 @@ describe('Storefront Order contracts', () => {
     window.history.replaceState({}, '', '/orders/NX-260827-ABCD#capability=opaque_capability_value_1234567890');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(customerOrder({
       status: 'paid',
-      paymentNextStep: null,
+      paymentInstructions: null,
       refundRequest: {
         id: 'rr_stored',
         status: 'pending',
@@ -393,7 +415,7 @@ describe('Storefront Order contracts', () => {
     container.style.width = '375px';
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(customerOrder({
       status: 'paid',
-      paymentNextStep: null,
+      paymentInstructions: null,
       refundRequest: {
         id: 'rr_approved',
         status: 'approved',
@@ -428,7 +450,7 @@ describe('Storefront Order contracts', () => {
     window.history.replaceState({}, '', '/orders/NX-260827-ABCD#capability=opaque_capability_value_1234567890');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(customerOrder({
       status: 'fulfilled',
-      paymentNextStep: null,
+      paymentInstructions: null,
       refundRequest: {
         id: 'rr_rejected',
         status: 'rejected',
@@ -455,7 +477,7 @@ describe('Storefront Order contracts', () => {
     window.history.replaceState({}, '', '/orders/NX-260827-ABCD#capability=opaque_capability_value_1234567890');
     const fetchMock = vi.fn().mockResolvedValue(response(customerOrder({
       status: 'paid',
-      paymentNextStep: null,
+      paymentInstructions: null,
     })));
     vi.stubGlobal('fetch', fetchMock);
     await renderApp();
@@ -500,7 +522,7 @@ describe('Storefront Order contracts', () => {
       }
       return response(customerOrder({
         status: 'paid',
-        paymentNextStep: null,
+        paymentInstructions: null,
         refundRequest: postCount === 0 ? null : {
           id: 'rr_one',
           status: 'pending',
@@ -548,7 +570,7 @@ describe('Storefront Order contracts', () => {
       }
       return response(customerOrder({
         status: 'paid',
-        paymentNextStep: null,
+        paymentInstructions: null,
         refundRequest: posted ? {
           id: 'rr_one',
           status: 'pending',
@@ -588,7 +610,7 @@ describe('Storefront Order contracts', () => {
           lineTotalMinor: 2400,
           currency: 'USD',
         }],
-        paymentNextStep: null,
+        paymentInstructions: null,
       }));
     }));
     await renderApp();
@@ -610,7 +632,7 @@ describe('Storefront Order contracts', () => {
         lineTotalMinor: 2400,
         currency: 'USD',
       }],
-      paymentNextStep: null,
+        paymentInstructions: null,
       refundRequest: {
         id: 'rr_a',
         status: 'pending',
@@ -646,7 +668,7 @@ describe('Storefront Order contracts', () => {
       }
       getCount += 1;
       if (getCount > 1) return response({ error: { code: 'order_operation_failed', message: 'unavailable', fields: [], incidentId: null } }, 500);
-      return response(customerOrder({ status: 'paid', paymentNextStep: null }));
+      return response(customerOrder({ status: 'paid', paymentInstructions: null }));
     }));
     await renderApp();
     const textarea = container.querySelector<HTMLTextAreaElement>('#refund-reason');
@@ -727,8 +749,10 @@ describe('Storefront Order contracts', () => {
     });
     const add = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Add to Order');
     await act(async () => { add?.click(); await Promise.resolve(); });
-    const place = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Place Order');
-    await act(async () => { place?.click(); await Promise.resolve(); await Promise.resolve(); });
+    const place = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Review Order');
+    await act(async () => { place?.click(); await Promise.resolve(); });
+    const continueToPayment = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Continue to payment');
+    await act(async () => { continueToPayment?.click(); await Promise.resolve(); await Promise.resolve(); });
     expect(container.textContent).toContain('Retry to safely continue');
     const nextBottom = container.querySelector<HTMLButtonElement>('[aria-label="Next catalog page, bottom"]');
     await act(async () => { nextBottom?.click(); await Promise.resolve(); });
