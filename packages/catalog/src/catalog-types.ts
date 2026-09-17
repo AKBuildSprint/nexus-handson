@@ -9,6 +9,11 @@ export type PrivateFileSummary =
   | { present: false }
   | { present: true; filename: string; sizeBytes: number; kind: FileKind };
 
+export type ProductImageSummary =
+  | { present: false }
+  | { present: true; filename: string; contentType: 'image/jpeg' | 'image/png' | 'image/webp'; sizeBytes: number };
+
+
 export interface ProductCoreFields {
   name: string;
   basePrice: string;
@@ -63,6 +68,8 @@ export interface ProductDetailResponse {
   currency: string;
   basePriceMinor: number;
   publicDescription: string;
+  image: ProductImageSummary;
+
   delivery: {
     accessTitle: string;
     accessInstructions: string;
@@ -154,6 +161,8 @@ export interface PublicCatalogResponse {
     minimumEffectivePriceMinor: number;
     maximumEffectivePriceMinor: number;
     publicDescription: string;
+    imagePath: string | null;
+
     optionGroups: Array<{
       id: string;
       name: string;

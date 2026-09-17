@@ -19,6 +19,11 @@ export function isKnownConsoleRequest(request: Request): boolean {
     (method === 'PUT' || method === 'DELETE')
     && /^\/api\/console\/products\/[^/]+(?:\/variants\/[^/]+)?\/delivery-file$/.test(pathname)
   ) return true;
+  if (
+    (method === 'GET' || method === 'PUT' || method === 'DELETE')
+    && /^\/api\/console\/products\/[^/]+\/image$/.test(pathname)
+  ) return true;
+
 
   if (matches(method, 'GET', /^\/api\/console\/orders(?:\/[^/]+)?$/, pathname)) return true;
   return matches(

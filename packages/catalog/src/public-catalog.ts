@@ -9,6 +9,9 @@ interface PublicProductRow {
   currency: string;
   base_price_minor: number;
   public_description: string;
+  image_key: string | null;
+  revision: number;
+
 }
 interface PublicGroupRow { id: string; product_id: string; name: string; position: number }
 interface PublicValueRow { id: string; product_id: string; group_id: string; label: string; position: number }
@@ -20,9 +23,10 @@ export async function readPublicCatalog(db: D1Database): Promise<PublicCatalogRe
     db.prepare('SELECT id, slug, name FROM stores WHERE id = ?')
       .bind(PUBLIC_STORE_ID).first<{ id: string; slug: string; name: string }>(),
     db.prepare(
-      `SELECT id, slug, name, product_type, currency, base_price_minor, public_description
+      `SELECT id, slug, name, product_type, currency, base_price_minor, public_description, image_key, revision
          FROM products WHERE store_id = ? AND status = 'active'
          ORDER BY updated_at DESC, id ASC`,
+
     ).bind(PUBLIC_STORE_ID).all<PublicProductRow>(),
     db.prepare(
       `SELECT g.id, g.product_id, g.name, g.position
@@ -90,6 +94,8 @@ export async function readPublicCatalog(db: D1Database): Promise<PublicCatalogRe
         minimumEffectivePriceMinor: product.base_price_minor,
         maximumEffectivePriceMinor: product.base_price_minor,
         publicDescription: product.public_description,
+        imagePath: product.image_key === null ? null : `/api/storefront/products/${encodeURIComponent(product.id)}/image?v=${product.revision}`,
+
         optionGroups: [], variants: [],
       });
       continue;
@@ -106,6 +112,7 @@ export async function readPublicCatalog(db: D1Database): Promise<PublicCatalogRe
       minimumEffectivePriceMinor: Math.min(...prices),
       maximumEffectivePriceMinor: Math.max(...prices),
       publicDescription: product.public_description,
+      imagePath: product.image_key === null ? null : `/api/storefront/products/${encodeURIComponent(product.id)}/image?v=${product.revision}`,
       optionGroups: (groupsByProduct.get(product.id) ?? []).map((group) => ({
         id: group.id,
         name: group.name,

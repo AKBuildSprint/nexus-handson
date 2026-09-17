@@ -1319,6 +1319,13 @@ legend {
   overflow-wrap: anywhere;
 }
 
+.product-image-preview {
+  width: min(100%, 20rem);
+  aspect-ratio: 1;
+  border-radius: var(--radius-control);
+  object-fit: cover;
+}
+
 .option-group-list {
   display: grid;
   gap: var(--space-4);
@@ -1635,6 +1642,11 @@ legend {
   inset: 0;
   cursor: pointer;
   opacity: 0;
+}
+
+.file-input-label:focus-within {
+  outline: var(--focus-ring-width) solid var(--color-accent-active);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .csv-group-list {

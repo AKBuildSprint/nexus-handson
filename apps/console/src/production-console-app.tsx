@@ -18,8 +18,11 @@ import {
   fetchProducts,
   previewProductSchema,
   removeDeliveryFile,
+  removeProductImage,
   replaceDeliveryFile,
+  replaceProductImage,
   updateProduct,
+
   fetchOrders,
 } from './api-client';
 import { ConsoleShell } from './layout/console-shell';
@@ -125,6 +128,16 @@ function fileFixture(file: ProductDetailResponse['delivery']['file']) {
   } : undefined;
 }
 
+function imageFixture(image: ProductDetailResponse['image'], productId: string, revision: number) {
+  return image.present ? {
+    filename: image.filename,
+    contentType: image.contentType,
+    sizeLabel: `${(image.sizeBytes / 1_000_000).toFixed(2)} MB`,
+    url: `/api/console/products/${encodeURIComponent(productId)}/image?v=${revision}`,
+  } : undefined;
+}
+
+
 function detailFixture(detail: ProductDetailResponse): ProductEditorFixture {
   return {
     name: detail.name,
@@ -132,6 +145,8 @@ function detailFixture(detail: ProductDetailResponse): ProductEditorFixture {
     basePrice: minorToDecimal(detail.basePriceMinor, detail.currency),
     currency: detail.currency,
     publicDescription: detail.publicDescription,
+    image: imageFixture(detail.image, detail.id, detail.revision),
+
     delivery: {
       accessTitle: detail.delivery.accessTitle,
       accessInstructions: detail.delivery.accessInstructions,
@@ -288,6 +303,8 @@ export function ProductionConsoleApp() {
   const [revision, setRevision] = useState<number | null>(null);
   const previewHashRef = useRef<string | null>(null);
   const pendingProductFileRef = useRef<PendingFile>(null);
+  const pendingProductImageRef = useRef<PendingFile>(null);
+
   const pendingVariantFilesRef = useRef(new Map<string, PendingFile>());
 
   const skipNextDetailLoadRef = useRef(false);
@@ -354,6 +371,8 @@ export function ProductionConsoleApp() {
     setRevision(null);
     previewHashRef.current = null;
     pendingProductFileRef.current = null;
+    pendingProductImageRef.current = null;
+
     pendingVariantFilesRef.current.clear();
     createdDetailRef.current = null;
     detailRequestRef.current += 1;
@@ -492,6 +511,8 @@ export function ProductionConsoleApp() {
     dirtyRef.current = false;
     previewHashRef.current = null;
     pendingProductFileRef.current = null;
+    pendingProductImageRef.current = null;
+
     pendingVariantFilesRef.current.clear();
     createdDetailRef.current = null;
     detailRequestRef.current += 1;
@@ -512,6 +533,8 @@ export function ProductionConsoleApp() {
       dirtyRef.current = false;
       previewHashRef.current = null;
       pendingProductFileRef.current = null;
+      pendingProductImageRef.current = null;
+
       pendingVariantFilesRef.current.clear();
       createdDetailRef.current = null;
       detailRequestRef.current += 1;
@@ -777,6 +800,24 @@ export function ProductionConsoleApp() {
     }
 
     const savedRefByLocalRef = new Map<string, string>();
+
+    const productImageChange = pendingProductImageRef.current;
+    if (productImageChange instanceof File) {
+      nextRevision = await replaceProductImage({ productId: saved.id, revision: nextRevision, file: productImageChange }, signal);
+      await assertSaveIdentity();
+      fileMutated = true;
+      pendingProductImageRef.current = null;
+      saved = { ...saved, revision: nextRevision };
+      setRevision(nextRevision);
+    } else if (productImageChange === 'remove') {
+      nextRevision = await removeProductImage({ productId: saved.id, revision: nextRevision }, signal);
+      await assertSaveIdentity();
+      fileMutated = true;
+      pendingProductImageRef.current = null;
+      saved = { ...saved, revision: nextRevision };
+      setRevision(nextRevision);
+    }
+
     product.groups.forEach((group, groupIndex) => {
       const savedGroup = saved.optionGroups[groupIndex];
       group.valueRefs?.forEach((ref, valueIndex) => {
@@ -809,6 +850,8 @@ export function ProductionConsoleApp() {
       nextRevision = refreshed.revision;
     }
     pendingProductFileRef.current = null;
+    pendingProductImageRef.current = null;
+
     pendingVariantFilesRef.current.clear();
     previewHashRef.current = null;
     createdDetailRef.current = null;
@@ -968,6 +1011,8 @@ export function ProductionConsoleApp() {
       onSave={saveProduct}
       onSchemaPreview={previewSchema}
       onPendingProductFileChange={(change) => { pendingProductFileRef.current = change; }}
+      onPendingProductImageChange={(change) => { pendingProductImageRef.current = change; }}
+
       onPendingVariantFileChange={(variantId, change) => { pendingVariantFilesRef.current.set(variantId, change); }}
       onSessionExpired={expireRenderedIdentity}
     />;

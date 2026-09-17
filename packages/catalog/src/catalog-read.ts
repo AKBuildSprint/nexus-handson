@@ -41,6 +41,10 @@ interface ProductRow {
   delivery_file_filename: string | null;
   delivery_file_size: number | null;
   delivery_file_kind: FileKind | null;
+  image_filename: string | null;
+  image_content_type: 'image/jpeg' | 'image/png' | 'image/webp' | null;
+  image_size: number | null;
+
   updated_at: string;
   revision: number;
 }
@@ -94,7 +98,9 @@ async function productRowBy(
   return db.prepare(
     `SELECT id, slug, name, status, product_type, currency, base_price_minor,
             public_description, delivery_access_title, delivery_access_instructions,
-            delivery_file_filename, delivery_file_size, delivery_file_kind, updated_at, revision
+            delivery_file_filename, delivery_file_size, delivery_file_kind,
+            image_filename, image_content_type, image_size, updated_at, revision
+
        FROM products
       WHERE store_id = ? AND ${column} = ?
         AND EXISTS (SELECT 1 FROM store_memberships
@@ -185,6 +191,10 @@ async function readDetailFromRow(db: D1Database, identity: ConsoleIdentityContex
     currency: product.currency,
     basePriceMinor: product.base_price_minor,
     publicDescription: product.public_description,
+    image: product.image_filename !== null && product.image_content_type !== null && product.image_size !== null
+      ? { present: true, filename: product.image_filename, contentType: product.image_content_type, sizeBytes: product.image_size }
+      : { present: false },
+
     delivery: {
       accessTitle: product.delivery_access_title,
       accessInstructions: product.delivery_access_instructions,
