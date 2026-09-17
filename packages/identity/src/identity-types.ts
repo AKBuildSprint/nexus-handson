@@ -33,6 +33,7 @@ export type PermissionAction =
   | 'order:process'
   | 'order:assign'
   | 'staff:list'
+  | 'provider-events:read'
   | 'refund:request'
   | 'refund:decide';
 

@@ -25,6 +25,7 @@ export function isKnownConsoleRequest(request: Request): boolean {
   ) return true;
 
 
+  if (matches(method, 'GET', /^\/api\/console\/provider-events$/, pathname)) return true;
   if (matches(method, 'GET', /^\/api\/console\/orders(?:\/[^/]+)?$/, pathname)) return true;
   return matches(
     method,

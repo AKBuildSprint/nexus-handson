@@ -32,6 +32,7 @@ const ACTIONS: PermissionAction[] = [
   'order:assign',
   'staff:list',
   'refund:request',
+  'provider-events:read',
   'refund:decide',
 ];
 
@@ -47,7 +48,7 @@ describe('Nexus permission policy', () => {
     for (const action of ['catalog:read', 'catalog:file:read', 'order:read', 'order:process', 'refund:request'] satisfies PermissionAction[]) {
       expect(evaluatePermission(STAFF, action, assigned), action).toBe(true);
     }
-    for (const action of ['catalog:write', 'catalog:import', 'catalog:file:write', 'catalog:remove', 'order:assign', 'staff:list', 'refund:decide'] satisfies PermissionAction[]) {
+    for (const action of ['catalog:write', 'catalog:import', 'catalog:file:write', 'catalog:remove', 'order:assign', 'staff:list', 'provider-events:read', 'refund:decide'] satisfies PermissionAction[]) {
       expect(evaluatePermission(STAFF, action, assigned), action).toBe(false);
     }
     expect(evaluatePermission(STAFF, 'order:read', { storeId: STORE_A, assignedUserId: null })).toBe(false);

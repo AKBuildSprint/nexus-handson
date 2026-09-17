@@ -22,14 +22,15 @@ import {
   replaceDeliveryFile,
   replaceProductImage,
   updateProduct,
-
   fetchOrders,
+  fetchProviderEvents,
 } from './api-client';
 import { ConsoleShell } from './layout/console-shell';
 import { ProductEditorScreen } from './products/product-editor-screen';
 import { OrderDetailScreen } from './orders/order-detail-screen';
 import { clearPendingRoleCommands, roleCommandScope } from './orders/pending-role-command';
 import { OrdersScreen } from './orders/orders-screen';
+import { ProviderEventsScreen } from './provider-events/provider-events-screen';
 import type {
   ConsoleOrderSummary,
   ConsoleOrderView,
@@ -37,6 +38,7 @@ import type {
   OrderStatus,
   OrderStatusFilter,
 } from './orders/order-ui-types';
+import type { ConsoleProviderEventView, ProviderEventsState } from './provider-events/provider-event-ui-types';
 import { ProductListScreen } from './products/product-list-screen';
 import { consumeOwnerInvitationFragment, fetchConsoleSession, signOutConsole, startGoogleSignIn, type ConsoleSessionView } from './auth-client';
 import { SignInScreen } from './sign-in-screen';
@@ -55,7 +57,8 @@ type ConsoleRoute =
   | { kind: 'edit'; slug: string }
   | { kind: 'import' }
   | { kind: 'orders' }
-  | { kind: 'order-detail'; reference: string };
+  | { kind: 'order-detail'; reference: string }
+  | { kind: 'provider-events' };
 type PendingFile = File | 'remove' | null;
 
 const EMPTY_PRODUCT: ProductEditorFixture = {
@@ -80,7 +83,9 @@ function publishConsoleAuthChange() {
   channel.close();
 }
 
+
 function parseRoute(pathname: string): ConsoleRoute {
+  if (pathname === '/console/provider-events') return { kind: 'provider-events' };
   if (pathname === '/console/orders') return { kind: 'orders' };
   const orderMatch = /^\/console\/orders\/([^/]+)$/.exec(pathname);
   if (orderMatch) {
@@ -106,6 +111,7 @@ function parseRoute(pathname: string): ConsoleRoute {
 function routePath(route: ConsoleRoute): string {
   if (route.kind === 'orders') return '/console/orders';
   if (route.kind === 'order-detail') return `/console/orders/${encodeURIComponent(route.reference)}`;
+  if (route.kind === 'provider-events') return '/console/provider-events';
   if (route.kind === 'new') return '/console/products/new';
   if (route.kind === 'import') return '/console/products/import';
   if (route.kind === 'edit') return `/console/products/${encodeURIComponent(route.slug)}`;
@@ -298,6 +304,11 @@ export function ProductionConsoleApp() {
   const [orderRouteGeneration, setOrderRouteGeneration] = useState(0);
   const orderRouteGenerationRef = useRef(0);
   const ordersRequestRef = useRef(0);
+  const [providerEvents, setProviderEvents] = useState<ConsoleProviderEventView[]>([]);
+  const [providerEventsState, setProviderEventsState] = useState<ProviderEventsState>('loading');
+  const [providerEventCursorStack, setProviderEventCursorStack] = useState<string[]>([]);
+  const [providerEventNextCursor, setProviderEventNextCursor] = useState<string | null>(null);
+  const [providerEventsRequest, setProviderEventsRequest] = useState(0);
   const [detail, setDetail] = useState<ProductDetailResponse | null>(null);
   const [detailLifecycle, setDetailLifecycle] = useState<ProductEditorScenario['lifecycle']>('loading');
   const [revision, setRevision] = useState<number | null>(null);
@@ -366,6 +377,11 @@ export function ProductionConsoleApp() {
     setOrderRefund(null);
     setOrderCursorStack([]);
     setOrderNextCursor(null);
+    setProviderEvents([]);
+    setProviderEventsState('loading');
+    setProviderEventCursorStack([]);
+    setProviderEventNextCursor(null);
+    setProviderEventsRequest((current) => current + 1);
     setDetail(null);
     setDetailLifecycle('loading');
     setRevision(null);
@@ -489,11 +505,14 @@ export function ProductionConsoleApp() {
   }, [resolveSession]);
 
   useEffect(() => {
-    if (authState !== 'signed-in' || session?.role !== 'staff') return;
-    if (route.kind !== 'new' && route.kind !== 'edit' && route.kind !== 'import') return;
+    if (authState !== 'signed-in' || session === null) return;
+    const requiresOwner = route.kind === 'new' || route.kind === 'edit' || route.kind === 'import';
+    const needsRedirect = (requiresOwner && session.role === 'staff')
+      || (route.kind === 'provider-events' && !session.allowedActions.includes('provider-events:read'));
+    if (!needsRedirect) return;
     window.history.replaceState({}, '', '/console/products');
     setRoute({ kind: 'list' });
-  }, [authState, route.kind, session?.role]);
+  }, [authState, route.kind, session]);
   const publishDirty = useCallback((next: boolean) => {
     dirtyRef.current = next;
   }, []);
@@ -600,6 +619,36 @@ export function ProductionConsoleApp() {
     });
     return () => controller.abort();
   }, [authState, endSession, orderCursorStack, orderQuery, orderRefund, orderStatus, ordersRequest, orderRouteGeneration, route.kind]);
+
+  useEffect(() => {
+    if (
+      authState !== 'signed-in'
+      || route.kind !== 'provider-events'
+      || !session?.allowedActions.includes('provider-events:read')
+    ) return;
+    const identityGeneration = identityGenerationRef.current;
+    const requestId = providerEventsRequest;
+    const controller = new AbortController();
+    const cursor = providerEventCursorStack[providerEventCursorStack.length - 1] ?? null;
+    setProviderEvents([]);
+    setProviderEventsState('loading');
+    void fetchProviderEvents({ limit: ORDER_PAGE_SIZE, cursor }, controller.signal).then((response) => {
+      if (controller.signal.aborted || identityGenerationRef.current !== identityGeneration || requestId !== providerEventsRequest) return;
+      setProviderEvents(response.events);
+      setProviderEventNextCursor(response.nextCursor);
+      setProviderEventsState(response.events.length > 0 ? 'ready' : response.hasEvents ? 'no-results' : 'empty');
+    }).catch((error: unknown) => {
+      if (controller.signal.aborted || identityGenerationRef.current !== identityGeneration || requestId !== providerEventsRequest) return;
+      if (error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied')) {
+        endSession(true);
+        return;
+      }
+      setProviderEvents([]);
+      setProviderEventNextCursor(null);
+      setProviderEventsState('error');
+    });
+    return () => controller.abort();
+  }, [authState, endSession, providerEventCursorStack, providerEventsRequest, route.kind, session?.allowedActions]);
 
   const resetOrderCursors = () => {
     setOrderCursorStack([]);
@@ -962,6 +1011,19 @@ export function ProductionConsoleApp() {
       }}
       onOpenOrder={(reference) => { navigate({ kind: 'order-detail', reference }); }}
     />;
+  } else if (route.kind === 'provider-events') {
+    content = <ProviderEventsScreen
+      state={providerEventsState}
+      events={providerEvents}
+      hasPreviousPage={providerEventCursorStack.length > 0}
+      hasNextPage={providerEventNextCursor !== null}
+      pageIndex={providerEventCursorStack.length}
+      onRetry={() => setProviderEventsRequest((current) => current + 1)}
+      onPreviousPage={() => setProviderEventCursorStack((current) => current.slice(0, -1))}
+      onNextPage={() => {
+        if (providerEventNextCursor) setProviderEventCursorStack((current) => [...current, providerEventNextCursor]);
+      }}
+    />;
   } else if (route.kind === 'order-detail') {
     content = <OrderDetailScreen
       session={session}
@@ -1019,14 +1081,18 @@ export function ProductionConsoleApp() {
   }
 
   const ordersDestination = route.kind === 'orders' || route.kind === 'order-detail';
+  const providerEventsDestination = route.kind === 'provider-events';
   return <>
     {sessionRevalidating ? <main className="console-auth-page"><p role="status">Checking Console session…</p></main> : null}
     <div key={sessionGeneration} hidden={sessionRevalidating} inert={sessionRevalidating}>
       <ConsoleShell
-    activeDestination={ordersDestination ? 'Orders' : 'Products'}
-    railNote={ordersDestination ? 'Review safe Customer Order projections.' : 'Manage Product pricing, Variants, and private delivery files.'}
+    activeDestination={providerEventsDestination ? 'Third-party logs' : ordersDestination ? 'Orders' : 'Products'}
+    railNote={providerEventsDestination
+      ? 'Review immutable provider callbacks, including unmatched events.'
+      : ordersDestination ? 'Review safe Customer Order projections.' : 'Manage Product pricing, Variants, and private delivery files.'}
     onOpenProducts={() => navigate({ kind: 'list' })}
     onOpenOrders={() => navigate({ kind: 'orders' })}
+    onOpenThirdPartyLogs={session.allowedActions.includes('provider-events:read') ? () => navigate({ kind: 'provider-events' }) : undefined}
     identity={{ userName: session.user.name, storeName: session.store.name, role: session.role }}
     onSignOut={handleSignOut}
     onOpenOwnerInvitation={openOwnerInvitation}

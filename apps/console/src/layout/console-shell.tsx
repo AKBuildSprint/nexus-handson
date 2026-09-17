@@ -4,9 +4,10 @@ interface ConsoleShellProps {
   children: ReactNode;
   scenarioControls?: ReactNode;
   railNote?: ReactNode;
-  activeDestination?: 'Products' | 'Orders';
+  activeDestination?: 'Products' | 'Orders' | 'Third-party logs';
   onOpenProducts: (trigger: HTMLElement) => boolean;
   onOpenOrders?: (trigger: HTMLElement) => boolean;
+  onOpenThirdPartyLogs?: (trigger: HTMLElement) => boolean;
   identity?: { userName: string; storeName: string; role: 'owner' | 'staff' };
   onSignOut?: () => void;
   onOpenOwnerInvitation?: (trigger: HTMLElement) => void;
@@ -19,6 +20,7 @@ export function ConsoleShell({
   activeDestination = 'Products',
   onOpenProducts,
   onOpenOrders,
+  onOpenThirdPartyLogs,
   identity,
   onSignOut,
   onOpenOwnerInvitation,
@@ -81,6 +83,16 @@ export function ConsoleShell({
                 onClick={(event) => onOpenOrders(event.currentTarget)}
               >
                 Orders
+              </button>
+            ) : null}
+            {identity?.role === 'owner' && onOpenThirdPartyLogs ? (
+              <button
+                className={activeDestination === 'Third-party logs' ? 'active' : undefined}
+                aria-current={activeDestination === 'Third-party logs' ? 'page' : undefined}
+                type="button"
+                onClick={(event) => onOpenThirdPartyLogs(event.currentTarget)}
+              >
+                Third-party logs
               </button>
             ) : null}
           </nav>
@@ -161,6 +173,19 @@ export function ConsoleShell({
               }}
             >
               Orders
+            </button>
+          ) : null}
+          {identity?.role === 'owner' && onOpenThirdPartyLogs ? (
+            <button
+              className="button"
+              type="button"
+              aria-current={activeDestination === 'Third-party logs' ? 'page' : undefined}
+              onClick={(event) => {
+                onOpenThirdPartyLogs(menuButtonRef.current ?? event.currentTarget);
+                closeMenu();
+              }}
+            >
+              Third-party logs
             </button>
           ) : null}
           {identity?.role === 'owner' && onOpenOwnerInvitation ? (

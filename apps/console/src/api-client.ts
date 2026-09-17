@@ -24,6 +24,7 @@ import type {
   OrderAssignmentCommandResultView,
   StaffCandidateView,
 } from './orders/order-ui-types';
+import type { ConsoleProviderEventListQuery, ConsoleProviderEventListResponse } from './provider-events/provider-event-ui-types';
 
 interface ErrorEnvelope {
   error: {
@@ -177,6 +178,16 @@ export async function fetchOrders(query: ConsoleOrderListQuery, signal?: AbortSi
   params.set('limit', String(query.limit));
   if (query.cursor) params.set('cursor', query.cursor);
   const response = await fetch(`/api/console/orders?${params}`, { headers: orderReadHeaders(), signal });
+  return decode(response, signal);
+}
+
+export async function fetchProviderEvents(
+  query: ConsoleProviderEventListQuery,
+  signal?: AbortSignal,
+): Promise<ConsoleProviderEventListResponse> {
+  const params = new URLSearchParams({ limit: String(query.limit) });
+  if (query.cursor) params.set('cursor', query.cursor);
+  const response = await fetch(`/api/console/provider-events?${params}`, { headers: orderReadHeaders(), signal });
   return decode(response, signal);
 }
 
