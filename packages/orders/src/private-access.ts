@@ -27,6 +27,17 @@ export async function findOrderIdByCapability(input: {
   return row?.id ?? null;
 }
 
+export async function findOrderIdByReference(input: {
+  database: D1Database;
+  storeId: string;
+  reference: string;
+}): Promise<string | null> {
+  const row = await input.database.prepare(
+    'SELECT id FROM orders WHERE store_id = ? AND reference = ?',
+  ).bind(input.storeId, input.reference).first<{ id: string }>();
+  return row?.id ?? null;
+}
+
 export async function readPrivateOrder(input: {
   database: D1Database;
   storeId: string;

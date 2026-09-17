@@ -447,6 +447,19 @@ p { line-height: 1.6; text-wrap: pretty; }
 .order-ledger dd { margin: 0; text-align: end; overflow-wrap: anywhere; }
 .amount-ledger .total-line { padding-block-start: var(--space-3); border-block-start: var(--border) solid var(--color-border); color: var(--color-ink); font-size: var(--type-section); font-weight: 600; }
 .variant-sku, .order-ledger footer { color: var(--color-ink-muted); font-size: var(--type-compact); }
+.payment-instructions {
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, 14rem);
+  align-items: center;
+}
+.payment-reference { font-weight: 600; letter-spacing: 0.04em; }
+.payment-qr {
+  width: min(100%, 14rem);
+  justify-self: end;
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: var(--border) solid var(--color-border);
+}
+.payment-qr svg { display: block; width: 100%; height: auto; }
 .refund-form { display: grid; min-width: 0; gap: var(--space-4); }
 .refund-form .primary-action { width: 100%; margin: 0; }
 .refund-reason { white-space: pre-wrap; }
@@ -507,6 +520,9 @@ p { line-height: 1.6; text-wrap: pretty; }
   .order-ledger header { grid-template-columns: 1fr; }
   .order-status { justify-self: start; }
   .storefront-footer-inner { padding-inline: var(--space-4); }
+  .payment-instructions { grid-template-columns: 1fr; }
+  .payment-qr { justify-self: start; }
+  .amount-ledger .payment-reference-line { display: grid; gap: var(--space-1); }
 }
 
 @media (prefers-reduced-motion: reduce) {

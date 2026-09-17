@@ -25,7 +25,7 @@ This README is the root route for both people and AI collaborators. Follow these
 
 ## Current Order scope
 
-Live Order statuses are `pending`, `paid`, `fulfilled`, and `canceled`. Storefront Create records one Order with 1–10 item lines. Console records a **manual Payment** (method plus Owner-supplied external reference, amount and currency from the Order snapshot) and may then **Fulfill**. A **pending** Order may be **Canceled**. There is no live Complete action and no `/complete` route.
+Live Order statuses are `pending`, `paid`, `fulfilled`, and `canceled`. Storefront Create records one Order with 1–10 item lines. Console records a **manual Payment** (method plus Owner-supplied external reference, amount and currency from the Order snapshot) and may then **Fulfill**. A **pending** Order may also become **paid** through the local PayFS webhook below, without a Console session. A **pending** Order may be **Canceled**. There is no live Complete action and no `/complete` route.
 
 Two references stay distinct:
 
@@ -36,11 +36,25 @@ Each Order has one final Refund Request lifecycle: **pending**, **approved**, or
 
 Legacy `completed` rows map to **paid** without invented payments or fulfill events. Console shows `paymentRecordState: legacy_unrecorded` when no payments row exists.
 
-Every live Order GET/POST requires `X-Nexus-Order-Contract: 2`. Missing or other values return `409 client_contract_outdated` with no mutation, except private Order routes that fail the capability guard first as indistinguishable `404`. Old `/complete` and approval/execution routes stay `404`.
+Every Console and Storefront Order GET/POST requires `X-Nexus-Order-Contract: 2`. Missing or other values return `409 client_contract_outdated` with no mutation, except private Order routes that fail the capability guard first as indistinguishable `404`. The PayFS webhook is not an Order-contract route. Old `/complete` and approval/execution routes stay `404`.
 
 Order code lives in `packages/orders`: reads in [`queries/order-read.ts`](./packages/orders/src/queries/order-read.ts); create and command orchestration in [`commands/order-write.ts`](./packages/orders/src/commands/order-write.ts) and [`commands/order-commands.ts`](./packages/orders/src/commands/order-commands.ts); D1 ledger, result, batch, and recovery helpers in [`persistence/command-store.ts`](./packages/orders/src/persistence/command-store.ts); pure actor and eligibility rules in [`transitions/order-transitions.ts`](./packages/orders/src/transitions/order-transitions.ts). Types, validation, and [`private-access.ts`](./packages/orders/src/private-access.ts) stay at the package src root. Commands may import persistence and transitions; those two layers must not import each other. Create-time item snapshots come from [`packages/catalog/src/private-order-snapshot.ts`](./packages/catalog/src/private-order-snapshot.ts) so live catalog and delivery identity are not re-read into Customer output. Persist each create/command through one D1 `batch`; do not replace that with sequential independent writes.
 
-The checked-out Console admits the configured `INITIAL_OWNER_EMAIL` Google identity once, then later Owners through a one-time invitation, or a prebound Google identity plus one active Nexus Store membership. Owners can manage the Store; Staff see Products read-only and can work only assigned Orders. Google authenticates the account while Nexus memberships remain the authorization source. See [Google Console login](./docs/google-console-login.md) for local configuration, bootstrap, invitations, and provisioning inputs. Storefront public routes remain anonymous and Customer Order routes retain their exact bearer capability. This is locally verified behavior; no remote migration, provisioning, deployment, real Google consent, or smoke result is claimed. S5 owns verified payment ingress and money return, including no auto-return for `legacy_unrecorded`.
+The checked-out Console admits the configured `INITIAL_OWNER_EMAIL` Google identity once, then later Owners through a one-time invitation, or a prebound Google identity plus one active Nexus Store membership. Owners can manage the Store; Staff see Products read-only and can work only assigned Orders. Google authenticates the account while Nexus memberships remain the authorization source. See [Google Console login](./docs/google-console-login.md) for local configuration, bootstrap, invitations, and provisioning inputs. Storefront public routes remain anonymous and Customer Order routes retain their exact bearer capability. This is locally verified behavior; no remote migration, provisioning, deployment, real Google consent, or smoke result is claimed. Money return remains S5, including no auto-return for `legacy_unrecorded`.
+
+## PayFS webhook
+
+The only PayFS surface is API-key-only `POST /api/payfs/webhook`. Callers authenticate with `X-Client-API-Key` against the Worker binding `PAYFS_WEBHOOK_API_KEY`. This route uses no webhook signing secret, Console session, CORS, Origin check, Order contract header, or client idempotency key.
+
+A `200` body reports `{ "status": "confirmed" | "already_processed" | "ignored" }`. Other failures stay generic: missing configuration, unauthorized, method not allowed, invalid or conflicting payload, or a retryable processing error. Matching and settlement are owned by `confirmPayfsCredit` in [`packages/orders/src/commands/order-commands.ts`](./packages/orders/src/commands/order-commands.ts). The HTTP adapter is [`apps/worker/src/payfs-webhook-routes.ts`](./apps/worker/src/payfs-webhook-routes.ts).
+
+Required local Worker bindings on this route only, in addition to `DB`. Supply names as secrets; never commit values:
+
+- `PAYFS_WEBHOOK_API_KEY`
+- `PAYFS_MERCHANT_BANK`
+- `PAYFS_MERCHANT_ACCOUNT`
+
+Missing or empty PayFS bindings fail closed on this route only. This README claims no remote deployment, remote D1 migration, PayFS callback registration, or reconciliation. Storefront payment UI is unchanged.
 
 ## Requirements
 
@@ -219,4 +233,4 @@ The checked-out Console catalog and Order routes require authenticated Store mem
 
 The Storefront's private Order capability remains only in the URL fragment and explicit API header. It is still a bearer secret: never log, publish, paste, or share a private Order URL or raw capability. Neither surface may expose delivery configuration, private object identity, the raw capability, or Console-only external payment evidence in public Customer output.
 
-The current remote `workers.dev` deployment has not been migrated or smoke-tested in this work, so it may still expose the earlier anonymous Console behavior. Do not treat local S4 evidence as a remote security claim. Automated payment verification and money return are S5. Receipts and MCP are S6.
+The current remote `workers.dev` deployment has not been migrated or smoke-tested in this work, so it may still expose the earlier anonymous Console behavior. Do not treat local S4 or local PayFS evidence as a remote security claim. Money return remains S5. Receipts and MCP are S6.

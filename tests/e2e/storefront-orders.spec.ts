@@ -24,7 +24,10 @@ interface CustomerOrderResponse {
   totalMinor: number;
   currency: string;
   createdAt: string;
-  paymentNextStep: string | null;
+  paymentInstructions: {
+    bank: string;
+    accountNumber: string;
+  } | null;
 }
 
 function uniqueToken(): string {
@@ -267,6 +270,7 @@ async function placeOrder(
 
   expect(body.reference).toMatch(/^NX-[A-F0-9]{16}$/);
   expect(body.status).toBe('pending');
+  expect(body.paymentReference).toMatch(/^NP[a-f0-9]{18}$/);
   expect(Number.isNaN(Date.parse(body.createdAt))).toBe(false);
   expect(containsPrivateProjectionKey(body)).toBe(false);
 

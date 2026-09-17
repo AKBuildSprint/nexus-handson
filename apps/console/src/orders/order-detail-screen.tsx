@@ -1187,12 +1187,19 @@ export function OrderDetailScreen({
             {order.paymentRecordState === 'legacy_unrecorded' ? (
               <p>Original payment-record information is missing for this migrated paid Order. Do not ask the Customer to pay again.</p>
             ) : null}
-            {order.payment ? (
+            {order.payment?.source === 'manual' ? (
               <dl className="order-detail-fields">
                 <div><dt>Source</dt><dd>{order.payment.source}</dd></div>
                 <div><dt>Method</dt><dd>{order.payment.method}</dd></div>
                 <div><dt>External reference</dt><dd>{order.payment.externalReference}</dd></div>
                 <div><dt>Recorded actor</dt><dd>{paymentActor ?? 'Bootstrap Owner (demo)'}</dd></div>
+                <div><dt>Recorded time</dt><dd>{new Date(order.payment.recordedAt).toLocaleString()}</dd></div>
+              </dl>
+            ) : order.payment?.source === 'payfs' ? (
+              <dl className="order-detail-fields">
+                <div><dt>Source</dt><dd>PayFS</dd></div>
+                <div><dt>Amount</dt><dd className="numeric">{formatMoney(order.payment.amountMinor, order.payment.currency)} {order.payment.currency}</dd></div>
+                <div><dt>Status</dt><dd>Confirmed</dd></div>
                 <div><dt>Recorded time</dt><dd>{new Date(order.payment.recordedAt).toLocaleString()}</dd></div>
               </dl>
             ) : order.paymentRecordState === 'none' ? (

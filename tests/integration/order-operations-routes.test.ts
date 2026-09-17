@@ -89,8 +89,10 @@ const ALLOWED_KEYS: Record<string, true> = {
   path: true,
   payment: true,
   paymentId: true,
-  paymentNextStep: true,
+  paymentInstructions: true,
   paymentRecordState: true,
+  accountNumber: true,
+  bank: true,
   paymentReference: true,
   pending: true,
   position: true,
@@ -758,7 +760,7 @@ describe('Order operations HTTP', () => {
     expect(replayBody).toMatchObject({
       reference: created.reference,
       status: 'fulfilled',
-      paymentNextStep: null,
+      paymentInstructions: null,
       refundRequest: firstRefundBody.refundRequest,
     });
     assertSafeJson(replayBody);
@@ -776,7 +778,7 @@ describe('Order operations HTTP', () => {
       paymentRecordState: 'recorded',
       payment: { source: 'manual', method: 'Bank transfer', externalReference: 'WIRE-REPLAY' },
     });
-    expect(detailBody.order).not.toHaveProperty('paymentNextStep');
+    expect(detailBody.order).not.toHaveProperty('paymentInstructions');
     assertSafeJson(detailBody);
     const history = detailBody.order.history as Array<{ action: string; source: string; actorLabel: string }>;
     expect(history.map((event) => event.action)).toEqual(['order_created', 'order_paid', 'order_fulfilled', 'refund_requested']);
@@ -789,7 +791,7 @@ describe('Order operations HTTP', () => {
     const privateBody = await privateGet.json() as Record<string, unknown>;
     expect(privateBody).toMatchObject({
       status: 'fulfilled',
-      paymentNextStep: null,
+      paymentInstructions: null,
       refundRequest: firstRefundBody.refundRequest,
     });
     expect(privateBody).not.toHaveProperty('payment');
@@ -982,7 +984,7 @@ describe('Order operations HTTP', () => {
     expect(privateGet.status).toBe(200);
     expect(privateBody).toMatchObject({
       status: 'paid',
-      paymentNextStep: null,
+      paymentInstructions: null,
       refundRequest: customerBody.refundRequest,
     });
     expect(privateBody).not.toHaveProperty('payment');

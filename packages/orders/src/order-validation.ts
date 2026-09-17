@@ -1,4 +1,4 @@
-import { OrderValidationError, type ValidatedOrderCreateInput } from './order-types';
+import { OrderValidationError, type PayfsCreditInput, type ValidatedOrderCreateInput } from './order-types';
 
 const PRODUCT_ID = /^prod_[a-z0-9]{8,80}$/;
 const VARIANT_ID = /^(?:var|csvvar)_[a-z0-9]{8,80}$/;
@@ -250,6 +250,79 @@ function normalizeRefundReason(value: unknown): string {
     ]);
   }
   return normalized;
+}
+
+function payfsInvalid(path: string): never {
+  throw new OrderValidationError('validation_failed', 'The PayFS payload is invalid.', [
+    { path, code: 'payfs_field_invalid', message: 'This PayFS field is invalid.' },
+  ], 400);
+}
+
+function payfsOpaque(value: unknown, path: string, pattern: RegExp, min = 1, max = 128): string {
+  if (typeof value !== 'string' || value.length < min || value.length > max || !pattern.test(value)) {
+    return payfsInvalid(path);
+  }
+  return value;
+}
+
+function payfsContent(value: unknown): string {
+  if (typeof value !== 'string' || Array.from(value).length > 1000 || /[\p{Cc}\p{Cf}]/u.test(value)) {
+    return payfsInvalid('/content');
+  }
+  return value;
+}
+
+function payfsTransactionDate(value: unknown): string {
+  const match = typeof value === 'string'
+    ? /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?Z$/u.exec(value)
+    : null;
+  if (match === null) return payfsInvalid('/transaction_date');
+  const [, year, month, day, hour, minute, second] = match;
+  const yearNumber = Number(year);
+  const monthNumber = Number(month);
+  const dayNumber = Number(day);
+  const hourNumber = Number(hour);
+  const minuteNumber = Number(minute);
+  const secondNumber = Number(second);
+  const daysInMonth = monthNumber === 2
+    ? (yearNumber % 4 === 0 && (yearNumber % 100 !== 0 || yearNumber % 400 === 0) ? 29 : 28)
+    : [4, 6, 9, 11].includes(monthNumber) ? 30 : 31;
+  if (
+    monthNumber < 1 || monthNumber > 12
+    || dayNumber < 1 || dayNumber > daysInMonth
+    || hourNumber > 23 || minuteNumber > 59 || secondNumber > 59
+  ) return payfsInvalid('/transaction_date');
+  return match[0];
+}
+
+export function parsePayfsCreditInput(body: unknown): PayfsCreditInput {
+  const request = objectAt(body, '');
+  rejectUnknown(request, [
+    'account_id',
+    'amount',
+    'bank',
+    'bank_account_number',
+    'content',
+    'transaction_date',
+    'transaction_id',
+    'transfer_type',
+  ], '');
+  if (typeof request.amount !== 'number' || !Number.isSafeInteger(request.amount) || request.amount <= 0) {
+    return payfsInvalid('/amount');
+  }
+  if (request.transfer_type !== 'credit' && request.transfer_type !== 'debit') {
+    return payfsInvalid('/transfer_type');
+  }
+  return {
+    accountId: payfsOpaque(request.account_id, '/account_id', /^[A-Za-z0-9_-]+$/u),
+    amount: request.amount,
+    bank: payfsOpaque(request.bank, '/bank', /^[A-Za-z0-9]+$/u, 2, 16).toUpperCase(),
+    bankAccountNumber: payfsOpaque(request.bank_account_number, '/bank_account_number', /^[A-Za-z0-9-]+$/u, 1, 80),
+    content: payfsContent(request.content),
+    transactionDate: payfsTransactionDate(request.transaction_date),
+    transactionId: payfsOpaque(request.transaction_id, '/transaction_id', /^[A-Za-z0-9_-]+$/u),
+    transferType: request.transfer_type,
+  };
 }
 
 export function parseManualPaymentInput(

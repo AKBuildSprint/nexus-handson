@@ -350,11 +350,12 @@ describe('refund decision migration', () => {
     expect(await env.DB.prepare('PRAGMA foreign_key_check').all()).toMatchObject({ results: [] });
   });
 
-  it('keeps refund decisions in the latest reset schema', async () => {
+  it('applies every registered migration during a full reset', async () => {
     await resetCatalog();
     expect(await tableColumns('order_refund_requests')).toContain('decided_by_user_id');
     const migrations = await env.DB.prepare('SELECT name FROM d1_migrations ORDER BY id')
       .all<{ name: string }>();
-    expect(migrations.results.at(-1)?.name).toBe('0011-google-account-binding-uniqueness.sql');
+    expect(migrations.results.map((migration) => migration.name))
+      .toEqual(catalogMigrations.map((migration) => migration.name));
   });
 });

@@ -65,7 +65,10 @@ function productionImportGraph(): Plugin {
 export default defineConfig({
   root: consoleRoot,
   cacheDir: resolve(projectRoot, 'node_modules/.vite-console'),
-  server: { strictPort: true },
+  server: {
+    strictPort: true,
+    allowedHosts: ['nexus-console.cppsw.com'],
+  },
   plugins: [
     cloudflare({
       configPath: resolve(projectRoot, 'wrangler.jsonc'),

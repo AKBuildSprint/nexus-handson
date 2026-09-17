@@ -16,7 +16,10 @@ import migrationNine from '../../migrations/0009-store-memberships.sql?raw';
 import migrationTen from '../../migrations/0010-refund-decisions.sql?raw';
 import migrationEleven from '../../migrations/0011-google-account-binding-uniqueness.sql?raw';
 import migrationTwelve from '../../migrations/0012-store-bootstrap-and-owner-invitations.sql?raw';
+import migrationThirteen from '../../migrations/0013-payfs-webhook-payments.sql?raw';
+import migrationFourteen from '../../migrations/0014-order-email-outbox.sql?raw';
 import worker from '../../apps/worker/src';
+import type { Env } from '../../apps/worker/src/environment';
 import type { ConsoleIdentityContext } from '@nexus/identity/identity-types';
 
 function splitMigrationSql(sql: string): string[] {
@@ -95,20 +98,24 @@ export const catalogMigrations: D1Migration[] = [
   { name: '0010-refund-decisions.sql', queries: splitMigrationSql(migrationTen) },
   { name: '0011-google-account-binding-uniqueness.sql', queries: splitMigrationSql(migrationEleven) },
   { name: '0012-store-bootstrap-and-owner-invitations.sql', queries: splitMigrationSql(migrationTwelve) },
+  { name: '0013-payfs-webhook-payments.sql', queries: splitMigrationSql(migrationThirteen) },
+  { name: '0014-order-email-outbox.sql', queries: splitMigrationSql(migrationFourteen) },
 ];
 
-export type CatalogMigrationThrough = 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+export type CatalogMigrationThrough = 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14;
 
-export function applyCatalogMigrations(through: CatalogMigrationThrough = 12): Promise<void> {
+export function applyCatalogMigrations(through: CatalogMigrationThrough = 14): Promise<void> {
   return applyD1Migrations(env.DB, catalogMigrations.slice(0, through));
 }
 
 export async function resetCatalogThrough(through: CatalogMigrationThrough): Promise<void> {
   const tables = [
+    'order_email_jobs',
     'owner_invitations',
     'store_bootstrap_claims',
     'order_assignments',
     'order_commands',
+    'payfs_payment_receipts',
     'payments',
     'order_history',
     'order_refund_requests',
@@ -137,12 +144,16 @@ export async function resetCatalogThrough(through: CatalogMigrationThrough): Pro
 }
 
 export async function resetCatalog(): Promise<void> {
-  return resetCatalogThrough(12);
+  return resetCatalogThrough(14);
 }
 
 export const TEST_STOREFRONT_ORIGIN = 'https://storefront.test';
+type WorkerTestBindings = Partial<Pick<
+  Env,
+  'DB' | 'PAYFS_WEBHOOK_API_KEY' | 'PAYFS_MERCHANT_BANK' | 'PAYFS_MERCHANT_ACCOUNT' | 'PAYFS_FEFAULT_ACCOUNT' | 'RESEND_API_KEY' | 'RESEND_FROM'
+>>;
 
-export function workerRequest(path: string, init?: RequestInit): Promise<Response> {
+export function workerRequest(path: string, init?: RequestInit, bindings: WorkerTestBindings = {}): Promise<Response> {
   const headers = new Headers(init?.headers);
   const pathname = path.split('?')[0] ?? path;
   if (
@@ -160,6 +171,7 @@ export function workerRequest(path: string, init?: RequestInit): Promise<Respons
     GOOGLE_CLIENT_ID: 'test-google-client-id',
     GOOGLE_CLIENT_SECRET: 'test-google-client-secret',
     ASSETS: { fetch: () => Promise.resolve(new Response('asset')) } as unknown as Fetcher,
+    ...bindings,
   });
 }
 

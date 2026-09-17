@@ -8,7 +8,9 @@ import { routeConsoleFileRequest } from './console-file-routes';
 import { routeConsoleImportRequest } from './console-import-routes';
 import { routeConsoleProductRequest } from './console-product-routes';
 import { routeStorefrontPreflight } from './storefront-cors';
+import { routePayfsWebhookRequest } from './payfs-webhook-routes';
 import { routeStorefrontOrderRequest } from './storefront-order-routes';
+import { dispatchDueOrderEmails } from './order-email-service';
 import { jsonError, routeNotFound, withConsoleAuthHeaders } from './http-response';
 import { routeStorefrontProductRequest } from './storefront-product-routes';
 
@@ -55,7 +57,7 @@ function consoleOriginAllowed(request: Request, consoleOrigin: string): boolean 
 }
 
 export default {
-  async fetch(request: Request, env: Env | Pick<Env, 'ASSETS'>): Promise<Response> {
+  async fetch(request: Request, env: Env | Pick<Env, 'ASSETS'>, ctx?: ExecutionContext): Promise<Response> {
     const pathname = new URL(request.url).pathname;
 
     if (isApiPath(pathname)) {
@@ -72,6 +74,12 @@ export default {
         }
         return routeAuthRequest(request, env);
       }
+      const payfsResponse = await routePayfsWebhookRequest(request, env);
+      if (payfsResponse !== null) {
+        if (payfsResponse.status === 200 && 'DB' in env) ctx?.waitUntil(dispatchDueOrderEmails(env));
+        return payfsResponse;
+      }
+
       const storefrontOrigin = 'STOREFRONT_ORIGIN' in env ? env.STOREFRONT_ORIGIN : undefined;
       const preflight = routeStorefrontPreflight(request, storefrontOrigin);
       if (preflight !== null) return preflight;
@@ -113,10 +121,17 @@ export default {
       if (!('DB' in env)) return routeNotFound();
       const response =
         await routeStorefrontProductRequest(request, env.DB, storefrontOrigin) ??
-        await routeStorefrontOrderRequest(request, env.DB, storefrontOrigin);
+        await routeStorefrontOrderRequest(request, env.DB, storefrontOrigin, env);
+      if (request.method === 'POST' && pathname === '/api/storefront/orders' && response?.status === 201) {
+        ctx?.waitUntil(dispatchDueOrderEmails(env));
+      }
       return response ?? routeNotFound();
     }
 
     return env.ASSETS.fetch(request);
+  },
+
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(dispatchDueOrderEmails(env));
   },
 } satisfies ExportedHandler<Env>;

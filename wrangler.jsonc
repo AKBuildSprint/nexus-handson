@@ -18,6 +18,9 @@
 		"CONSOLE_ORIGIN": "http://127.0.0.1:5173",
 		"STOREFRONT_ORIGIN": "http://127.0.0.1:5174"
 	},
+	"triggers": {
+		"crons": ["*/5 * * * *"]
+	},
 	"r2_buckets": [
 		{
 			"binding": "FILES",

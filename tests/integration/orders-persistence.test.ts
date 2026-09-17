@@ -157,7 +157,7 @@ describe('Order aggregate persistence', () => {
       totalMinor: 4800,
       currency: 'USD',
     });
-    expect(order.paymentReference).toMatch(/^NP[a-f0-9]{32}$/);
+    expect(order.paymentReference).toMatch(/^NP[a-f0-9]{18}$/);
     expect(order.items[0].id).toMatch(/^line_/);
     expect(await orderTableCounts()).toEqual([1, 1, 1, 1, 1, 1]);
     expect(await env.DB.prepare(
@@ -691,7 +691,7 @@ describe('Order aggregate persistence', () => {
     expect(await httpLegacy.json()).toMatchObject({
       reference: 'NX-0000000000000001',
       items: [{ id: 'line_legacy', position: 0 }],
-      paymentNextStep: 'Payment instructions will be provided separately.',
+      paymentInstructions: null,
     });
   });
 });

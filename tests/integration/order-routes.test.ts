@@ -9,6 +9,7 @@ import {
   oneVariantSchema,
   workerRequest,
 } from '../support/catalog-test-env';
+import { orderEmailAccessToken } from '../../apps/worker/src/order-email-service';
 
 const CAPABILITY_A = 'A'.repeat(43);
 const CAPABILITY_B = 'B'.repeat(43);
@@ -75,7 +76,7 @@ function allKeys(value: unknown): string[] {
 const PRIVATE_KEY = /(access|actor|capability|delivery|digest|file|history|idempotency|private)/i;
 
 describe('Storefront Order routes', () => {
-  it('creates from catalog-backed money and returns only the Customer projection plus the static next step', async () => {
+  it('creates from catalog-backed money and returns no bank transfer instructions for non-VND Orders', async () => {
     const product = await createSimpleProduct();
     const clientMoney = await workerRequest('/api/storefront/orders', {
       method: 'POST',
@@ -120,11 +121,11 @@ describe('Storefront Order routes', () => {
       }],
       totalMinor: 7200,
       currency: 'USD',
-      paymentNextStep: 'Payment instructions will be provided separately.',
+      paymentInstructions: null,
       refundRequest: null,
     });
     expect(order.reference).toMatch(/^NX-[A-F0-9]{16}$/);
-    expect(order.paymentReference).toMatch(/^NP[a-f0-9]{32}$/);
+    expect(order.paymentReference).toMatch(/^NP[a-f0-9]{18}$/);
     expect(order.createdAt).toEqual(expect.any(String));
     expect(order).not.toHaveProperty('customer');
     expect(order).not.toHaveProperty('product');
@@ -136,9 +137,21 @@ describe('Storefront Order routes', () => {
       'SELECT total_minor, currency FROM orders WHERE reference = ?',
     ).bind(order.reference).first<{ total_minor: number; currency: string }>();
     expect(stored).toEqual({ total_minor: 7200, currency: 'USD' });
+    const emailJobs = await env.DB.prepare(
+      'SELECT kind, reminder_sequence FROM order_email_jobs WHERE order_id = (SELECT id FROM orders WHERE reference = ?) ORDER BY reminder_sequence',
+    ).bind(order.reference).all<{ kind: string; reminder_sequence: number | null }>();
+    expect(emailJobs.results).toEqual([
+      { kind: 'order_created', reminder_sequence: null },
+      { kind: 'payment_reminder', reminder_sequence: 1 },
+      { kind: 'payment_reminder', reminder_sequence: 2 },
+      { kind: 'payment_reminder', reminder_sequence: 3 },
+      { kind: 'payment_reminder', reminder_sequence: 4 },
+      { kind: 'payment_reminder', reminder_sequence: 5 },
+      { kind: 'payment_reminder', reminder_sequence: 6 },
+    ]);
   });
 
-  it('creates a two-Product Order and hides paymentNextStep after a paid legacy status', async () => {
+  it('creates a two-Product Order and hides bank transfer instructions after a paid status', async () => {
     const simple = await createSimpleProduct();
     const variantProduct = await createActiveVariant();
     const response = await createOrderRequest(
@@ -148,24 +161,51 @@ describe('Storefront Order routes', () => {
       ],
       'order-route-two-0001',
     );
-    const order = await response.json() as { reference: string; items: unknown[]; totalMinor: number; paymentNextStep: string | null };
+    const order = await response.json() as { reference: string; items: unknown[]; totalMinor: number; paymentInstructions: null };
     expect(response.status).toBe(201);
     expect(order.items).toHaveLength(2);
     expect(order.totalMinor).toBe(2400 + 7200);
-    expect(order.paymentNextStep).toBe('Payment instructions will be provided separately.');
+    expect(order.paymentInstructions).toBeNull();
 
     await env.DB.prepare("UPDATE orders SET status='paid' WHERE reference=?").bind(order.reference).run();
     const paid = await workerRequest(`/api/storefront/orders/${order.reference}`, {
       headers: { 'X-Nexus-Order-Capability': CAPABILITY_A },
     });
-    const paidBody = await paid.json() as { paymentNextStep: string | null; status: string; items: unknown[] };
+    const paidBody = await paid.json() as { paymentInstructions: null; status: string; items: unknown[] };
     expect(paid.status).toBe(200);
     expect(paidBody.status).toBe('paid');
-    expect(paidBody.paymentNextStep).toBeNull();
+    expect(paidBody.paymentInstructions).toBeNull();
     expect(paidBody.items).toHaveLength(2);
     expect(allKeys(paidBody).filter((key) => PRIVATE_KEY.test(key))).toEqual([]);
   });
 
+  it('returns configured bank transfer instructions only for pending VND Orders', async () => {
+    const product = await consoleRequest('/api/console/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product: { ...SIMPLE_CORE, basePrice: '24000', currency: 'VND' }, schema: null, previewHash: null }),
+    });
+    expect(product.status).toBe(201);
+    const created = (await product.json() as { product: ProductDetailResponse }).product;
+    const response = await workerRequest('/api/storefront/orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': 'order-route-vnd-payment-0001',
+        'X-Nexus-Order-Capability': CAPABILITY_A,
+      },
+      body: JSON.stringify(orderBody([{ productId: created.id, variantId: null, quantity: 1 }])),
+    }, {
+      PAYFS_MERCHANT_BANK: 'MB',
+      PAYFS_MERCHANT_ACCOUNT: '558555858888',
+    });
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      currency: 'VND',
+      status: 'pending',
+      paymentInstructions: { bank: 'MB', accountNumber: '558555858888' },
+    });
+  });
   it('replays a lost-response retry without duplicating the aggregate and rejects capability rebinding', async () => {
     const product = await createSimpleProduct();
     const idempotencyKey = 'order-route-retry-0001';
@@ -209,6 +249,15 @@ describe('Storefront Order routes', () => {
     expect(allowedBody).toEqual(created);
     expect(JSON.stringify(allowedBody)).not.toContain(CAPABILITY_A);
     expect(allKeys(allowedBody).filter((key) => PRIVATE_KEY.test(key))).toEqual([]);
+    const id = await env.DB.prepare('SELECT id FROM orders WHERE reference = ?').bind(created.reference).first<string>('id');
+    if (id === null) throw new Error('Expected Order ID.');
+    const emailSecret = 'resend-email-link-test-secret';
+    const emailToken = await orderEmailAccessToken(emailSecret, 'store_nexus', id);
+    const emailLinkAccess = await workerRequest(`/api/storefront/orders/${created.reference}`, {
+      headers: { 'X-Nexus-Order-Capability': emailToken },
+    }, { RESEND_API_KEY: emailSecret });
+    expect(emailLinkAccess.status).toBe(200);
+    expect(await emailLinkAccess.json()).toEqual(created);
 
     const denial = {
       error: {

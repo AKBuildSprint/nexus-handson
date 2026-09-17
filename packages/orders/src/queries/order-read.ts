@@ -76,9 +76,9 @@ interface HistoryRow {
 
 interface PaymentRow {
   id: string;
-  source: 'manual';
-  method: string;
-  external_reference: string;
+  source: 'manual' | 'payfs';
+  method: string | null;
+  external_reference: string | null;
   amount_minor: number;
   currency: string;
   status: 'succeeded';
@@ -197,9 +197,21 @@ function historyActorLabel(source: ConsoleOrderHistoryEntry['source'], actorName
 
 function paymentFromRow(row: PaymentRow | undefined): PaymentLedgerProjection | null {
   if (!row) return null;
+  if (row.source === 'payfs') {
+    return {
+      source: 'payfs',
+      amountMinor: row.amount_minor,
+      currency: row.currency,
+      status: row.status,
+      recordedAt: row.recorded_at,
+    };
+  }
+  if (row.method === null || row.external_reference === null) {
+    throw new Error('The persisted manual payment is invalid.');
+  }
   return {
     id: row.id,
-    source: row.source,
+    source: 'manual',
     method: row.method,
     externalReference: row.external_reference,
     amountMinor: row.amount_minor,
@@ -499,8 +511,19 @@ export async function readConsoleOrderByReference(
            ON order_history.id = payments.history_id
           AND order_history.order_id = payments.order_id
           AND order_history.store_id = payments.store_id
-        WHERE orders.store_id = ? AND orders.reference = ? AND ${visible}`,
-    ).bind(storeId, reference, ...visibleBinds),
+        WHERE orders.store_id = ? AND orders.reference = ? AND ${visible}
+       UNION ALL
+       SELECT receipts.id, 'payfs', NULL, NULL, orders.total_minor, orders.currency, 'succeeded', receipts.recorded_at
+         FROM payfs_payment_receipts receipts
+         JOIN orders
+           ON orders.id = receipts.order_id AND orders.store_id = receipts.store_id
+         JOIN order_history
+           ON order_history.id = receipts.history_id
+          AND order_history.order_id = receipts.order_id
+          AND order_history.store_id = receipts.store_id
+        WHERE receipts.outcome = 'confirmed'
+          AND orders.store_id = ? AND orders.reference = ? AND ${visible}`,
+    ).bind(storeId, reference, ...visibleBinds, storeId, reference, ...visibleBinds),
   ]);
   const header = orderResult.results[0] as OrderHeaderRow | undefined;
   const lines = lineResult.results as OrderLineRow[];
