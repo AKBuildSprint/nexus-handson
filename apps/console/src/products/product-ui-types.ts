@@ -20,6 +20,14 @@ export interface DeliveryFixture {
   file?: { name: string; sizeLabel: string; kind: 'PDF' | 'ZIP' };
 }
 
+export interface ProductImageFixture {
+  filename: string;
+  contentType: 'image/jpeg' | 'image/png' | 'image/webp';
+  sizeLabel: string;
+  url: string;
+}
+
+
 export interface OptionGroupFixture {
   id: string;
   name: string;
@@ -49,6 +57,7 @@ export interface ProductEditorFixture {
   basePrice: string;
   currency: string;
   publicDescription: string;
+  image?: ProductImageFixture;
   delivery: DeliveryFixture;
   groups: OptionGroupFixture[];
   variants: VariantFixture[];

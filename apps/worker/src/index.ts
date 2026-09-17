@@ -5,6 +5,8 @@ import { routeConsoleOwnerInvitationRequest } from './console-owner-invitation-r
 import { isKnownConsoleRequest } from './console-route-match';
 import { routeConsoleOrderRequest } from './console-order-routes';
 import { routeConsoleFileRequest } from './console-file-routes';
+import { routeConsoleProductImageRequest } from './console-product-image-routes';
+
 import { routeConsoleImportRequest } from './console-import-routes';
 import { routeConsoleProductRequest } from './console-product-routes';
 import { routeStorefrontPreflight } from './storefront-cors';
@@ -13,6 +15,8 @@ import { routeStorefrontOrderRequest } from './storefront-order-routes';
 import { dispatchDueOrderEmails } from './order-email-service';
 import { jsonError, routeNotFound, withConsoleAuthHeaders } from './http-response';
 import { routeStorefrontProductRequest } from './storefront-product-routes';
+import { routeStorefrontProductImageRequest } from './storefront-product-image-routes';
+
 
 function isApiPath(pathname: string): boolean {
   return pathname === '/api' || pathname.startsWith('/api/');
@@ -112,6 +116,8 @@ export default {
           await routeConsoleOwnerInvitationRequest(request, env.DB, env.CONSOLE_ORIGIN, env.BETTER_AUTH_SECRET, resolution.context) ??
           await routeConsoleImportRequest(request, env, resolution.context) ??
           await routeConsoleFileRequest(request, env, resolution.context) ??
+          await routeConsoleProductImageRequest(request, env, resolution.context) ??
+
           await routeConsoleProductRequest(request, env.DB, resolution.context) ??
           await routeConsoleOrderRequest(request, env.DB, resolution.context) ??
           routeNotFound();
@@ -120,6 +126,7 @@ export default {
 
       if (!('DB' in env)) return routeNotFound();
       const response =
+        ('FILES' in env ? await routeStorefrontProductImageRequest(request, env.DB, env.FILES, storefrontOrigin) : null) ??
         await routeStorefrontProductRequest(request, env.DB, storefrontOrigin) ??
         await routeStorefrontOrderRequest(request, env.DB, storefrontOrigin, env);
       if (request.method === 'POST' && pathname === '/api/storefront/orders' && response?.status === 201) {

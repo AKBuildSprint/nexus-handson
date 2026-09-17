@@ -370,6 +370,38 @@ export async function removeDeliveryFile(input: {
   return result.revision;
 }
 
+export async function replaceProductImage(input: {
+  productId: string;
+  revision: number;
+  file: File;
+}, signal?: AbortSignal): Promise<number> {
+  const response = await fetch(`/api/console/products/${encodeURIComponent(input.productId)}/image`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      'If-Match': `"${input.revision}"`,
+      'X-Nexus-Filename': encodeURIComponent(input.file.name),
+    },
+    body: input.file,
+    signal,
+  });
+  const result = await decode<{ revision: number }>(response, signal);
+  return result.revision;
+}
+
+export async function removeProductImage(input: {
+  productId: string;
+  revision: number;
+}, signal?: AbortSignal): Promise<number> {
+  const response = await fetch(`/api/console/products/${encodeURIComponent(input.productId)}/image`, {
+    method: 'DELETE',
+    headers: { 'If-Match': `"${input.revision}"` },
+    signal,
+  });
+  const result = await decode<{ revision: number }>(response, signal);
+  return result.revision;
+}
+
 export async function downloadCsvTemplate(signal?: AbortSignal): Promise<void> {
   const response = await fetch('/api/console/imports/template', { headers: { Accept: CSV_CONTENT_TYPE }, signal });
   if (!response.ok) await decode<never>(response, signal);

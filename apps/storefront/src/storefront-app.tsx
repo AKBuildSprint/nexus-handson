@@ -6,8 +6,10 @@ import {
   createStorefrontRefundRequest,
   fetchCatalog,
   fetchStorefrontOrder,
+  storefrontApiUrl,
   StorefrontApiError,
 } from './api-client';
+
 import type {
   CustomerOrderItemView,
   CustomerOrderView,
@@ -130,13 +132,16 @@ function CatalogProduct({
   return (
     <article className={`catalog-row${selected ? ' catalog-row-selected' : ''}`}>
       <button className="catalog-choice" type="button" aria-pressed={selected} onClick={onSelect}>
-        <span className="catalog-media" aria-hidden="true">{product.name.slice(0, 1)}</span>
+        <span className="catalog-media" aria-hidden="true">
+          {product.imagePath ? <img src={storefrontApiUrl(product.imagePath).href} alt="" /> : product.name.slice(0, 1)}
+        </span>
         <span className="catalog-type">{product.optionGroups.length === 0 ? 'Simple Product' : 'Variant Product'}</span>
         <span className="catalog-name">{product.name}</span>
         <span className="catalog-price numeric">{price}</span>
       </button>
       <p>{product.publicDescription}</p>
     </article>
+
   );
 }
 

@@ -3,6 +3,8 @@ import { ConsoleApiError } from '../api-client';
 import { currencyFractionDigits, decimalToMinor, MoneyError } from '@nexus/catalog/money';
 import type { ProductEditorFixture, ProductEditorScenario, ProductStatus } from './product-ui-types';
 import { DeliveryEditor } from './delivery-editor';
+import { ProductImageEditor } from './product-image-editor';
+
 import { VariantBuilder } from './variant-builder';
 
 interface ProductEditorScreenProps {
@@ -13,6 +15,8 @@ interface ProductEditorScreenProps {
   onRetry: () => void;
   onSave?: (product: ProductEditorFixture) => Promise<void>;
   onPendingProductFileChange?: (change: File | 'remove' | null) => void;
+  onPendingProductImageChange?: (change: File | 'remove' | null) => void;
+
   onPendingVariantFileChange?: (variantId: string, change: File | 'remove' | null) => void;
   onSchemaPreview?: (
     product: ProductEditorFixture,
@@ -83,6 +87,8 @@ export function ProductEditorScreen({
   onRetry,
   onSave,
   onPendingProductFileChange,
+  onPendingProductImageChange,
+
   onPendingVariantFileChange,
   onSchemaPreview,
   onSessionExpired,
@@ -100,9 +106,13 @@ export function ProductEditorScreen({
     scenario.lifecycle === 'save-error' ? 'Product could not be saved. Your unsaved values are still in the editor.' : '',
   );
   const [deliveryBlockers, setDeliveryBlockers] = useState<string[]>([]);
+  const [imageBlockers, setImageBlockers] = useState<string[]>([]);
+
   const [variantBlockers, setVariantBlockers] = useState<string[]>([]);
   const [transientVariantDirty, setTransientVariantDirty] = useState(false);
   const [fileResetKey, setFileResetKey] = useState(0);
+  const [imageResetKey, setImageResetKey] = useState(0);
+
   const [variantResetKey, setVariantResetKey] = useState(0);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -118,10 +128,14 @@ export function ProductEditorScreen({
     setSaved(scenario.lifecycle === 'saved');
     setSaveError(scenario.lifecycle === 'save-error' ? 'Product could not be saved. Your unsaved values are still in the editor.' : '');
     setDeliveryBlockers([]);
+    setImageBlockers([]);
+
     setVariantBlockers([]);
     setTransientVariantDirty(false);
     onDirtyChange(nextDirty);
     setFileResetKey((current) => current + 1);
+    setImageResetKey((current) => current + 1);
+
     setVariantResetKey((current) => current + 1);
   }, [onDirtyChange, scenario]);
 
@@ -182,7 +196,8 @@ export function ProductEditorScreen({
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     const nextErrors = validateAll();
-    const childBlockers = [...deliveryBlockers, ...variantBlockers];
+    const childBlockers = [...imageBlockers, ...deliveryBlockers, ...variantBlockers];
+
     if (Object.keys(nextErrors).length > 0 || childBlockers.length > 0) {
       window.setTimeout(() => errorSummaryRef.current?.focus(), 0);
       return;
@@ -200,6 +215,8 @@ export function ProductEditorScreen({
       onDirtyChange(transientVariantDirty);
       setSaved(true);
       setFileResetKey((current) => current + 1);
+      setImageResetKey((current) => current + 1);
+
     } catch (error) {
       if (error instanceof ConsoleApiError && (error.status === 401 || error.code === 'store_access_denied')) {
         onSessionExpired?.();
@@ -259,7 +276,8 @@ export function ProductEditorScreen({
   }
 
   const requiredReady = product.name.trim() && product.basePrice.trim() && product.currency.trim() && product.delivery.accessTitle.trim() && product.delivery.accessInstructions.trim();
-  const childBlockers = [...deliveryBlockers, ...variantBlockers];
+  const childBlockers = [...imageBlockers, ...deliveryBlockers, ...variantBlockers];
+
   const saveReason = !dirty
     ? 'Make a change before saving.'
     : !requiredReady
@@ -323,6 +341,7 @@ export function ProductEditorScreen({
             {errors.accessTitle ? <li><a href="#delivery-access-title">{errors.accessTitle}</a></li> : null}
             {errors.accessInstructions ? <li><a href="#delivery-access-instructions">{errors.accessInstructions}</a></li> : null}
             {deliveryBlockers.map((blocker) => <li key={blocker}><a href="#delivery-private-file">{blocker}</a></li>)}
+            {imageBlockers.map((blocker) => <li key={blocker}><a href="#product-image">{blocker}</a></li>)}
             {serverFieldErrors.map((field) => (
               <li key={`${field.path}:${field.message}`}><a href={serverFieldHref(field.path)}>{field.message}</a></li>
             ))}
@@ -411,6 +430,21 @@ export function ProductEditorScreen({
             <textarea id="public-description" value={product.publicDescription} onChange={(event) => updateProduct('publicDescription', event.target.value)} />
             <span className="field-help">Optional public catalog copy.</span>
           </div>
+        </section>
+
+        <section className="editor-section" aria-labelledby="product-image-title">
+          <div className="section-heading">
+            <h2 id="product-image-title">Product image</h2>
+            <p>Optional Customer-visible image used on the Storefront catalog.</p>
+          </div>
+          <ProductImageEditor
+            image={product.image}
+            disabled={saving}
+            resetKey={imageResetKey}
+            onChange={markDirty}
+            onBlockersChange={setImageBlockers}
+            onPendingImageChange={onPendingProductImageChange}
+          />
         </section>
 
         <section className="editor-section" aria-labelledby="delivery-title">

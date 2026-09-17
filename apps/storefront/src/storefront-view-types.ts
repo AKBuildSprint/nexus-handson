@@ -12,6 +12,8 @@ export interface StorefrontProduct {
   minimumEffectivePriceMinor: number;
   maximumEffectivePriceMinor: number;
   publicDescription: string;
+  imagePath: string | null;
+
   optionGroups: Array<{
     id: string;
     name: string;
