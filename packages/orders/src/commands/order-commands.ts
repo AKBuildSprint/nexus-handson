@@ -362,6 +362,7 @@ type PayfsIgnoredReason =
   | 'order_not_eligible';
 
 interface PayfsReceiptRow {
+  id: string;
   facts_fingerprint: string;
   outcome: 'confirmed' | 'ignored';
   ignored_reason: PayfsIgnoredReason | null;
@@ -399,7 +400,7 @@ async function existingPayfsReceipt(
   fingerprint: string,
 ): Promise<PayfsReceiptRow | null> {
   const receipt = await database.prepare(
-    `SELECT facts_fingerprint, outcome, ignored_reason
+    `SELECT id, facts_fingerprint, outcome, ignored_reason
        FROM payfs_payment_receipts
       WHERE transaction_id = ?`,
   ).bind(transactionId).first<PayfsReceiptRow>();
@@ -422,19 +423,28 @@ async function persistIgnoredPayfsReceipt(input: {
   database: D1Database;
   transactionId: string;
   fingerprint: string;
+  payloadJson: string;
   reason: PayfsIgnoredReason;
 }): Promise<PayfsCreditConfirmation> {
+  const receiptId = `pfs_${crypto.randomUUID().replaceAll('-', '')}`;
   try {
-    await input.database.prepare(
-      `INSERT INTO payfs_payment_receipts (
-         id, transaction_id, facts_fingerprint, outcome, ignored_reason
-       ) VALUES (?, ?, ?, 'ignored', ?)`,
-    ).bind(
-      `pfs_${crypto.randomUUID().replaceAll('-', '')}`,
-      input.transactionId,
-      input.fingerprint,
-      input.reason,
-    ).run();
+    await input.database.batch([
+      input.database.prepare(
+        `INSERT INTO payfs_payment_receipts (
+           id, transaction_id, facts_fingerprint, outcome, ignored_reason
+         ) VALUES (?, ?, ?, 'ignored', ?)`,
+      ).bind(
+        receiptId,
+        input.transactionId,
+        input.fingerprint,
+        input.reason,
+      ),
+      input.database.prepare(
+        `INSERT INTO provider_events (
+           id, type, provider, provider_event_id, payload_json
+         ) VALUES (?, 'payment', 'payfs', ?, ?)`,
+      ).bind(receiptId, input.transactionId, input.payloadJson),
+    ]);
   } catch (error) {
     const existing = await existingPayfsOutcome(input.database, input.transactionId, input.fingerprint);
     if (existing !== null) return existing;
@@ -483,6 +493,7 @@ async function readPayfsSettlementTarget(
 export async function confirmPayfsCredit(input: {
   database: D1Database;
   body: unknown;
+  payloadJson: string;
   merchantBank: string;
   merchantAccount: string;
 }): Promise<PayfsCreditConfirmation> {
@@ -502,6 +513,7 @@ export async function confirmPayfsCredit(input: {
       database: input.database,
       transactionId: credit.transactionId,
       fingerprint,
+      payloadJson: input.payloadJson,
       reason: disposition.reason,
     });
   }
@@ -512,11 +524,28 @@ export async function confirmPayfsCredit(input: {
       database: input.database,
       transactionId: credit.transactionId,
       fingerprint,
+      payloadJson: input.payloadJson,
       reason: 'order_not_eligible',
     });
   }
 
   const historyId = stableId('hist');
+  const receiptId = existing?.id ?? `pfs_${crypto.randomUUID().replaceAll('-', '')}`;
+  const eventStatement = reconcilingRecipientMismatch
+    ? input.database.prepare(
+      `INSERT INTO provider_events (
+         id, type, provider, provider_event_id, payload_json
+       ) VALUES (?, 'payment', 'payfs', ?, ?)
+       ON CONFLICT(provider, provider_event_id) DO NOTHING`,
+    ).bind(receiptId, credit.transactionId, input.payloadJson)
+    : input.database.prepare(
+      `INSERT INTO provider_events (
+         id, type, provider, provider_event_id, payload_json, store_id, order_id
+       )
+       SELECT ?, 'payment', 'payfs', ?, ?, receipt.store_id, receipt.order_id
+         FROM payfs_payment_receipts receipt
+        WHERE receipt.transaction_id = ? AND receipt.history_id = ? AND receipt.outcome = 'confirmed'`,
+    ).bind(receiptId, credit.transactionId, input.payloadJson, credit.transactionId, historyId);
   const receiptStatement = reconcilingRecipientMismatch
     ? input.database.prepare(
       `UPDATE payfs_payment_receipts
@@ -561,7 +590,7 @@ export async function confirmPayfsCredit(input: {
         WHERE orders.store_id = ? AND orders.id = ? AND orders.status = 'pending'
           AND orders.currency = 'VND' AND orders.total_minor = ? AND orders.payment_reference = ?`,
     ).bind(
-      `pfs_${crypto.randomUUID().replaceAll('-', '')}`,
+      receiptId,
       credit.transactionId,
       fingerprint,
       historyId,
@@ -591,6 +620,35 @@ export async function confirmPayfsCredit(input: {
         disposition.reference,
       ),
       receiptStatement,
+      eventStatement,
+      input.database.prepare(
+        `INSERT INTO provider_payments (
+           id, store_id, order_id, gateway, provider_transaction_id,
+           amount_minor, currency, status, event_id, history_id
+         )
+         SELECT ?, orders.store_id, orders.id, 'payfs', ?, orders.total_minor, orders.currency,
+                'succeeded', ?, ?
+           FROM orders
+           JOIN payfs_payment_receipts receipt
+             ON receipt.store_id = orders.store_id
+            AND receipt.order_id = orders.id
+            AND receipt.transaction_id = ?
+            AND receipt.history_id = ?
+            AND receipt.outcome = 'confirmed'
+          WHERE orders.store_id = ? AND orders.id = ? AND orders.status = 'pending'
+            AND orders.currency = 'VND' AND orders.total_minor = ? AND orders.payment_reference = ?`,
+      ).bind(
+        `pvp_${crypto.randomUUID().replaceAll('-', '')}`,
+        credit.transactionId,
+        receiptId,
+        historyId,
+        credit.transactionId,
+        historyId,
+        PUBLIC_STORE_ID,
+        target.id,
+        credit.amount,
+        disposition.reference,
+      ),
       input.database.prepare(
         `INSERT INTO order_email_jobs (id, store_id, order_id, kind)
          SELECT ?, orders.store_id, orders.id, 'payment_confirmed'
@@ -627,6 +685,7 @@ export async function confirmPayfsCredit(input: {
         database: input.database,
         transactionId: credit.transactionId,
         fingerprint,
+        payloadJson: input.payloadJson,
         reason: 'order_not_eligible',
       });
     }
@@ -637,6 +696,7 @@ export async function confirmPayfsCredit(input: {
     database: input.database,
     transactionId: credit.transactionId,
     fingerprint,
+    payloadJson: input.payloadJson,
     reason: 'order_not_eligible',
   });
 }

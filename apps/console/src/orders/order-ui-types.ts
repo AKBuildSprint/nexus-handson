@@ -97,6 +97,25 @@ export type PaymentLedgerView =
     recordedAt: string;
   };
 
+export interface ProviderEventView {
+  id: string;
+  type: 'payment' | 'logistics';
+  provider: string;
+  providerEventId: string;
+  receivedAt: string;
+  payloadJson?: string;
+}
+
+export interface ProviderPaymentView {
+  id: string;
+  gateway: string;
+  providerTransactionId: string;
+  amountMinor: number;
+  currency: string;
+  status: 'succeeded';
+  recordedAt: string;
+}
+
 export interface ConsoleOrderDetailView extends ConsoleOrderView {
   assignment?: { assigneeUserId: string } | null;
   refundRequest: ConsoleOrderRefundRequestView | null;
@@ -106,6 +125,8 @@ export interface ConsoleOrderDetailView extends ConsoleOrderView {
   history: ConsoleOrderHistoryView[];
   payment: PaymentLedgerView | null;
   paymentRecordState: PaymentRecordState;
+  providerEvents: ProviderEventView[];
+  providerPayments: ProviderPaymentView[];
 }
 
 export interface ConsoleOrderListQuery {

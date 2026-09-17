@@ -268,6 +268,44 @@ function HistoryEntry({ event }: { event: ConsoleOrderHistoryView }) {
   );
 }
 
+function providerLabel(provider: string): string {
+  return provider === 'payfs' ? 'PayFS' : provider;
+}
+
+function ProviderAudit({ order }: { order: ConsoleOrderDetailView }) {
+  if (order.providerEvents.length === 0 && order.providerPayments.length === 0) {
+    return <p>No provider events have been recorded.</p>;
+  }
+  return (
+    <div className="provider-audit">
+      {order.providerPayments.map((payment) => (
+        <dl className="order-detail-fields" key={payment.id}>
+          <div><dt>Gateway</dt><dd>{providerLabel(payment.gateway)}</dd></div>
+          <div><dt>Provider transaction</dt><dd>{payment.providerTransactionId}</dd></div>
+          <div><dt>Amount</dt><dd className="numeric">{formatMoney(payment.amountMinor, payment.currency)} {payment.currency}</dd></div>
+          <div><dt>Status</dt><dd>{payment.status}</dd></div>
+          <div><dt>Recorded</dt><dd>{new Date(payment.recordedAt).toLocaleString()}</dd></div>
+        </dl>
+      ))}
+      <ol className="provider-event-list">
+        {order.providerEvents.map((event) => (
+          <li key={event.id}>
+            <strong>{providerLabel(event.provider)} {event.type} event</strong>
+            <span className="meta-text">
+              Log {event.id} · Provider event {event.providerEventId} · Received {new Date(event.receivedAt).toLocaleString()}
+            </span>
+            {event.payloadJson === undefined ? (
+              <span className="meta-text">Payload restricted to the Store owner.</span>
+            ) : (
+              <pre className="provider-event-payload">{event.payloadJson}</pre>
+            )}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 function paidHistoryActor(order: ConsoleOrderDetailView): string | null {
   const paid = [...order.history].reverse().find((event) => event.action === 'order_paid' || event.action === 'order_completed');
   return paid ? historySourceLabel(paid.source, paid.actorLabel) : null;
@@ -1205,6 +1243,11 @@ export function OrderDetailScreen({
             ) : order.paymentRecordState === 'none' ? (
               <p>No payment has been recorded.</p>
             ) : null}
+          </section>
+
+          <section className="order-detail-section" aria-labelledby="order-provider-audit-title">
+            <h2 id="order-provider-audit-title">Provider audit</h2>
+            <ProviderAudit order={order} />
           </section>
 
           <section className="order-detail-section" aria-labelledby="order-refund-title">

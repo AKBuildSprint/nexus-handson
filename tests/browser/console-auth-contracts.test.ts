@@ -52,6 +52,8 @@ const oldOrderDetail = {
   }],
   payment: null,
   paymentRecordState: 'none',
+  providerEvents: [],
+  providerPayments: [],
 };
 
 function json(body: unknown, status = 200): Response {

@@ -17,6 +17,7 @@ const detail = {
   refundRequest: { id: 'rrq_11111111111111111111111111111111', status: 'pending', reason: 'Duplicate', createdAt: '2026-09-12T00:00:00.000Z', decidedAt: null, decidedByUserId: null },
   assignment: { assigneeUserId: 'staff_1' },
   allowedActions: ['approve_refund', 'reject_refund'], history: [], payment: null, paymentRecordState: 'none',
+  providerEvents: [], providerPayments: [],
 };
 
 const detailB = {

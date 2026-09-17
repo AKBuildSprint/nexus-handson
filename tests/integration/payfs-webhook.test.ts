@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { ProductDetailResponse } from '@nexus/catalog/catalog-types';
 import { createOrder } from '@nexus/orders/commands/order-write';
 import { PUBLIC_STORE_ID } from '@nexus/catalog/public-store';
-import { cancelOrder, confirmPayfsCredit, markPaid } from '@nexus/orders/commands/order-commands';
+import { cancelOrder, confirmPayfsCredit as confirmPayfsCreditCommand, markPaid } from '@nexus/orders/commands/order-commands';
+import { assignOrder } from '@nexus/orders/commands/order-assignment';
 import {
   SIMPLE_CORE,
   consoleRequest,
@@ -11,6 +12,7 @@ import {
   resetCatalog,
   workerRequest,
 } from '../support/catalog-test-env';
+import { createConsoleSession, TEST_CONSOLE_ORIGIN } from '../support/identity-test-env';
 
 const PAYFS_BINDINGS = {
   PAYFS_WEBHOOK_API_KEY: 'payfs-test-webhook-key',
@@ -82,6 +84,10 @@ function payfsRequest(body: unknown, init: RequestInit = {}, bindings = PAYFS_BI
     headers,
     body: JSON.stringify(body),
   }, bindings);
+}
+
+function confirmPayfsCredit(input: Omit<Parameters<typeof confirmPayfsCreditCommand>[0], 'payloadJson'>) {
+  return confirmPayfsCreditCommand({ ...input, payloadJson: JSON.stringify(input.body) });
 }
 
 async function recordManualPayment(reference: string): Promise<Response> {
@@ -204,13 +210,29 @@ describe('PayFS webhook', () => {
 
     const detailResponse = await consoleRequest(`/api/console/orders/${order.reference}`);
     expect(detailResponse.status).toBe(200);
-    const detail = await detailResponse.json() as { order: { payment: Record<string, unknown> } };
+    const detail = await detailResponse.json() as {
+      order: {
+        payment: Record<string, unknown>;
+        providerEvents: Array<Record<string, unknown>>;
+        providerPayments: Array<Record<string, unknown>>;
+      };
+    };
     expect(detail.order.payment).toEqual(expect.objectContaining({
       source: 'payfs', amountMinor: 14_000, currency: 'VND', status: 'succeeded',
     }));
-    const serialized = JSON.stringify(detail);
-    expect(serialized).not.toContain('1418108930751619072');
-    expect(serialized).not.toContain('externalReference');
+    expect(detail.order.providerEvents).toEqual([expect.objectContaining({
+      type: 'payment',
+      provider: 'payfs',
+      providerEventId: '1418108930751619072',
+      payloadJson: JSON.stringify(credit({ content: `Ada transfer ${order.paymentReference}` })),
+    })]);
+    expect(detail.order.providerPayments).toEqual([expect.objectContaining({
+      gateway: 'payfs',
+      providerTransactionId: '1418108930751619072',
+      amountMinor: 14_000,
+      currency: 'VND',
+      status: 'succeeded',
+    })]);
 
     const replay = await payfsRequest(credit({ content: `Ada transfer ${order.paymentReference}` }));
     expect(replay.status).toBe(200);
@@ -219,6 +241,45 @@ describe('PayFS webhook', () => {
     expect(await env.DB.prepare(
       "SELECT count(*) AS count FROM order_history WHERE order_id = ? AND action = 'order_paid'",
     ).bind(id).first<number>('count')).toBe(1);
+  });
+
+  it('returns provider audit summaries to assigned Staff without raw payload JSON', async () => {
+    const order = await createVndOrder();
+    const id = await orderId(order.reference);
+    const staff = await createConsoleSession({ email: 'payfs-audit-staff@example.test', role: 'staff' });
+    await assignOrder({
+      database: env.DB,
+      identity: await getConsoleIdentity(),
+      orderId: id,
+      body: { assigneeUserId: staff.userId },
+      idempotencyKey: 'payfs-audit-assignment',
+    });
+    expect(await (await payfsRequest(credit({
+      content: `Ada transfer ${order.paymentReference}`,
+      transaction_id: 'payfs-staff-audit',
+    }))).json()).toEqual({ status: 'confirmed' });
+    const response = await workerRequest(`/api/console/orders/${order.reference}`, {
+      headers: {
+        Cookie: staff.cookie,
+        Origin: TEST_CONSOLE_ORIGIN,
+        'Sec-Fetch-Site': 'same-origin',
+        'X-Nexus-Order-Contract': '2',
+      },
+    });
+    expect(response.status).toBe(200);
+    const detail = await response.json() as {
+      order: { providerEvents: Array<Record<string, unknown>>; providerPayments: Array<Record<string, unknown>> };
+    };
+    expect(detail.order.providerEvents).toEqual([expect.objectContaining({
+      provider: 'payfs',
+      providerEventId: 'payfs-staff-audit',
+    })]);
+    expect(detail.order.providerEvents[0]).not.toHaveProperty('payloadJson');
+    expect(detail.order.providerPayments).toEqual([expect.objectContaining({
+      gateway: 'payfs',
+      providerTransactionId: 'payfs-staff-audit',
+      amountMinor: 14_000,
+    })]);
   });
 
   it('reconciles an ignored recipient mismatch after the webhook account is corrected', async () => {
@@ -233,10 +294,20 @@ describe('PayFS webhook', () => {
       PAYFS_FEFAULT_ACCOUNT: 'VIRTUAL-ACCOUNT',
     });
     expect(await ignored.json()).toEqual({ status: 'ignored' });
+    const eventBefore = await env.DB.prepare(
+      `SELECT id, store_id, order_id, payload_json, received_at
+         FROM provider_events WHERE provider = 'payfs' AND provider_event_id = ?`,
+    ).bind('payfs-recipient-reconciled').first();
+    expect(eventBefore).toMatchObject({ store_id: null, order_id: null, payload_json: JSON.stringify(body) });
 
     const reconciled = await payfsRequest(body);
     expect(await reconciled.json()).toEqual({ status: 'confirmed' });
     expect(await env.DB.prepare('SELECT status FROM orders WHERE id = ?').bind(id).first<string>('status')).toBe('paid');
+    const eventAfter = await env.DB.prepare(
+      `SELECT id, store_id, order_id, payload_json, received_at
+         FROM provider_events WHERE provider = 'payfs' AND provider_event_id = ?`,
+    ).bind('payfs-recipient-reconciled').first();
+    expect(eventAfter).toEqual(eventBefore);
     expect(await env.DB.prepare(
       'SELECT outcome, ignored_reason FROM payfs_payment_receipts WHERE transaction_id = ?',
     ).bind('payfs-recipient-reconciled').first()).toEqual({ outcome: 'confirmed', ignored_reason: null });
@@ -401,6 +472,22 @@ describe('PayFS webhook', () => {
     expect(await env.DB.prepare(
       "SELECT count(*) AS count FROM order_history WHERE order_id = ? AND action = 'order_paid'",
     ).bind(id).first<number>('count')).toBe(0);
+    expect(await env.DB.prepare(
+      "SELECT count(*) AS count FROM provider_events WHERE type = 'payment' AND provider = 'payfs'",
+    ).first<number>('count')).toBe(7);
+    expect(await env.DB.prepare(
+      `SELECT provider_event_id, payload_json, store_id, order_id
+         FROM provider_events WHERE provider_event_id = 'payfs-total-1'`,
+    ).first()).toEqual({
+      provider_event_id: 'payfs-total-1',
+      payload_json: JSON.stringify(credit({
+        content: `Ada transfer ${vnd.paymentReference}`,
+        amount: 13_999,
+        transaction_id: 'payfs-total-1',
+      })),
+      store_id: null,
+      order_id: null,
+    });
 
     await resetCatalog();
     const usd = await createUsdOrder();
@@ -474,10 +561,62 @@ describe('PayFS webhook', () => {
     const [manualPayments, confirmedReceipts] = await Promise.all([
       env.DB.prepare('SELECT count(*) AS count FROM payments WHERE order_id = ?').bind(id).first<number>('count'),
       env.DB.prepare(
+
         "SELECT count(*) AS count FROM payfs_payment_receipts WHERE order_id = ? AND outcome = 'confirmed'",
       ).bind(id).first<number>('count'),
     ]);
     expect((manualPayments ?? 0) + (confirmedReceipts ?? 0)).toBe(1);
+  });
+
+  it('records an ignored provider event when cancellation wins after PayFS target lookup', async () => {
+    const order = await createVndOrder();
+    const id = await orderId(order.reference);
+    const context = await ownerContext();
+    let settlementBatchStarted = false;
+    const database = new Proxy(env.DB, {
+      get(target, property, receiver) {
+        if (property === 'batch') {
+          return async (statements: D1PreparedStatement[]) => {
+            if (!settlementBatchStarted) {
+              settlementBatchStarted = true;
+              await cancelOrder({
+                database: target,
+                context,
+                orderId: id,
+                body: {},
+                idempotencyKey: 'payfs-late-cancel',
+              });
+            }
+            return target.batch(statements);
+          };
+        }
+        const value = Reflect.get(target, property, receiver);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    }) as D1Database;
+    const body = credit({
+      content: `Ada transfer ${order.paymentReference}`,
+      transaction_id: 'payfs-late-cancel',
+    });
+    expect(await confirmPayfsCredit({
+      database,
+      body,
+      merchantBank: PAYFS_BINDINGS.PAYFS_MERCHANT_BANK,
+      merchantAccount: PAYFS_BINDINGS.PAYFS_MERCHANT_ACCOUNT,
+    })).toBe('ignored');
+    expect(await env.DB.prepare('SELECT status FROM orders WHERE id = ?').bind(id).first<string>('status')).toBe('canceled');
+    expect(await env.DB.prepare(
+      `SELECT outcome, ignored_reason FROM payfs_payment_receipts WHERE transaction_id = 'payfs-late-cancel'`,
+    ).first()).toEqual({ outcome: 'ignored', ignored_reason: 'order_not_eligible' });
+    expect(await env.DB.prepare(
+      `SELECT store_id, order_id, payload_json FROM provider_events WHERE provider_event_id = 'payfs-late-cancel'`,
+    ).first()).toEqual({ store_id: null, order_id: null, payload_json: JSON.stringify(body) });
+    expect(await confirmPayfsCredit({
+      database: env.DB,
+      body,
+      merchantBank: PAYFS_BINDINGS.PAYFS_MERCHANT_BANK,
+      merchantAccount: PAYFS_BINDINGS.PAYFS_MERCHANT_ACCOUNT,
+    })).toBe('already_processed');
   });
 
   it('makes concurrent PayFS and cancellation choose one terminal order transition', async () => {
