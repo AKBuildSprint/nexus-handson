@@ -33,7 +33,7 @@ function methodNotAllowed(): Response {
   return response;
 }
 
-async function parsePayfsBody(request: Request): Promise<unknown> {
+async function parsePayfsBody(request: Request): Promise<{ body: unknown; payloadJson: string }> {
   const declaredLength = request.headers.get('Content-Length');
   if (declaredLength !== null) {
     const declared = Number(declaredLength);
@@ -68,7 +68,8 @@ async function parsePayfsBody(request: Request): Promise<unknown> {
     offset += chunk.byteLength;
   }
   try {
-    return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) as unknown;
+    const payloadJson = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    return { body: JSON.parse(payloadJson) as unknown, payloadJson };
   } catch {
     throw new OrderValidationError('validation_failed', 'The PayFS payload is invalid.', [], 400);
   }
@@ -106,9 +107,11 @@ export async function routePayfsWebhookRequest(
     return jsonError(401, 'unauthorized', 'The PayFS webhook is unauthorized.');
   }
   try {
+    const payload = await parsePayfsBody(request);
     const outcome = await confirmPayfsCredit({
       database: env.DB,
-      body: await parsePayfsBody(request),
+      body: payload.body,
+      payloadJson: payload.payloadJson,
       merchantBank: configuration.merchantBank,
       merchantAccount: configuration.merchantAccount,
     });

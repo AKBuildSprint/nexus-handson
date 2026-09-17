@@ -75,6 +75,27 @@ export interface PayfsCreditInput {
 }
 
 export type PayfsCreditConfirmation = 'confirmed' | 'already_processed' | 'ignored';
+export type ProviderEventType = 'payment' | 'logistics';
+
+export interface ProviderEventProjection {
+  id: string;
+  type: ProviderEventType;
+  provider: string;
+  providerEventId: string;
+  receivedAt: string;
+  payloadJson?: string;
+}
+
+export interface ProviderPaymentProjection {
+  id: string;
+  gateway: string;
+  providerTransactionId: string;
+  amountMinor: number;
+  currency: string;
+  status: 'succeeded';
+  recordedAt: string;
+}
+
 
 export interface ConsoleOrderSummary {
   totalOrders: number;
@@ -236,6 +257,8 @@ export interface ConsoleOrderDetailProjection extends ConsoleOrderProjection {
   history: ConsoleOrderHistoryEntry[];
   payment: PaymentLedgerProjection | null;
   paymentRecordState: PaymentRecordState;
+  providerEvents: ProviderEventProjection[];
+  providerPayments: ProviderPaymentProjection[];
 }
 
 export interface ConsoleOrderListQuery {

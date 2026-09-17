@@ -77,6 +77,8 @@ const pendingDetail: ConsoleOrderDetailView = {
   history: [createdHistory],
   payment: null,
   paymentRecordState: 'none',
+  providerEvents: [],
+  providerPayments: [],
 };
 
 const zeroDetail: ConsoleOrderDetailView = {
@@ -139,6 +141,23 @@ const payfsDetail: ConsoleOrderDetailView = {
       createdAt: '2026-08-27T12:05:00.000Z',
     },
   ],
+  providerPayments: [{
+    id: 'provider_payment_1',
+    gateway: 'payfs',
+    providerTransactionId: 'payfs-tx-owner-audit',
+    amountMinor: 4701,
+    currency: 'USD',
+    status: 'succeeded',
+    recordedAt: '2026-08-27T12:05:00.000Z',
+  }],
+  providerEvents: [{
+    id: 'provider_event_1',
+    type: 'payment',
+    provider: 'payfs',
+    providerEventId: 'payfs-tx-owner-audit',
+    receivedAt: '2026-08-27T12:05:00.000Z',
+    payloadJson: '{"transaction_id":"payfs-tx-owner-audit"}',
+  }],
 };
 
 const screenDefaults: Omit<OrdersScreenProps, 'state' | 'orders'> = {
@@ -583,8 +602,7 @@ describe('Console Order contracts', () => {
     await waitUntil(() => Boolean(buttonByName('Record manual payment')));
     expect(container.textContent).toContain('Record a manual payment or Cancel only while the Order is still pending.');
   });
-
-  it('renders a PayFS payment without provider or manual-payment evidence', async () => {
+  it('renders the owner-provided provider audit without leaking fields from the legacy payment card', async () => {
     const unsafeProviderDetail = {
       ...payfsDetail,
       payment: {
@@ -603,18 +621,21 @@ describe('Console Order contracts', () => {
     window.history.replaceState({}, '', `/console/orders/${pendingDetail.reference}`);
     await renderApp();
     await waitUntil(() => Boolean(buttonByName('Fulfill')));
-    const paymentSection = container.querySelector<HTMLElement>('section[aria-labelledby=\"order-payment-title\"]');
+    const paymentSection = container.querySelector<HTMLElement>('section[aria-labelledby="order-payment-title"]');
+    const auditSection = container.querySelector<HTMLElement>('section[aria-labelledby="order-provider-audit-title"]');
     expect(paymentSection?.textContent).toContain('PayFS');
     expect(paymentSection?.textContent).toContain('$47.01 USD');
     expect(paymentSection?.textContent).toContain('Confirmed');
     expect(paymentSection?.textContent).not.toContain('Method');
     expect(paymentSection?.textContent).not.toContain('External reference');
-    expect(paymentSection?.textContent).not.toContain('Recorded actor');
-    expect(paymentSection?.textContent).not.toContain('Bootstrap Owner (demo)');
     expect(paymentSection?.innerHTML).not.toContain('payfs-tx-DO-NOT-RENDER');
     expect(paymentSection?.innerHTML).not.toContain('payfs-ref-DO-NOT-RENDER');
+    expect(auditSection?.textContent).toContain('Provider audit');
+    expect(auditSection?.textContent).toContain('payfs-tx-owner-audit');
+    expect(auditSection?.textContent).toContain('{"transaction_id":"payfs-tx-owner-audit"}');
     expect(buttonByName('Record manual payment')).toBeUndefined();
   });
+
 
   it('refreshes a hidden Console detail and drops stale payment actions', async () => {
     let gets = 0;

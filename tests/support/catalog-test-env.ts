@@ -18,6 +18,7 @@ import migrationEleven from '../../migrations/0011-google-account-binding-unique
 import migrationTwelve from '../../migrations/0012-store-bootstrap-and-owner-invitations.sql?raw';
 import migrationThirteen from '../../migrations/0013-payfs-webhook-payments.sql?raw';
 import migrationFourteen from '../../migrations/0014-order-email-outbox.sql?raw';
+import migrationFifteen from '../../migrations/0015-provider-events-and-payments.sql?raw';
 import worker from '../../apps/worker/src';
 import type { Env } from '../../apps/worker/src/environment';
 import type { ConsoleIdentityContext } from '@nexus/identity/identity-types';
@@ -100,16 +101,19 @@ export const catalogMigrations: D1Migration[] = [
   { name: '0012-store-bootstrap-and-owner-invitations.sql', queries: splitMigrationSql(migrationTwelve) },
   { name: '0013-payfs-webhook-payments.sql', queries: splitMigrationSql(migrationThirteen) },
   { name: '0014-order-email-outbox.sql', queries: splitMigrationSql(migrationFourteen) },
+  { name: '0015-provider-events-and-payments.sql', queries: splitMigrationSql(migrationFifteen) },
 ];
 
-export type CatalogMigrationThrough = 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14;
+export type CatalogMigrationThrough = 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
 
-export function applyCatalogMigrations(through: CatalogMigrationThrough = 14): Promise<void> {
+export function applyCatalogMigrations(through: CatalogMigrationThrough = 15): Promise<void> {
   return applyD1Migrations(env.DB, catalogMigrations.slice(0, through));
 }
 
 export async function resetCatalogThrough(through: CatalogMigrationThrough): Promise<void> {
   const tables = [
+    'provider_payments',
+    'provider_events',
     'order_email_jobs',
     'owner_invitations',
     'store_bootstrap_claims',
@@ -144,7 +148,7 @@ export async function resetCatalogThrough(through: CatalogMigrationThrough): Pro
 }
 
 export async function resetCatalog(): Promise<void> {
-  return resetCatalogThrough(14);
+  return resetCatalogThrough(15);
 }
 
 export const TEST_STOREFRONT_ORIGIN = 'https://storefront.test';

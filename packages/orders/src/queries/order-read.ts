@@ -13,6 +13,7 @@ import type {
   OrderStatus,
   PaymentLedgerProjection,
   PaymentRecordState,
+  ProviderEventProjection,
   RefundRequestProjection,
 } from '../order-types';
 import { OrderValidationError } from '../order-types';
@@ -79,6 +80,25 @@ interface PaymentRow {
   source: 'manual' | 'payfs';
   method: string | null;
   external_reference: string | null;
+  amount_minor: number;
+  currency: string;
+  status: 'succeeded';
+  recorded_at: string;
+}
+
+interface ProviderEventRow {
+  id: string;
+  type: ProviderEventProjection['type'];
+  provider: string;
+  provider_event_id: string;
+  received_at: string;
+  payload_json: string | null;
+}
+
+interface ProviderPaymentRow {
+  id: string;
+  gateway: string;
+  provider_transaction_id: string;
   amount_minor: number;
   currency: string;
   status: 'succeeded';
@@ -461,7 +481,8 @@ export async function readConsoleOrderByReference(
   const identity = requireConsoleIdentity(context.identity);
   const visible = consoleVisibilitySql('orders');
   const visibleBinds = consoleVisibilityBinds(identity);
-  const [orderResult, lineResult, refundResult, historyResult, paymentResult] = await database.batch([
+  const payloadJsonSelect = identity.role === 'owner' ? 'provider_events.payload_json' : 'NULL';
+  const [orderResult, lineResult, refundResult, historyResult, paymentResult, providerEventResult, providerPaymentResult] = await database.batch([
     database.prepare(`${HEADER_SELECT} WHERE orders.store_id = ? AND orders.reference = ? AND ${visible}`)
       .bind(storeId, reference, ...visibleBinds),
     database.prepare(
@@ -524,6 +545,33 @@ export async function readConsoleOrderByReference(
         WHERE receipts.outcome = 'confirmed'
           AND orders.store_id = ? AND orders.reference = ? AND ${visible}`,
     ).bind(storeId, reference, ...visibleBinds, storeId, reference, ...visibleBinds),
+    database.prepare(
+      `SELECT provider_events.id, provider_events.type, provider_events.provider,
+              provider_events.provider_event_id, provider_events.received_at,
+              ${payloadJsonSelect} AS payload_json
+         FROM provider_events
+         JOIN orders ON orders.store_id = ? AND orders.reference = ?
+        WHERE (
+          (provider_events.store_id = orders.store_id AND provider_events.order_id = orders.id)
+          OR EXISTS (
+            SELECT 1 FROM provider_payments
+             WHERE provider_payments.event_id = provider_events.id
+               AND provider_payments.store_id = orders.store_id
+               AND provider_payments.order_id = orders.id
+          )
+        ) AND ${visible}
+        ORDER BY provider_events.received_at ASC, provider_events.id ASC`,
+    ).bind(storeId, reference, ...visibleBinds),
+    database.prepare(
+      `SELECT provider_payments.id, provider_payments.gateway, provider_payments.provider_transaction_id,
+              provider_payments.amount_minor, provider_payments.currency, provider_payments.status,
+              provider_payments.recorded_at
+         FROM provider_payments
+         JOIN orders
+           ON orders.id = provider_payments.order_id AND orders.store_id = provider_payments.store_id
+        WHERE orders.store_id = ? AND orders.reference = ? AND ${visible}
+        ORDER BY provider_payments.recorded_at ASC, provider_payments.id ASC`,
+    ).bind(storeId, reference, ...visibleBinds),
   ]);
   const header = orderResult.results[0] as OrderHeaderRow | undefined;
   const lines = lineResult.results as OrderLineRow[];
@@ -550,6 +598,23 @@ export async function readConsoleOrderByReference(
     allowedActions: allowedActions(header.status, refund, context, header.assigned_user_id ?? null),
     payment,
     paymentRecordState: paymentRecordState(header.status, payment),
+    providerEvents: (providerEventResult.results as ProviderEventRow[]).map((event) => ({
+      id: event.id,
+      type: event.type,
+      provider: event.provider,
+      providerEventId: event.provider_event_id,
+      receivedAt: event.received_at,
+      ...(event.payload_json === null ? {} : { payloadJson: event.payload_json }),
+    })),
+    providerPayments: (providerPaymentResult.results as ProviderPaymentRow[]).map((payment) => ({
+      id: payment.id,
+      gateway: payment.gateway,
+      providerTransactionId: payment.provider_transaction_id,
+      amountMinor: payment.amount_minor,
+      currency: payment.currency,
+      status: payment.status,
+      recordedAt: payment.recorded_at,
+    })),
     history: (historyResult.results as HistoryRow[]).map((event) => ({
       action: event.action,
       source: event.source,

@@ -115,6 +115,15 @@ const ALLOWED_KEYS: Record<string, true> = {
   valueId: true,
   valueLabel: true,
   variant: true,
+  gateway: true,
+  payloadJson: true,
+  provider: true,
+  providerEventId: true,
+  providerEvents: true,
+  providerPayments: true,
+  providerTransactionId: true,
+  receivedAt: true,
+  type: true,
 };
 
 beforeEach(resetCatalog);
